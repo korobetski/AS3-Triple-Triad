@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="digits.png">
+    <SubTexture name="cdp" x="2" y="2" width="18" height="18"/>
+    <SubTexture name="cdm" x="22" y="2" width="18" height="18"/>
+    <SubTexture name="cd0" x="42" y="2" width="18" height="18"/>
+    <SubTexture name="cd1" x="62" y="2" width="18" height="18"/>
+    <SubTexture name="cd2" x="82" y="2" width="18" height="18"/>
+    <SubTexture name="cd3" x="2" y="22" width="18" height="18"/>
+    <SubTexture name="cd4" x="22" y="22" width="18" height="18"/>
+    <SubTexture name="cd5" x="42" y="22" width="18" height="18"/>
+    <SubTexture name="cd6" x="62" y="22" width="18" height="18"/>
+    <SubTexture name="cd7" x="82" y="22" width="18" height="18"/>
+    <SubTexture name="cd8" x="2" y="42" width="18" height="18"/>
+    <SubTexture name="cd9" x="22" y="42" width="18" height="18"/>
+    <SubTexture name="cdA" x="42" y="42" width="18" height="18"/>
+    <SubTexture name="cdbg" x="0" y="62" width="28" height="28"/>
+</TextureAtlas>

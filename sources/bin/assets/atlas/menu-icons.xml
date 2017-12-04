@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="menu-icons.atf">
+    <SubTexture name="000001.tex" x="40" y="80" width="40" height="40"/>
+    <SubTexture name="000002.tex" x="80" y="80" width="40" height="40"/>
+    <SubTexture name="000003.tex" x="40" y="120" width="40" height="40"/>
+    <SubTexture name="000005.tex" x="40" y="160" width="40" height="40"/>
+    <SubTexture name="000006.tex" x="80" y="120" width="40" height="40"/>
+    <SubTexture name="000026.tex" x="0" y="160" width="40" height="40"/>
+    <SubTexture name="000027.tex" x="0" y="120" width="40" height="40"/>
+    <SubTexture name="000029.tex" x="0" y="80" width="40" height="40"/>
+    <SubTexture name="000033.tex" x="0" y="0" width="40" height="40"/>
+    <SubTexture name="000045.tex" x="80" y="0" width="40" height="40"/>
+    <SubTexture name="000053.tex" x="80" y="40" width="40" height="40"/>
+    <SubTexture name="000055.tex" x="0" y="40" width="40" height="40"/>
+    <SubTexture name="000061.tex" x="40" y="40" width="40" height="40"/>
+    <SubTexture name="000062.tex" x="40" y="0" width="40" height="40"/>
+</TextureAtlas>

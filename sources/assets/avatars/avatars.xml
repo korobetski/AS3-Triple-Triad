@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with TexturePacker http://www.codeandweb.com/texturepacker-->
+<!-- $TexturePacker:SmartUpdate:e0fbea4e5d79786ece427b951d451cf9:2dbe9ffc93e1909f4649ba4b3cb969df:8a2d7030eb7ebe4208654f4747b0d7e4$ -->
+<TextureAtlas imagePath="avatarAtlas.png">
+    <SubTexture name="ffxiv_twi01001" x="2" y="2" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi01002" x="132" y="2" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi01003" x="262" y="2" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi01004" x="392" y="2" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi01005" x="522" y="2" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi01006" x="2" y="132" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi01007" x="2" y="262" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi01008" x="2" y="392" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi01009" x="2" y="522" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi01010" x="132" y="132" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi02001" x="262" y="132" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi02002" x="392" y="132" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi02003" x="522" y="132" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi02004" x="132" y="262" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi02005" x="132" y="392" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi02006" x="132" y="522" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi02007" x="262" y="262" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi02008" x="392" y="262" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi03001" x="522" y="262" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi03002" x="262" y="392" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi03003" x="262" y="522" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi03004" x="392" y="392" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi03005" x="522" y="392" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi03006" x="392" y="522" width="128" height="128"/>
+    <SubTexture name="ffxiv_twi03007" x="522" y="522" width="128" height="128"/>
+</TextureAtlas>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with TexturePacker http://www.codeandweb.com/texturepacker-->
+<!-- $TexturePacker:SmartUpdate:1b1c39415d993d602c448d61439de88f:e9df1a09e8edda46f2fbb9a86f848dde:c18a71dd14329039206219d56f507590$ -->
+<TextureAtlas imagePath="npcs.png">
+    <SubTexture name="aurifort" x="2" y="2" width="50" height="50"/>
+    <SubTexture name="baderon" x="54" y="2" width="50" height="50"/>
+    <SubTexture name="buscarron" x="106" y="2" width="50" height="50"/>
+    <SubTexture name="caraway" x="158" y="2" width="50" height="50"/>
+    <SubTexture name="chocoboy" x="210" y="2" width="50" height="50"/>
+    <SubTexture name="cid" x="262" y="2" width="50" height="50"/>
+    <SubTexture name="edea" x="314" y="2" width="50" height="50"/>
+    <SubTexture name="ellone" x="366" y="2" width="50" height="50"/>
+    <SubTexture name="elmer" x="2" y="54" width="50" height="50"/>
+    <SubTexture name="fhobhas" x="54" y="54" width="50" height="50"/>
+    <SubTexture name="fufulupa" x="106" y="54" width="50" height="50"/>
+    <SubTexture name="gegeruju" x="158" y="54" width="50" height="50"/>
+    <SubTexture name="guhtwint" x="210" y="54" width="50" height="50"/>
+    <SubTexture name="hab" x="262" y="54" width="50" height="50"/>
+    <SubTexture name="helmhart" x="314" y="54" width="50" height="50"/>
+    <SubTexture name="indolent-imperial" x="366" y="54" width="50" height="50"/>
+    <SubTexture name="joellaut" x="2" y="106" width="50" height="50"/>
+    <SubTexture name="jonas" x="54" y="106" width="50" height="50"/>
+    <SubTexture name="kid" x="106" y="106" width="50" height="50"/>
+    <SubTexture name="king" x="158" y="106" width="50" height="50"/>
+    <SubTexture name="laguna" x="210" y="106" width="50" height="50"/>
+    <SubTexture name="landenel" x="262" y="106" width="50" height="50"/>
+    <SubTexture name="maisenta" x="314" y="106" width="50" height="50"/>
+    <SubTexture name="marcette" x="366" y="106" width="50" height="50"/>
+    <SubTexture name="martine" x="2" y="158" width="50" height="50"/>
+    <SubTexture name="memeroon" x="54" y="158" width="50" height="50"/>
+    <SubTexture name="mimidoa" x="106" y="158" width="50" height="50"/>
+    <SubTexture name="miounne" x="158" y="158" width="50" height="50"/>
+    <SubTexture name="momo" x="210" y="158" width="50" height="50"/>
+    <SubTexture name="momodi" x="262" y="158" width="50" height="50"/>
+    <SubTexture name="odine" x="314" y="158" width="50" height="50"/>
+    <SubTexture name="ourdilic" x="366" y="158" width="50" height="50"/>
+    <SubTexture name="piralnaut" x="2" y="210" width="50" height="50"/>
+    <SubTexture name="queen-of-cards" x="54" y="210" width="50" height="50"/>
+    <SubTexture name="rashaht-rhiki" x="106" y="210" width="50" height="50"/>
+    <SubTexture name="roger" x="158" y="210" width="50" height="50"/>
+    <SubTexture name="rowena" x="210" y="210" width="50" height="50"/>
+    <SubTexture name="ruhtwyda" x="262" y="210" width="50" height="50"/>
+    <SubTexture name="sezul-totoloc" x="314" y="210" width="50" height="50"/>
+    <SubTexture name="swift" x="366" y="210" width="50" height="50"/>
+    <SubTexture name="tratchoum" x="2" y="262" width="50" height="50"/>
+    <SubTexture name="tt-master" x="54" y="262" width="50" height="50"/>
+    <SubTexture name="ufo" x="106" y="262" width="50" height="50"/>
+    <SubTexture name="vorsaile-heuloix" x="158" y="262" width="50" height="50"/>
+    <SubTexture name="watts" x="210" y="262" width="50" height="50"/>
+    <SubTexture name="wymond" x="262" y="262" width="50" height="50"/>
+    <SubTexture name="zone" x="314" y="262" width="50" height="50"/>
+</TextureAtlas>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with TexturePacker http://www.codeandweb.com/texturepacker-->
+<!-- $TexturePacker:SmartUpdate:a8601b95ace913b61fffee12c8b7f258:63ce832f34db069aeb3d4daf055b8609:41468049ad9fe6a29e2c695b85084cec$ -->
+<TextureAtlas imagePath="rules.png">
+    <SubTexture name="121601.tex" x="2" y="2" width="600" height="90"/>
+    <SubTexture name="121602.tex" x="604" y="2" width="600" height="90"/>
+    <SubTexture name="121603.tex" x="2" y="94" width="600" height="90"/>
+    <SubTexture name="121604.tex" x="604" y="94" width="600" height="90"/>
+    <SubTexture name="121605.tex" x="2" y="186" width="600" height="90"/>
+    <SubTexture name="121606.tex" x="604" y="186" width="600" height="90"/>
+    <SubTexture name="121611.tex" x="2" y="278" width="600" height="90"/>
+    <SubTexture name="121612.tex" x="604" y="278" width="600" height="90"/>
+    <SubTexture name="121613.tex" x="2" y="370" width="600" height="90"/>
+    <SubTexture name="121614.tex" x="604" y="370" width="600" height="90"/>
+    <SubTexture name="121615.tex" x="2" y="462" width="600" height="90"/>
+    <SubTexture name="121616.tex" x="604" y="462" width="600" height="90"/>
+    <SubTexture name="121617.tex" x="2" y="554" width="600" height="90"/>
+    <SubTexture name="121618.tex" x="604" y="554" width="600" height="90"/>
+    <SubTexture name="121619.tex" x="2" y="646" width="600" height="90"/>
+    <SubTexture name="121620.tex" x="604" y="646" width="600" height="90"/>
+    <SubTexture name="121621.tex" x="2" y="738" width="600" height="90"/>
+    <SubTexture name="121622.tex" x="604" y="738" width="600" height="90"/>
+    <SubTexture name="121623.tex" x="2" y="830" width="600" height="90"/>
+    <SubTexture name="121624.tex" x="604" y="830" width="600" height="90"/>
+</TextureAtlas>

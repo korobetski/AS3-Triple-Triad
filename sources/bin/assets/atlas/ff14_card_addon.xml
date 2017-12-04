@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="ff14_card_addon.atf">
+	<!--
+	Created with ShoeBox
+	http://renderhjs.net/shoebox/
+	-->
+	<SubTexture name="ff14_81"	x="202"	y="508"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_82"	x="202"	y="381"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_83"	x="202"	y="254"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_84"	x="202"	y="127"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_85"	x="202"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_86"	x="101"	y="889"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_87"	x="101"	y="762"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_88"	x="101"	y="635"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_89"	x="101"	y="508"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_90"	x="101"	y="381"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_91"	x="101"	y="254"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_92"	x="101"	y="127"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_93"	x="101"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_94"	x="0"	y="889"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_95"	x="0"	y="762"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_96"	x="0"	y="635"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_97"	x="0"	y="508"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_98"	x="0"	y="381"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_99"	x="0"	y="254"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_100"	x="0"	y="127"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_101"	x="0"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_102"	x="404"	y="508"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_103"	x="808"	y="889"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_104"	x="808"	y="762"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_105"	x="808"	y="635"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_106"	x="808"	y="508"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_107"	x="808"	y="381"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_108"	x="808"	y="254"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_109"	x="808"	y="127"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_110"	x="808"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_111"	x="707"	y="889"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_112"	x="707"	y="762"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_113"	x="707"	y="635"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_114"	x="707"	y="508"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_115"	x="707"	y="381"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_116"	x="707"	y="254"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_117"	x="707"	y="127"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_118"	x="707"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_119"	x="606"	y="889"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_120"	x="606"	y="762"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_121"	x="606"	y="635"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_122"	x="606"	y="508"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_123"	x="606"	y="381"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_124"	x="606"	y="254"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_125"	x="606"	y="127"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_126"	x="606"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_127"	x="505"	y="889"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_128"	x="505"	y="762"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_129"	x="505"	y="635"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_130"	x="505"	y="508"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_131"	x="505"	y="381"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_132"	x="505"	y="254"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_133"	x="505"	y="127"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_134"	x="505"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_135"	x="404"	y="889"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_136"	x="404"	y="762"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_137"	x="404"	y="635"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_138"	x="909"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_139"	x="404"	y="381"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_140"	x="404"	y="254"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_141"	x="404"	y="127"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_142"	x="404"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_143"	x="303"	y="889"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_144"	x="303"	y="762"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_145"	x="303"	y="635"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_146"	x="303"	y="508"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_147"	x="303"	y="381"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_148"	x="303"	y="254"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_149"	x="303"	y="127"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_150"	x="303"	y="0"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_151"	x="202"	y="889"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_152"	x="202"	y="762"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+	<SubTexture name="ff14_153"	x="202"	y="635"	width="100"	height="126" frameX="-2" frameY="-1" frameWidth="104" frameHeight="128"/>
+</TextureAtlas>

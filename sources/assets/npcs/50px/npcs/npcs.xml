@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="npcs.png">
+	<!--
+	Created with ShoeBox
+	http://renderhjs.net/shoebox/
+	-->
+	<SubTexture name="aurifort.png"	x="153"	y="357"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="baderon.png"	x="357"	y="153"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="buscarron.png"	x="357"	y="102"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="caraway.png"	x="357"	y="51"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="chocoboy.png"	x="357"	y="0"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="cid.png"	x="306"	y="459"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="default_female.png"	x="306"	y="408"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="default_male.png"	x="306"	y="357"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="dominiac.png"	x="306"	y="306"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="edea.png"	x="306"	y="255"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="elaisse.png"	x="306"	y="204"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="ellone.png"	x="306"	y="153"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="elmer.png"	x="306"	y="102"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="fhobhas.png"	x="306"	y="51"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="fufulupa.png"	x="306"	y="0"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="gegeruju.png"	x="255"	y="459"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="gibrillont.png"	x="255"	y="408"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="guhtwint.png"	x="255"	y="357"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="hab.png"	x="255"	y="306"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="helmhart.png"	x="255"	y="255"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="idle-imperial.png"	x="255"	y="204"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="indolent-imperial.png"	x="255"	y="153"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="joellaut.png"	x="255"	y="102"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="jonas.png"	x="255"	y="51"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="kid.png"	x="255"	y="0"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="king.png"	x="204"	y="459"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="klynthota.png"	x="204"	y="408"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="laguna.png"	x="204"	y="357"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="landenel.png"	x="204"	y="306"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="laniaitte.png"	x="204"	y="255"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="lewena.png"	x="204"	y="204"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="linu-vali.png"	x="204"	y="153"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="maisenta.png"	x="204"	y="102"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="manservant.png"	x="204"	y="51"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="marcechamp.png"	x="204"	y="0"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="marcette.png"	x="153"	y="459"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="marielle.png"	x="153"	y="408"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="martine.png"	x="357"	y="204"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="memeroon.png"	x="153"	y="306"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="midnight-dew.png"	x="153"	y="255"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="mimidoa.png"	x="153"	y="204"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="miounne.png"	x="153"	y="153"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="mogmill.png"	x="153"	y="102"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="mogzin.png"	x="153"	y="51"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="momo.png"	x="153"	y="0"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="momodi.png"	x="102"	y="459"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="mordyn.png"	x="102"	y="408"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="noes.png"	x="102"	y="357"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="odine.png"	x="102"	y="306"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="okalkaya.png"	x="102"	y="255"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="ourdilic.png"	x="102"	y="204"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="papalymo.png"	x="102"	y="153"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="piralnaut.png"	x="102"	y="102"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="queen-of-cards.png"	x="102"	y="51"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="rashaht-rhiki.png"	x="102"	y="0"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="roger.png"	x="51"	y="459"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="rowena.png"	x="51"	y="408"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="ruhtwyda.png"	x="51"	y="357"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="seika.png"	x="51"	y="306"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="sezul-totoloc.png"	x="51"	y="255"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="swift.png"	x="51"	y="204"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="tapklix.png"	x="51"	y="153"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="tataru.png"	x="51"	y="102"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="tratchoum.png"	x="51"	y="51"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="tt-master.png"	x="51"	y="0"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="ufo.png"	x="0"	y="459"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="vath-deftarm.png"	x="0"	y="408"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="voracious-vath.png"	x="0"	y="357"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="vorsaile-heuloix.png"	x="0"	y="306"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="watts.png"	x="0"	y="255"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="wawalago.png"	x="0"	y="204"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="wymond.png"	x="0"	y="153"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="yayake.png"	x="0"	y="102"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="yellow-moon.png"	x="0"	y="51"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+	<SubTexture name="zone.png"	x="0"	y="0"	width="50"	height="50" frameX="-0" frameY="-0" frameWidth="50" frameHeight="50"/>
+</TextureAtlas>

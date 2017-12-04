@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="sprites.png">
+	<!--
+	Created with ShoeBox
+	http://renderhjs.net/shoebox/
+	-->
+	<SubTexture name="081.png"	x="101"	y="254"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="082.png"	x="101"	y="190"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="083.png"	x="101"	y="127"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="084.png"	x="101"	y="63"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="085.png"	x="101"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="086.png"	x="50"	y="444"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="087.png"	x="50"	y="381"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="088.png"	x="50"	y="317"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="089.png"	x="50"	y="254"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="090.png"	x="50"	y="190"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="091.png"	x="50"	y="127"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="092.png"	x="50"	y="63"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="093.png"	x="50"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="094.png"	x="0"	y="444"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="095.png"	x="0"	y="381"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="096.png"	x="0"	y="317"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="097.png"	x="0"	y="254"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="098.png"	x="0"	y="190"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="099.png"	x="0"	y="127"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="100.png"	x="0"	y="63"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="101.png"	x="0"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="102.png"	x="202"	y="254"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="103.png"	x="404"	y="444"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="104.png"	x="404"	y="381"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="105.png"	x="404"	y="317"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="106.png"	x="404"	y="254"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="107.png"	x="404"	y="190"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="108.png"	x="404"	y="127"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="109.png"	x="404"	y="63"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="110.png"	x="404"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="111.png"	x="353"	y="444"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="112.png"	x="353"	y="381"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="113.png"	x="353"	y="317"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="114.png"	x="353"	y="254"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="115.png"	x="353"	y="190"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="116.png"	x="353"	y="127"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="117.png"	x="353"	y="63"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="118.png"	x="353"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="119.png"	x="303"	y="444"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="120.png"	x="303"	y="381"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="121.png"	x="303"	y="317"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="122.png"	x="303"	y="254"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="123.png"	x="303"	y="190"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="124.png"	x="303"	y="127"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="125.png"	x="303"	y="63"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="126.png"	x="303"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="127.png"	x="252"	y="444"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="128.png"	x="252"	y="381"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="129.png"	x="252"	y="317"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="130.png"	x="252"	y="254"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="131.png"	x="252"	y="190"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="132.png"	x="252"	y="127"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="133.png"	x="252"	y="63"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="134.png"	x="252"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="135.png"	x="202"	y="444"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="136.png"	x="202"	y="381"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="137.png"	x="202"	y="317"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="138.png"	x="454"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="139.png"	x="202"	y="190"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="140.png"	x="202"	y="127"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="141.png"	x="202"	y="63"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="142.png"	x="202"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="143.png"	x="151"	y="444"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="144.png"	x="151"	y="381"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="145.png"	x="151"	y="317"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="146.png"	x="151"	y="254"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="147.png"	x="151"	y="190"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="148.png"	x="151"	y="127"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="149.png"	x="151"	y="63"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="150.png"	x="151"	y="0"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="151.png"	x="101"	y="444"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="152.png"	x="101"	y="381"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+	<SubTexture name="153.png"	x="101"	y="317"	width="50"	height="63" frameX="-1" frameY="-0" frameWidth="52" frameHeight="64"/>
+</TextureAtlas>

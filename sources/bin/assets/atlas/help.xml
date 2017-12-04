@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="help.atf">
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_36" x="0" y="516" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_37" x="1060" y="516" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_38" x="1060" y="774" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_39" x="0" y="774" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_40" x="530" y="774" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_41" x="530" y="516" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_42" x="1060" y="258" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_43" x="0" y="0" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_44" x="1060" y="0" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_45" x="530" y="258" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_46" x="0" y="258" width="530" height="258"/>
+    <SubTexture name="fb9f6956394bb5547bdc91b2062ec4fa99fee568_47" x="530" y="0" width="530" height="258"/>
+</TextureAtlas>

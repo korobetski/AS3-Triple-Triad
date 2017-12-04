@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="-mogu_anime_en.tex.png">
+    <SubTexture name="mogu_00" x="0" y="0" width="400" height="168"/>
+    <SubTexture name="mogu_01" x="400" y="0" width="400" height="168"/>
+    <SubTexture name="mogu_02" x="800" y="0" width="400" height="168"/>
+    <SubTexture name="mogu_03" x="1200" y="0" width="400" height="168"/>
+    <SubTexture name="mogu_04" x="0" y="168" width="400" height="168"/>
+    <SubTexture name="mogu_05" x="400" y="168" width="400" height="168"/>
+    <SubTexture name="mogu_06" x="800" y="168" width="400" height="168"/>
+    <SubTexture name="mogu_07" x="1200" y="168" width="400" height="168"/>
+    <SubTexture name="mogu_08" x="0" y="336" width="400" height="168"/>
+    <SubTexture name="mogu_09" x="400" y="336" width="400" height="168"/>
+    <SubTexture name="mogu_10" x="800" y="336" width="400" height="168"/>
+    <SubTexture name="mogu_11" x="1200" y="336" width="400" height="168"/>
+    <SubTexture name="mogu_12" x="0" y="504" width="400" height="168"/>
+    <SubTexture name="mogu_13" x="400" y="504" width="400" height="168"/>
+    <SubTexture name="mogu_14" x="800" y="504" width="400" height="168"/>
+    <SubTexture name="mogu_15" x="1200" y="504" width="400" height="168"/>
+</TextureAtlas>
