@@ -75,7 +75,24 @@ Phase 0 establishes the foundation for the entire migration project. This phase 
 **Owner**: Tech Lead
 **Duration**: 3 days
 **Priority**: CRITICAL
-**Status**: ⏳ NOT STARTED
+**Status**: ⚠️ PARTIALLY DELIVERED — the PoC in [`kotlin/`](../../kotlin/README.md)
+builds and is verified, but it covers only requirements 1, 3, 4 and 6 below
+
+> **History.** A first PoC in `poc/` was reported COMPLETE and "technology stack
+> validated" while never having been compiled; it had 12 build-blocking defects
+> (missing Ktor and serialization dependencies, `import kotlinx.coroutines.IO`,
+> non-existent artifact versions, Material 2/3 mismatch, no Gradle wrapper).
+> It was deleted and rewritten from scratch as
+> [`kotlin/`](../../kotlin/README.md), which builds:
+> Android debug + release APKs, a JVM desktop host, 5 model tests and 3 Compose UI
+> tests that click the card and assert the owner changes. Results are recorded in
+> [kotlin/README.md § Verified build results](../../kotlin/README.md#verified-build-results).
+>
+> **Still not done.** The new PoC deliberately covers only a single card that
+> flips. Requirements 2 (JSON loading) and 5 (runs on iOS) are unmet — iOS has
+> never been compiled, because Kotlin/Native cannot target Apple platforms from a
+> Windows host and no Xcode project exists. No performance figure has been
+> measured. Do not close this task on the strength of the new PoC alone.
 
 **Description**: Create a working proof of concept to validate the technology stack and migration approach.
 
@@ -106,13 +123,21 @@ PoC Scope:
 - [ ] Card animations perform smoothly (60+ FPS)
 - [ ] JSON data loading works
 - [ ] Touch handling works correctly
-- [ ] App size is reasonable (< 10MB for PoC)
+- [ ] App size is reasonable (< 20MB for PoC). MEASURED on the `kotlin/` PoC:
+      10.2 MB debug / 7.5 MB release-unsigned, for one procedurally-drawn card with
+      no assets. That passes "< 20MB" but fails the "< 10MB" criterion an earlier
+      revision of this document used, and it says nothing about the real app, which
+      adds 263 card images plus UI atlases and audio.
 - [ ] Memory usage is acceptable
 
 **Success Criteria**:
 - PoC runs on Android emulator (API 34)
 - PoC runs on iOS simulator (iOS 17+)
-- Card displays with correct artwork
+- Card renders with the correct layout and power values. PARTLY MET: the `kotlin/`
+  PoC reproduces the real geometry (88x118 card, 36x24 digit badge with the four
+  powers at the AS3 `CardDigits.positions` offsets, power 10 shown as "A") but
+  draws it from primitives -- there is no card artwork. Slicing images out of the
+  Starling atlases is unvalidated and remains a Phase 1 risk.
 - Flip animation works smoothly
 - Touch input is responsive
 - Performance metrics meet minimum requirements
@@ -123,8 +148,9 @@ PoC Scope:
 - If iOS setup is problematic, consider using KMP iOS template
 
 **Deliverables**:
-- Working PoC code in `poc/` directory
-- PoC validation report
+- Working PoC code in the [`kotlin/`](../../kotlin/README.md) directory
+  (the earlier `poc/` directory was deleted — see the history note above)
+- PoC validation report — [kotlin/README.md](../../kotlin/README.md)
 - Performance benchmarks
 - Technology validation document
 
@@ -139,14 +165,20 @@ PoC Scope:
 **Description**: Finalize the analysis of the ActionScript 3 codebase, creating detailed documentation for migration.
 
 **Sub-tasks**:
-- [ ] Create complete class dependency graph (all 103 files)
+- [ ] Create complete class dependency graph (all 103 files in `tto/`; note the
+      wider `sources/src/` tree holds 579 files / ~186k lines, the rest being
+      vendored Starling, Feathers, as3crypto and Adobe corelib)
 - [ ] Document all event types and their usage
 - [ ] Map all AS3 APIs to Kotlin equivalents
 - [ ] Identify all external dependencies and their replacements
 - [ ] Document all game rules and their interactions
 - [ ] Create data flow diagrams for critical components
 - [ ] Identify potential performance bottlenecks
-- [ ] Document all network message types and formats
+- [ ] Document all network message types and formats. ⚠️ Reality check: 27 of the
+      29 `Socket_On_*` handlers are unreachable dead code, so there is no live
+      protocol to observe beyond connect/ping/user-list. This deliverable is a
+      protocol **specification** exercise, not reverse engineering — see TR-007 in
+      [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md)
 
 **Analysis Documents to Create**:
 1. **Dependency Matrix** - All class dependencies in spreadsheet format
@@ -279,16 +311,19 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main, migration/kotlin-multiplatform ]
+    # NOTE: this repository's default branch is `master`, not `main`.
+    # `git remote show origin` confirms it. With `main` here the workflow would
+    # never trigger.
+    branches: [ master, migration/kotlin-multiplatform ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   build-shared:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -299,7 +334,7 @@ jobs:
     needs: build-shared
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -310,22 +345,33 @@ jobs:
     needs: build-shared
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-      - run: ./gradlew :iosApp:build
+      # `iosApp` is an Xcode project, NOT a Gradle module -- `:iosApp:build` does
+      # not exist and the job would fail immediately. Build the shared framework
+      # with Gradle, run the iOS unit tests, then build the app with xcodebuild.
+      - run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+      - run: ./gradlew :shared:iosSimulatorArm64Test
+      - run: |
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp                      -sdk iphonesimulator                      -destination 'platform=iOS Simulator,name=iPhone 15'                      build
 
   test:
     runs-on: ubuntu-latest
     needs: [build-shared, build-android]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
+        with:
+          distribution: \'temurin\'
+          java-version: \'17\'
       - run: ./gradlew allTests
       - run: ./gradlew detekt
       - run: ./gradlew ktlintCheck
-      - uses: codecov/codecov-action@v3
+      # Coverage on KMP needs Kover; JaCoCo alone does not cover Native targets.
+      - run: ./gradlew koverXmlReport
+      - uses: codecov/codecov-action@v4
         with:
           files: ./**/build/reports/coverage/**/*.xml
 ```
@@ -432,7 +478,7 @@ jobs:
 - [ ] `docs/development/git-workflow.md`
 - [ ] `docs/development/testing-strategy.md`
 - [ ] `docs/development/performance-guidelines.md`
-- [ ] `poc/` - Proof of Concept code
+- [x] `kotlin/` - Proof of Concept code (builds; scope limited to one flipping card)
 
 ---
 
@@ -459,6 +505,13 @@ jobs:
 - [ ] All standards are documented
 
 ### Approvals
+- [ ] **BR-003 (Square Enix IP) resolved in writing** — blocking, see
+      [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md)
+- [ ] **TR-007 (multiplayer scope) decided** — PvP in v1 or deferred
+- [ ] **Budget re-baselined** — the original €232.5k-€297.5k figure was
+      arithmetically inconsistent; see [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md)
+- [ ] PoC actually builds and runs on Android and iOS — **Android: done**
+      (`kotlin/`, APK produced, UI tests green). **iOS: not done**, never compiled.
 - [ ] Tech Lead approves phase completion
 - [ ] Team confirms readiness for Phase 1
 - [ ] Stakeholders approve to proceed
@@ -470,6 +523,8 @@ jobs:
 | Risk | Probability | Impact | Mitigation | Owner |
 |------|-------------|--------|------------|-------|
 | Compose MP not ready for production | Low | High | Validate with PoC, have fallback plan | Tech Lead |
+| **Unlicensed Square Enix IP blocks any public release** | **Very High** | **Critical** | **Resolve BR-003 before Phase 0 sign-off: reskin, licence, or do not release** | **Project Sponsor + Legal** |
+| **Multiplayer is greenfield, not a migration** | **Very High** | **High** | **Re-scope Phase 5 or drop PvP from v1 (TR-007)** | **Tech Lead** |
 | Team skill gaps | Medium | High | Comprehensive training, pair programming | Tech Lead |
 | PoC reveals technology issues | Medium | High | Start PoC early, allow time for pivots | Tech Lead |
 | CI/CD setup complexity | Medium | Medium | Use DevOps expertise, leverage templates | DevOps |

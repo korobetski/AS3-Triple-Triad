@@ -294,10 +294,10 @@ fun GameScreen(viewModel: GameViewModel) {
 | Feathers Component | Compose Equivalent | Notes |
 |-------------------|-------------------|-------|
 | `Screen` | `@Composable` function | Use `Box`, `Column`, `Row` |
-| `ScreenNavigator` | `NavHost` + `NavController` | Jetpack Navigation Compose |
+| `ScreenNavigator` | `NavHost` + `NavController`, or a shared `StateFlow<Screen>` | `navigation-compose` 2.7.x is Android-only — see the note in 03-TECHNICAL-STACK.md |
 | `Button` | `Button` | Material Design 3 |
 | `Label` | `Text` | Material Typography |
-| `Image` | `Image` | Use Coil/Accompanist for loading |
+| `Image` | `Image` + `painterResource` | Compose Resources — **not** Coil 2 (Android-only) or Accompanist (Android-only) |
 | `LayoutGroup` | `Column` / `Row` / `Box` | Flexible layouts |
 | `Sprite` | `Box` + `Canvas` | Use `graphicsLayer` for transforms |
 | `Quad` | `Box` with `Modifier.background()` | Solid color rectangle |
@@ -441,44 +441,40 @@ fun DraggableCard(
 }
 
 // Drop Target Tile
+//
+// ⚠️ `detectDragGestures` has NO onDragEnter / onDragExit parameters — its
+// signature is (onDragStart, onDragEnd, onDragCancel, onDrag). The snippet
+// previously shown here would not compile.
+//
+// Compose has no built-in drop target for in-process drags. Use one shared drag
+// state above the board: each tile registers its bounds, the dragged card updates
+// a position, and hit-testing happens in the board's coordinate space.
+// Full implementation: see 08-PHASE-4-UI-LAYER.md Task 4.7 (BoardDragState).
 @Composable
 fun DropTargetTile(
     tile: Tile,
-    onCardDrop: (Card) -> Unit
+    dragState: BoardDragState,
+    boardCoordinates: LayoutCoordinates?
 ) {
-    var isDraggingOver by remember { mutableStateOf(false) }
-    var draggedCard by remember { mutableStateOf<Card?>(null) }
-    
+    val isHovered = dragState.hoveredTileId() == tile.id && !tile.isTaken
+
     Box(
         modifier = Modifier
-            .size(136.dp)
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragEnter = {
-                        isDraggingOver = true
-                        true // accept drag
-                    },
-                    onDragExit = {
-                        isDraggingOver = false
-                    },
-                    onDragEnd = {
-                        if (isDraggingOver && draggedCard != null) {
-                            onCardDrop(draggedCard!!)
-                        }
-                        isDraggingOver = false
-                        draggedCard = null
-                    }
-                )
+            .size(136.dp)                       // Tile.as:51 — width = height = 136
+            .onGloballyPositioned { coords ->
+                boardCoordinates?.let {
+                    dragState.registerTile(
+                        tile.id,
+                        Rect(it.localPositionOf(coords, Offset.Zero), coords.size.toSize())
+                    )
+                }
             }
             .border(
-                width = if (isDraggingOver) 2.dp else 0.dp,
-                color = Color.Green
+                width = if (isHovered) 2.dp else 0.dp,
+                color = if (isHovered) Color.Green else Color.Transparent
             )
     ) {
-        // Tile content
-        tile.card?.let { card ->
-            CardComponent(card = card)
-        }
+        tile.card?.let { card -> CardComponent(card = card) }
     }
 }
 ```
@@ -540,41 +536,75 @@ Starling.juggler.tween(card, 0.4, {
 ```
 
 **Kotlin (Compose):**
+
+> ⚠️ **The previous snippet was wrong twice.** `rememberInfiniteTransition()` is for
+> animations that **loop forever** — exactly the opposite of a one-shot card fly.
+> And `InfiniteTransition.animateFloat`/`animateDp` require an
+> `InfiniteRepeatableSpec`; passing a plain `tween(...)` does not compile.
+>
+> A Starling `juggler.tween(..., onComplete:)` is a **one-shot animation with a
+> completion callback**. The Compose equivalent is `Animatable` driven from a
+> coroutine, which gives you a real suspension point to sequence on:
+
 ```kotlin
-val transition = rememberInfiniteTransition()
-val alpha by transition.animateFloat(
-    initialValue = 1f,
-    targetValue = 0f,
-    animationSpec = tween(
-        durationMillis = 400,
-        easing = LinearEasing
-    )
-)
-val offsetY by transition.animateDp(
-    initialValue = 0.dp,
-    targetValue = (-100).dp,
-    animationSpec = tween(400)
-)
-
-Box(
-    modifier = Modifier
-        .offset(y = offsetY)
-        .alpha(alpha)
+// One-shot fly + fade, with a completion callback — the direct analogue of
+// juggler.tween(card, 0.4, {y: ..., alpha: 0, onComplete: afterFly})
+@Composable
+fun FlyingCard(
+    card: Card,
+    targetOffsetY: Dp,
+    onComplete: () -> Unit
 ) {
-    // Content
-}
+    val offsetY = remember { Animatable(0f) }
+    val alpha = remember { Animatable(1f) }
+    val density = LocalDensity.current
 
-// For one-time animation with completion
-val scope = rememberCoroutineScope()
-var playAnimation by remember { mutableStateOf(false) }
-
-if (playAnimation) {
-    LaunchedEffect(Unit) {
-        // Animate
-        delay(400L)
-        afterFly(x, y)
+    LaunchedEffect(card.id) {
+        val targetPx = with(density) { targetOffsetY.toPx() }
+        // Run both tracks concurrently, then fire the callback once both finish.
+        coroutineScope {
+            launch { offsetY.animateTo(targetPx, tween(400, easing = FastOutLinearInEasing)) }
+            launch { alpha.animateTo(0f, tween(400, easing = FastOutLinearInEasing)) }
+        }
+        onComplete()          // reached only after both animations complete
     }
+
+    CardComponent(
+        card = card,
+        modifier = Modifier
+            .offset { IntOffset(0, offsetY.value.roundToInt()) }
+            .alpha(alpha.value)
+    )
 }
+```
+
+For **sequencing** several animations — which the combo cascade needs — just
+`await` them in order inside one coroutine; no callback pyramid:
+
+```kotlin
+LaunchedEffect(comboChain) {
+    comboChain.forEach { capture ->
+        flipAnimatable(capture.tileId).animateTo(180f, tween(400))
+        delay(120)                       // stagger between shock waves
+    }
+    onCascadeComplete()
+}
+```
+
+**Only** use `rememberInfiniteTransition` for genuinely looping effects, such as the
+pulsing turn indicator:
+
+```kotlin
+val transition = rememberInfiniteTransition(label = "turnPulse")
+val scale by transition.animateFloat(
+    initialValue = 1f,
+    targetValue = 1.1f,
+    animationSpec = infiniteRepeatable(   // required — not a bare tween()
+        animation = tween(1000, easing = FastOutSlowInEasing),
+        repeatMode = RepeatMode.Reverse
+    ),
+    label = "pulseScale"
+)
 ```
 
 ---
@@ -652,35 +682,87 @@ val config = Json.decodeFromString<AppConfig>(readConfigFile())
 
 ### Sound Playback
 
-**AS3:**
+**AS3 (actual — `utils/SoundManager.as`):**
 ```actionscript
-// Play sound
-SoundManager.playSound('se_ttriad.scd_1', true);
+// NOTE: the 2nd parameter is `isNoise` (which channel), NOT `loop`.
+public static function playSound(soundId:String, isNoise:Boolean = false, loops:uint = 0):void
+public static function stop():void                  // there is no stopAll()
+public static function shuffleLoop():void           // background music playlist
+public static function fadeSoundChannel(channel, delay, new_volume, onComplete):void
+public static function setChannelVolume(channel, volume):void
 
-// Stop all sounds
-SoundManager.stopAll();
+// Two independent channels with independent volumes:
+public static var BACKGROUND_CHANNEL:SoundChannel;
+public static var NOISE_CHANNEL:SoundChannel;
+public static var BACKGROUND_VOLUME:Number = 1;     // persisted in UserSettings.json
+public static var NOISE_VOLUME:Number = 1;
+
+// Usage — 'true' selects the NOISE channel, it does not mean "loop":
+SoundManager.playSound('se_ttriad.scd_1', true);
+```
+
+> ⚠️ **Two corrections.** `SoundManager.stopAll()` does not exist (it is `stop()`),
+> and the second argument is the channel selector, not a loop flag. A previous
+> revision documented `playSound(soundId, loop)` and mapped it to a single
+> `ExoPlayer` — which would **cut the background music every time a sound effect
+> plays**, and would drop the separate background/effects volume sliders exposed by
+> `SettingsScreen`.
+>
+> The audio abstraction needs **two channels**:
+
+**Kotlin (shared interface):**
+```kotlin
+// commonMain
+enum class AudioChannel { BACKGROUND, EFFECTS }
+
+interface AudioPlayer {
+    fun play(soundId: String, channel: AudioChannel = AudioChannel.EFFECTS, loop: Boolean = false)
+    fun stop(channel: AudioChannel)
+    fun stopAll()
+    fun setVolume(channel: AudioChannel, volume: Float)   // 0f..1f, persisted
+    fun release()
+}
 ```
 
 **Kotlin (Android):**
 ```kotlin
-// Using Media3 ExoPlayer
-class AudioManager(private val context: Context) {
-    private val exoPlayer: ExoPlayer by lazy { ExoPlayer.Builder(context).build() }
-    
-    fun playSound(soundId: String, loop: Boolean = false) {
-        val mediaItem = MediaItem.fromUri("asset:///sounds/$soundId.mp3")
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-        exoPlayer.prepare()
-        exoPlayer.play()
+// androidMain — one player PER CHANNEL, so effects never interrupt music.
+class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
+    private val players = mutableMapOf<AudioChannel, ExoPlayer>()
+
+    private fun player(channel: AudioChannel): ExoPlayer =
+        players.getOrPut(channel) { ExoPlayer.Builder(context).build() }
+
+    override fun play(soundId: String, channel: AudioChannel, loop: Boolean) {
+        player(channel).apply {
+            setMediaItem(MediaItem.fromUri("asset:///sounds/$soundId.mp3"))
+            repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+            prepare()
+            play()
+        }
     }
-    
-    fun stopAll() {
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
+
+    override fun stop(channel: AudioChannel) {
+        players[channel]?.apply { stop(); clearMediaItems() }
+    }
+
+    override fun stopAll() = AudioChannel.entries.forEach(::stop)
+
+    override fun setVolume(channel: AudioChannel, volume: Float) {
+        player(channel).volume = volume.coerceIn(0f, 1f)
+    }
+
+    override fun release() {
+        players.values.forEach { it.release() }
+        players.clear()
     }
 }
 ```
+
+> **Rapid-fire effects**: `ExoPlayer` restarts on each `setMediaItem`, so
+> overlapping card-flip sounds will cut each other off. For short effects prefer
+> `SoundPool` on Android and `AVAudioPlayer` instances (or `AVAudioEngine`) on iOS;
+> reserve ExoPlayer for the background music track.
 
 ---
 
@@ -754,31 +836,42 @@ fun String.hexToUInt(): UInt = when (this) {
 
 ### Card Colors
 
-**AS3:**
+**AS3 (actual — `display/Card.as:29-31`):**
 ```actionscript
-public static const BLUE_COLOR:uint = 0x43a7c8;
-public static const RED_COLOR:uint = 0xbb594f;
 public static const GREY_COLOR:uint = 0x5a595a;
+public static const BLUE_COLOR:uint = 0x2d4660;   // NOT 0x43a7c8
+public static const RED_COLOR:uint  = 0x602d2d;   // NOT 0xbb594f
 
-// Usage
-_color = Card.BLUE_COLOR;
+// Usage: _color holds the NAME, not the colour value.
+_color = 'GREY';                                  // 'BLUE' | 'RED' | 'GREY'
+// and the quad is tinted separately:
+colorBackground = new Quad(88, 118, 0x5a595a);
 ```
+
+> ⚠️ **Corrected.** `0x43a7c8` / `0xbb594f` are *text* colours from
+> `theme/BaseTTOTheme.as:1537-1544` (`largeBlueElementFormat` /
+> `largeRedElementFormat`), not card colours — a previous revision conflated the
+> two. Also, `Card._color` is a **String** name (`'BLUE'`/`'RED'`/`'GREY'`), so
+> `_color = Card.BLUE_COLOR` (assigning a uint) was never valid.
 
 **Kotlin:**
 ```kotlin
-enum class CardColor {
-    BLUE, RED, GREY
-}
+@Serializable
+enum class CardColor { BLUE, RED, GREY }
 
-// Colors
-val BlueColor = Color(0xFF43a7c8)
-val RedColor = Color(0xFFbb594f)
-val GreyColor = Color(0xFF5a595a)
+// Card background tints
+val CardBlue = Color(0xFF2D4660)
+val CardRed  = Color(0xFF602D2D)
+val CardGrey = Color(0xFF5A595A)
 
-// In Card class
-@Transient
-var color: CardColor = CardColor.GREY
+// Text colours (distinct from the above)
+val TextBlue = Color(0xFF43A7C8)
+val TextRed  = Color(0xFFBB594F)
 ```
+
+> Ownership does **not** live on `Card` — see the note in
+> [13-DATA-MODELS.md](./13-DATA-MODELS.md). `Card` is immutable card data; who owns
+> a card is a property of the tile or hand entry holding it.
 
 ### Element Types
 
@@ -824,31 +917,78 @@ enum class CardType {
 
 **AS3:**
 ```actionscript
-// From tools.as
+// From tools.as (actual argument order — equivalent result)
 public static function madmax(value:int):int {
-    return Math.max(0, Math.min(value, 10));
+    return Math.min(10, Math.max(0, value));
 }
 ```
 
 **Kotlin:**
 ```kotlin
-fun madmax(value: Int): Int = maxOf(0, minOf(value, 10))
+fun madmax(value: Int): Int = value.coerceIn(0, 10)
 ```
+
+> Used by `TTOCore.applyRules` to clamp edge powers after Ascension / Descension /
+> Elemental modifiers. Note it clamps to **0..10**, so a modified power can reach 0
+> — which is why `Tile` powers are compared as values, not as "printed digits".
 
 ### Random Number
 
-**AS3:**
+> ⚠️ **The AS3 snippet previously shown here was wrong, and the difference is
+> behavioural.** `tools.rand` uses `Math.round`, not `Math.floor`:
+>
+> ```actionscript
+> // tools.as — ACTUAL
+> public static function rand(to:uint):uint {
+>     return Math.round(Math.random() * to);
+> }
+> ```
+>
+> `Math.round(random() * to)` returns `0..to` inclusive but is **not uniform**: the
+> endpoints `0` and `to` each occur with half the probability of the interior
+> values. `Math.floor(random() * (to + 1))` — and `Random.nextInt(to + 1)` — are
+> uniform over the same range.
+>
+> This is not academic. `rand` drives `tripleTriadRules.roulette()` (which rule set
+> a match gets), `tools.array_rand` (booster card draws, random deck selection) and
+> the Random/Chaos rules. Porting it as uniform silently changes the game's
+> probability distributions.
+>
+> Decide explicitly:
+> - **Recommended**: use the uniform version. The AS3 behaviour is almost certainly
+>   an unintentional bug, and uniform is what a player would expect.
+> - **If bit-exact parity matters** (e.g. to validate ported logic against recorded
+>   AS3 sessions), reproduce the skew.
+>
+> Whichever you pick, write it down and test it — do not leave it implicit.
+
+**AS3 (actual):**
 ```actionscript
-// From tools.as
-public static function rand(max:int):int {
-    return Math.floor(Math.random() * (max + 1));
+public static function rand(to:uint):uint {
+    return Math.round(Math.random() * to);   // NOT uniform at the endpoints
+}
+
+public static function madmax(value:int):int {
+    return Math.min(10, Math.max(0, value)); // clamp to 0..10
 }
 ```
 
 **Kotlin:**
 ```kotlin
-fun rand(max: Int): Int = Random.nextInt(max + 1)
+// Recommended: uniform in 0..to inclusive.
+fun rand(to: Int): Int = Random.nextInt(to + 1)
+
+// Bit-compatible with the AS3 skew, if parity is required:
+fun randAs3Compatible(to: Int): Int =
+    (Random.nextDouble() * to).roundToInt()
+
+fun madmax(value: Int): Int = value.coerceIn(0, 10)
 ```
+
+> **Also note** `tools.array_rand(arr, num)` returns `r[0]` when `num == 1` but an
+> `Array` otherwise, and `null` if `num > arr.length` — an `Any?` return in Kotlin
+> terms. Split it into two functions (`randomElement(): T?` and
+> `randomElements(n: Int): List<T>`) rather than reproducing the polymorphic return.
 
 ### Array Contains
 
@@ -966,7 +1106,7 @@ fun nextPhase() {
 ### 2. Test Core Logic Thoroughly
 - `TTOCore` is the most critical component
 - Write property-based tests for rules
-- Verify all 15+ rules work identically
+- Verify all 17 rules work identically
 
 ### 3. Handle State Carefully
 - AS3 uses a lot of global static state
@@ -980,10 +1120,13 @@ fun nextPhase() {
 - For complex animations, consider custom `Animatable`
 
 ### 5. Network Protocol
-- XMLSocket → WebSocket
-- XML parsing → JSON parsing
-- Need to understand server message format
-- Consider creating a protocol specification document
+- XMLSocket (raw TCP) → WebSocket — **requires server-side work**, they are not
+  wire-compatible
+- The AS3 protocol is already mixed: outbound is mostly JSON (`{"action":"ping"}`),
+  inbound is JSON, and the XML handlers are dead code
+- ⚠️ **27 of the 29 `Socket_On_*` handlers are unreachable.** There is no working
+  multiplayer to port — see TR-007 in 16-RISK-ASSESSMENT.md
+- The protocol must be **specified**, not reverse-engineered
 
 ### 6. Performance
 - Compose is efficient but has overhead

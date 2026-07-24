@@ -43,15 +43,31 @@
 | `ToggleButton` | `IconToggleButton` or `Checkbox` | Depending on use case |
 
 **Example - MainButton**:
+
+> ⚠️ **The AS3 excerpt previously shown here was fabricated.** `MainButton` does
+> not extend `feathers.controls.Button` and has no `skin` or `labelFactory`.
+> Verified signature:
+>
+> ```actionscript
+> // controls/MainButton.as — 402 lines, a hand-rolled Starling button
+> [Event(name="triggered", type="starling.events.Event")]
+> public class MainButton extends starling.display.DisplayObjectContainer {
+>     private static const MAX_DRAG_DIST:Number = 50;
+>     private var mUpState:Texture;
+>     private var mDownState:Texture;
+>     private var mOverState:Texture;
+>     private var mDisabledState:Texture;
+>     // ... manual TouchEvent handling, ButtonState machine, MouseCursor,
+>     //     FilterProvider effects, TextField label
+> }
+> ```
+>
+> This matters for estimation: 402 lines of manual state/texture/touch handling
+> collapse into a single Material `Button`. It is one of the largest *reductions* in
+> the whole migration, not a like-for-like port — the mapping table's "LOW"
+> complexity rating is correct, but the reason is that most of the file disappears.
+
 ```kotlin
-// AS3 MainButton.as
-public class MainButton extends Button {
-    public function MainButton() {
-        super();
-        this.skin = new Image("assets/mainButton.png");
-        this.labelFactory = function():ITextRenderer { return new TextField(); }
-    }
-}
 
 // Kotlin MainButton.kt
 @Composable
@@ -96,15 +112,58 @@ fun MainButton(
 | `TouchLabel` | `Text` with `Modifier.clickable()` | Clickable text |
 
 **Example - MGPLabel**:
-```kotlin
-// AS3 MGPLabel.as
-public class MGPLabel extends Label {
-    private var _value:uint;
-    public function set value(v:uint):void { _value = v; updateText(); }
-    private function updateText():void { text = "MGP: " + _value; }
-}
 
-// Kotlin MGPLabel.kt
+> ⚠️ **Corrected.** `MGPLabel` extends `feathers.controls.LayoutGroup`, not `Label`.
+> It is a *composite*: a `HorizontalLayout` (padding 8, gap 4) containing a
+> Starling `Image` currency icon plus a Feathers `Label`, with `touchable = false`
+> and a `BlurFilter`. The Kotlin equivalent therefore needs a `Row` with an icon,
+> not a bare `Text`:
+>
+> ```actionscript
+> // controls/MGPLabel.as
+> public class MGPLabel extends LayoutGroup {
+>     private var label:Label;
+>     private var PGSIcon:Image;
+>     private var _value:uint;
+>     public function MGPLabel(MGP_value:uint) { super(); _value = MGP_value; }
+>     override protected function initialize():void {
+>         super.initialize();
+>         this.touchable = false;
+>         var HL:HorizontalLayout = new HorizontalLayout();
+>         HL.padding = 8; HL.gap = 4;
+>         // ...
+>     }
+> }
+> ```
+
+```kotlin
+// Kotlin MGPLabel.kt — composite Row, mirroring the AS3 HorizontalLayout
+@Composable
+fun MGPLabel(
+    value: UInt,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            painter = painterResource(Res.drawable.mgp_icon),
+            contentDescription = null,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = value.toString(),
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+```
+
+<details><summary>Previous (incorrect) single-Text version, kept for reference</summary>
+
+```kotlin
 @Composable
 fun MGPLabel(
     value: UInt,
@@ -118,6 +177,7 @@ fun MGPLabel(
     )
 }
 ```
+</details>
 
 ---
 
@@ -129,16 +189,14 @@ fun MGPLabel(
 | `RoundChart` | `CircularProgressIndicator` | Circular progress |
 
 **Example - RoundChart**:
-```kotlin
-// AS3 RoundChart.as
-public class RoundChart extends feathers.controls.ProgressBar {
-    public function RoundChart() {
-        super();
-        this.layout = new HorizontalLayout();
-        // Custom circular progress
-    }
-}
 
+> ⚠️ **Corrected.** `RoundChart` extends `starling.display.Sprite` — it is custom
+> drawing, not a `feathers.controls.ProgressBar` subclass (Feathers' `ProgressBar`
+> is linear and has no `layout` property). Read `controls/RoundChart.as` before
+> assuming `CircularProgressIndicator` is a visual match; if the original draws
+> arcs or segments, a `Canvas` with `drawArc` will be closer.
+
+```kotlin
 // Kotlin RoundChart.kt
 @Composable
 fun RoundChart(
@@ -186,7 +244,7 @@ public class Card extends Sprite implements IDragSource {
     private var _texId:String;
     private var _data:Object;
     private var _color:String;
-    // ... 424 lines
+    // ... 423 lines
 }
 
 // Kotlin CardComponent.kt
@@ -198,8 +256,9 @@ fun CardComponent(
     isDraggable: Boolean = false,
     onClick: () -> Unit = {}
 ) {
-    val cardWidth = 104.dp
-    val cardHeight = 128.dp
+    // See the dimensions note below.
+    val cardWidth = 88.dp
+    val cardHeight = 118.dp
     
     Box(
         modifier = modifier
@@ -241,6 +300,13 @@ fun CardComponent(
 }
 ```
 
+> **Dimensions**: verified against the AS3 source — card `88 x 118`
+> (`display/Card.as:73`, `new Quad(88, 118, 0x5a595a)`), tile `136 x 136`
+> (`display/Tile.as:51`). Earlier revisions used `104 x 128` for cards, which
+> appears nowhere in the source. Note that AS3 values are **pixels at a fixed
+> 1280x720 landscape stage**, not density-independent units — treat them as design
+> ratios (card ≈ 0.65 x tile) and scale to the viewport rather than hardcoding dp.
+
 ---
 
 ### Card Digits
@@ -253,6 +319,23 @@ public class CardDigits extends Sprite {
 }
 
 // Kotlin CardDigits.kt
+//
+// ⚠️ The previous version placed the four digits in the four CORNERS
+// (top→TopStart, right→TopEnd, bottom→BottomStart, left→BottomEnd). That is
+// wrong twice over: the values are EDGE powers, not corner values, and the
+// bottom/left assignments were swapped relative to any sensible reading.
+//
+// The AS3 original is a compact DIAMOND badge, ~36x24 px, overlaid on a
+// semi-transparent 'cdbg' background image — not spread across the whole card:
+//
+//   // display/CardDigits.as:14
+//   private static const positions:Array =
+//       [{x:14, y:0}, {x:26, y:6}, {x:14, y:12}, {x:2, y:6}];
+//   //  top          right         bottom        left
+//   // plus: cdbg background image at (8, 1), alpha 0.5
+//   // digit textures are named 'cd' + value, e.g. 'cd7', 'cdA'
+//
+// Reproduce it as a fixed-size diamond, then position that badge on the card.
 @Composable
 fun CardDigits(
     top: UInt,
@@ -261,30 +344,19 @@ fun CardDigits(
     left: UInt,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.size(104.dp, 128.dp)) {
-        // Top power
-        PowerDigit(
-            value = top,
-            modifier = Modifier.align(Alignment.TopStart).offset(4.dp, 4.dp)
+    // 36x24 dp badge, matching the AS3 position extents (2..26 x, 0..12 y,
+    // plus one digit's width/height).
+    Box(modifier = modifier.size(36.dp, 24.dp)) {
+        Image(
+            painter = painterResource(Res.drawable.cdbg),
+            contentDescription = null,
+            alpha = 0.5f,
+            modifier = Modifier.offset(8.dp, 1.dp)
         )
-        
-        // Right power
-        PowerDigit(
-            value = right,
-            modifier = Modifier.align(Alignment.TopEnd).offset(-4.dp, 4.dp)
-        )
-        
-        // Bottom power
-        PowerDigit(
-            value = bottom,
-            modifier = Modifier.align(Alignment.BottomStart).offset(4.dp, -4.dp)
-        )
-        
-        // Left power
-        PowerDigit(
-            value = left,
-            modifier = Modifier.align(Alignment.BottomEnd).offset(-4.dp, -4.dp)
-        )
+        PowerDigit(top,    Modifier.offset(14.dp, 0.dp))
+        PowerDigit(right,  Modifier.offset(26.dp, 6.dp))
+        PowerDigit(bottom, Modifier.offset(14.dp, 12.dp))
+        PowerDigit(left,   Modifier.offset(2.dp,  6.dp))
     }
 }
 
@@ -425,49 +497,33 @@ Row(
 | Font styles | `TextStyle` | Define in Typography.kt |
 
 **Example - Theme Migration**:
+
+> ⚠️ **Corrected.** `TTOTheme` extends `tto.theme.BaseTTOTheme` (declared
+> `package tto.theme`), **not** `feathers.themes.BaseTTOTheme` — no such class
+> exists. And the two colours shown were misattributed: `0x43a7c8` / `0xbb594f` are
+> *text* element-format colours in `BaseTTOTheme.as:1537-1544`, not card colours.
+> Card colours live in `display/Card.as:29-31` and are `0x2d4660` (blue),
+> `0x602d2d` (red), `0x5a595a` (grey). `0xFF1a1a1a` was invented — the real
+> background is `PRIMARY_BACKGROUND_COLOR = 0x202020`.
+>
+> See the corrected colour table and theme code in
+> [08-PHASE-4-UI-LAYER.md](./08-PHASE-4-UI-LAYER.md) Task 4.1; it is not duplicated
+> here to avoid the two documents drifting apart again.
+
 ```actionscript
-// AS3 TTOTheme.as
-public class TTOTheme extends feathers.themes.BaseTTOTheme {
-    public static const BLUE_COLOR:uint = 0x43a7c8;
-    public static const RED_COLOR:uint = 0xbb594f;
-    // ... color definitions
+// AS3 — actual declarations
+// theme/TTOTheme.as
+package tto.theme {
+    public class TTOTheme extends BaseTTOTheme { ... }   // tto.theme.BaseTTOTheme
 }
-
-// Kotlin Colors.kt
-val BlueColor = Color(0xFF43a7c8)
-val RedColor = Color(0xFFbb594f)
-val GreyColor = Color(0xFF5a595a)
-val BackgroundColor = Color(0xFF1a1a1a)
-
-// Typography.kt
-val AppTypography = Typography(
-    headlineLarge = TextStyle(
-        fontFamily = FontFamily(Font(R.font.ff14)),
-        fontSize = 24.sp,
-        color = Color.White
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily(Font(R.font.ff14)),
-        fontSize = 16.sp,
-        color = Color.White
-    )
-)
-
-// Theme.kt
-@Composable
-fun TripleTriadTheme(
-    content: @Composable () -> Unit
-) {
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = BlueColor,
-            secondary = RedColor,
-            background = BackgroundColor
-        ),
-        typography = AppTypography,
-        content = content
-    )
-}
+// theme/BaseTTOTheme.as:124-137
+protected static const PRIMARY_BACKGROUND_COLOR:uint = 0x202020;
+protected static const LIGHT_TEXT_COLOR:uint         = 0xe5e5e5;
+protected static const SELECTED_TEXT_COLOR:uint      = 0xff9900;
+// display/Card.as:29-31
+public static const GREY_COLOR:uint = 0x5a595a;
+public static const BLUE_COLOR:uint = 0x2d4660;
+public static const RED_COLOR:uint  = 0x602d2d;
 ```
 
 ---
@@ -608,7 +664,7 @@ AsyncImage(
         .crossfade(true)
         .build(),
     contentDescription = "Card 1",
-    modifier = Modifier.size(104.dp, 128.dp)
+    modifier = Modifier.size(88.dp, 118.dp)
 )
 ```
 
@@ -673,7 +729,7 @@ AsyncImage(
 - [ ] UserBar → UserBarComponent
 
 ### Animations
-- [ ] All 25 animation classes → Compose animations
+- [ ] All 24 animation classes → Compose animations
 
 ---
 

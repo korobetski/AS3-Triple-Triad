@@ -34,7 +34,7 @@
 │            ▼                          ▼                        ▼  │
 │  ┌─────────────────┐   ┌─────────────┐    ┌─────────────┐        │
 │  │   screens/       │   │   datas/    │    │   utils/    │        │
-│  │ (28 files)      │   │ (12 files)  │    │ (8 files)   │        │
+│  │ (32 files)      │   │ (12 files)  │    │ (10 files)  │        │
 │  └─────────────────┘   └─────────────┘    └─────────────┘        │
 │            │                          │                        │  │
 │            ▼                          ▼                        ▼  │
@@ -60,9 +60,8 @@ sources/src/tto/
 ├── Game.as                    # Main game container
 ├── ttoboot.as                 # AIR bootstrap
 ├── ttoclient.as               # Starling entry point
-├── TTOTheme.as                # Theme configuration
 │
-├── anims/                     # 25 animation classes
+├── anims/                     # 24 animation classes
 │   ├── AllOpenAnim.as
 │   ├── AscensionAnim.as
 │   ├── BlueTurnAnim.as
@@ -84,16 +83,19 @@ sources/src/tto/
 │   ├── StartAnim.as
 │   ├── SuddenDeathAnim.as
 │   ├── SwapAnim.as
-│   └── TalkAnim.as
+│   ├── TalkAnim.as
+│   ├── ThreeOpenAnim.as
+│   └── UnlockCardAnim.as
 │
-├── controls/                  # 7 UI control classes
+├── controls/                  # 8 UI control classes
 │   ├── AvatarChooser.as
 │   ├── MGPLabel.as
 │   ├── MainButton.as
 │   ├── RoundChart.as
 │   ├── TouchLabel.as
 │   ├── XPLabel.as
-│   └── cardAvatar.as
+│   ├── cardAvatar.as
+│   └── cardScore.as
 │
 ├── datas/                    # 12 data model classes
 │   ├── Achievements.as
@@ -125,7 +127,7 @@ sources/src/tto/
 │   ├── Socket.as
 │   └── TTONet.as
 │
-├── screens/                  # 28 screen classes
+├── screens/                  # 32 screen/panel classes
 │   ├── BackstageScreen.as
 │   ├── BaseMatchScreen.as
 │   ├── Board.as
@@ -156,13 +158,14 @@ sources/src/tto/
 │   ├── cardPanel.as
 │   ├── dashboardScreen.as
 │   ├── playerPanel.as
-│   └── profileScreen.as
+│   ├── profileScreen.as
+│   └── shopScreen.as
 │
 ├── theme/                    # 2 theme classes
-│   ├── BaseTTOTheme.as
+│   ├── BaseTTOTheme.as       # 2,290 lines - Feathers theme, largest file in the project
 │   └── TTOTheme.as
 │
-└── utils/                    # 8 utility classes
+└── utils/                    # 10 utility classes
     ├── Assets.as
     ├── CryptoHelper.as
     ├── FilterProvider.as
@@ -170,10 +173,27 @@ sources/src/tto/
     ├── TTOCore.as
     ├── TTOFiles.as
     ├── conf.as
+    ├── gfx.as
+    ├── i18n.as
     └── tools.as
 ```
 
-**Total**: 103 files in `tto/` directory
+**Total**: 103 files, 16,965 lines in `tto/` directory
+
+> **Note**: `screens/` mixes navigable screens with in-screen panels. Actual
+> breakdown by Feathers base class:
+>
+> | Base class | Count | Files |
+> |------------|-------|-------|
+> | `Screen` (direct) | 18 | BackstageScreen, BaseMatchScreen, CCGroupScreen, DecksScreen, EmptyScreen, GSGroupScreen, HelpScreen, InventoryScreen, LoadScreen, MenuScreen, NewGameScreen, PVEScreen, PVPScreen, SettingsScreen, cardListScreen, dashboardScreen, profileScreen, shopScreen |
+> | `Screen` (inherited) | 5 | PVEMatchScreen, PVPMatchScreen (← BaseMatchScreen); CCGroupMatchScreen, GSGroupMatchScreen, TutorialScreen (← PVEMatchScreen) |
+> | `Panel` | 6 | DeckSelector, RematchPanel, cardPanel, CCGroupRematchPanel, GSGroupRematchPanel, TutorialRematchPanel |
+> | `LayoutGroup` | 3 | Board, RulesDigest, playerPanel |
+>
+> That is **22 concrete navigation destinations** (23 `Screen` subclasses minus
+> `BaseMatchScreen`, which is only a base class) plus **9 embedded components**
+> that become reusable composables, not routes. Phase 4 planning must use this
+> split, not the raw file count.
 
 ---
 
@@ -184,7 +204,7 @@ sources/src/tto/
 | Class | File | Purpose | Complexity | Dependencies |
 |-------|------|---------|------------|--------------|
 | `TTOCore` | `utils/TTOCore.as` | Core game logic, rules engine | **VERY HIGH** | `tripleTriadRules`, `Card`, `Tile`, `tools` |
-| `tripleTriadRules` | `datas/tripleTriadRules.as` | All rule definitions + roulette logic | **VERY HIGH** | `tools` |
+| `tripleTriadRules` | `datas/tripleTriadRules.as` | All rule definitions + roulette logic | **HIGH** | `tools` |
 | `Card` | `display/Card.as` | Card display + drag/drop + animations | **VERY HIGH** | `CardDigits`, `SoundManager`, `Assets`, `tools`, `FilterProvider` |
 | `Tile` | `display/Tile.as` | Board tile + card drop target | **HIGH** | `Card`, `DragDropManager`, `Assets`, `tools` |
 | `Board` | `screens/Board.as` | 3x3 game board | **MEDIUM** | `Tile`, `TiledRowsLayout` |
@@ -197,7 +217,7 @@ sources/src/tto/
 |-------|------|---------|------------|--------------|
 | `PVEMatchScreen` | `screens/PVEMatchScreen.as` | PvE match screen | **HIGH** | `BaseMatchScreen`, `NPC` |
 | `PVPMatchScreen` | `screens/PVPMatchScreen.as` | PvP match screen | **HIGH** | `BaseMatchScreen`, `Socket` |
-| `Socket` | `net/Socket.as` | WebSocket communication | **HIGH** | `Game`, `TTONet`, `i18n`, `Save` |
+| `Socket` | `net/Socket.as` | XMLSocket communication (mostly dead code — see §8) | **MEDIUM** | `Game`, `TTONet`, `i18n`, `Save` |
 | `Save` | `datas/Save.as` | Save/load system | **MEDIUM** | `CryptoHelper`, `TTOFiles` |
 | `Cards` | `datas/cards.as` | All card data (FF8 + FF14) | **MEDIUM** | `Game`, `ArrayUtil` |
 
@@ -241,7 +261,7 @@ sources/src/tto/
 **Migration Notes**:
 - This is the **most critical** class to migrate correctly
 - Must maintain exact same behavior as original
-- All 15+ rules must work identically
+- All 17 rules must work identically
 - Requires extensive testing
 - Consider using property-based testing for rule validation
 
@@ -510,7 +530,8 @@ sources/src/tto/
 **Location**: `sources/src/tto/net/Socket.as`
 
 **Purpose**:
-- WebSocket communication with game server
+- Raw TCP socket communication with the game server via Flash `XMLSocket`
+  (**not** WebSocket — no HTTP upgrade handshake, no frame protocol)
 - Message handling
 - Connection management
 
@@ -534,33 +555,73 @@ sources/src/tto/
 - `closeHandler(e:Event):void` - Handle connection close
 - Multiple `Socket_On_*` methods for different message types
 
-**Key Message Handlers**:
-- `Socket_On_pong()` - Pong response
-- `Socket_On_clients(clients:Array)` - User list update
-- `Socket_On_new_game(node:XML)` - New game created
-- `Socket_On_actu_game(node:XML)` - Game state update
-- `Socket_On_start_game(node:XML)` - Game start
-- `Socket_On_ready(node:XML)` - Opponent ready
-- `Socket_On_setCards(node:XML)` - Cards set
-- `Socket_On_initiative(node:XML)` - Initiative result
-- `Socket_On_swap(node:XML)` - Card swap
-- `Socket_On_elements(node:XML)` - Element setup
-- `Socket_On_cardMove(node:XML)` - Card movement
-- `Socket_On_tradeCards(node:XML)` - Card trade
+**Message Handlers**: the file declares **29** `Socket_On_*` methods:
 
-**Complexity**: **VERY HIGH**
-- ~650 lines
-- XMLSocket protocol (old Flash technology)
-- Many message types to handle
+`actu_game`, `can_join`, `cancel`, `cannot_join`, `cardMove`, `childrooms`,
+`client`, `clientparam`, `clients`, `decline_game`, `elements`, `error`,
+`get_game_infos`, `initiative`, `invitation`, `joined`, `leaved`, `libActualise`,
+`m`, `new_game`, `plz_join`, `pong`, `ready`, `room`, `rooms`, `setCards`,
+`start_game`, `swap`, `tradeCards`
+
+> ### ⚠️ Critical finding: 27 of the 29 handlers are dead code
+>
+> `dataHandler()` — the sole entry point for inbound data — is 17 lines long and
+> dispatches to exactly **two** handlers:
+>
+> ```actionscript
+> private static function dataHandler(e:DataEvent):void {
+>     if (e.data == 'pong') Socket_On_pong();
+>     var sj:Object;
+>     try { sj = JSON.parse(e.data); } catch (e:Error) { sj = null; }
+>     if (sj) { if (sj.users) Socket_On_clients(sj.users as Array); }
+> }
+> ```
+>
+> Every other `Socket_On_*` method has exactly one reference in the file — its own
+> declaration. They are orphaned remnants of an **abandoned XML protocol** that was
+> being replaced by a JSON one when development stopped.
+>
+> **Consequences for the migration plan:**
+> 1. There is no working multiplayer to port. Only connect, ping/pong, and the
+>    user list are wired up. Match synchronisation (`cardMove`, `setCards`,
+>    `initiative`, `swap`, `elements`) **does not run today**.
+> 2. Phase 5 is therefore not a migration but a **greenfield protocol design plus
+>    server-side work**. See the revised scope note in
+>    [09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md).
+> 3. The dead handlers are still the best available specification of the intended
+>    protocol and should be read as design input, not as behaviour to preserve.
+
+**Protocol reality** (mixed, mid-refactor):
+
+| Direction | Format | Evidence |
+|-----------|--------|----------|
+| Outbound (most) | JSON | `Socket.send(JSON.stringify({action:"incoming", nickname:…}))`, `{"action":"ping"}`, `{"action":"exit"}` |
+| Outbound (legacy) | XML strings | `socket.send('<join room="' + main_room + '" />')`, `'<actu_game toroom="…">'` |
+| Inbound (live) | JSON | `JSON.parse(e.data)`, plus the bare string `'pong'` |
+| Inbound (dead) | XML | the 27 unreachable `Socket_On_*(node:XML)` handlers |
+
+**Connection parameters** (from `PVPScreen.as:315`):
+- Development: `{ip: "localhost", port: "3000"}`
+- Production (commented out): `{ip: "triple-triad-online.com", port: "2468"}`
+- Default room: `main_room = 'Gold Saucer'` (the *value*, not the identifier)
+- Keepalive: `pingDelay = 1000` ms via `setInterval`
+
+**Complexity**: **MEDIUM** (not VERY HIGH — 649 lines, but ~75% unreachable)
+- XMLSocket transport (raw TCP, Flash-only)
+- Only 2 live message paths
 - Connection state management
-- Ping/pong for keepalive
+- Ping/pong keepalive
 
 **Migration Notes**:
-- XMLSocket → WebSocket (Ktor or native)
-- XML parsing → JSON parsing (Kotlinx Serialization)
-- Message handlers → Sealed class hierarchy
-- Connection management → Custom WebSocket manager
-- Need to reverse-engineer server protocol
+- XMLSocket → WebSocket (Ktor) **requires a matching server change**; a raw TCP
+  socket speaking newline-delimited payloads is not WebSocket-compatible. Either
+  the server gains a WebSocket endpoint, or a proxy is introduced. This directly
+  contradicts the "backend server remains as-is" scope in
+  [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) and must be resolved
+  before Phase 5 is estimated.
+- Message handlers → sealed class hierarchy
+- Connection management → custom WebSocket manager
+- The server protocol must be **designed**, not merely reverse-engineered
 
 ---
 
@@ -657,8 +718,11 @@ public static function get DATAS():Array {
 **Card Data Fields**:
 - `name`: String - Localization key
 - `power`: Array of 4 hex values - [top, right, bottom, left]
-- `rarity`: uint - 0-5 (0=Back)
-- `type`: String - Card type (beast, garlean, primals, scions, elements)
+- `rarity`: uint - 0-5 (0 = the `"Back"` placeholder entry at index 0 of each array)
+- `type`: String or `null` - 12 distinct values across both collections:
+  - FF14 factions: `beast`, `garlean`, `primals`, `scions`
+  - Elements: `earth`, `fire`, `holy`, `ice`, `lightning`, `poison`, `water`, `wind`
+  - `null` for typeless cards (the majority)
 
 **Complexity**: **MEDIUM**
 - ~321 lines
@@ -678,27 +742,40 @@ public static function get DATAS():Array {
 
 ### File Count by Directory
 
-| Directory | Files | Lines (approx) | Complexity |
-|-----------|-------|----------------|------------|
-| Root | 3 | ~580 | Medium |
-| anims/ | 25 | ~2,000 | Medium |
-| controls/ | 7 | ~500 | Low |
-| datas/ | 12 | ~1,500 | Medium |
-| display/ | 10 | ~2,500 | High |
-| net/ | 2 | ~700 | High |
-| screens/ | 28 | ~10,000 | Very High |
-| theme/ | 2 | ~200 | Low |
-| utils/ | 8 | ~2,000 | High |
-| **Total** | **103** | **~19,980** | **High** |
+Measured with `wc -l` over `sources/src/tto/**/*.as`:
 
-### Complexity Distribution
+| Directory | Files | Lines | Complexity |
+|-----------|-------|-------|------------|
+| Root | 3 | 422 | Medium |
+| anims/ | 24 | 1,454 | Medium |
+| controls/ | 8 | 836 | Medium |
+| datas/ | 12 | 2,527 | Medium |
+| display/ | 10 | 1,247 | High |
+| net/ | 2 | 698 | High |
+| screens/ | 32 | 6,343 | Very High |
+| theme/ | 2 | 2,406 | Low (mechanical) |
+| utils/ | 10 | 1,032 | High |
+| **Total** | **103** | **16,965** | **High** |
 
-| Complexity | Files | Lines | % of Total |
-|------------|-------|-------|------------|
-| Very High | 8 | ~6,500 | 33% |
-| High | 20 | ~9,000 | 45% |
-| Medium | 45 | ~4,000 | 20% |
-| Low | 30 | ~480 | 2% |
+### Largest Files (migration effort concentrates here)
+
+| File | Lines | Notes |
+|------|-------|-------|
+| `theme/BaseTTOTheme.as` | 2,290 | Feathers skinning boilerplate — **mostly discardable**, replaced by a ~200-line Compose theme |
+| `datas/NPCs.as` | 1,161 | Static NPC/opponent data — convert to JSON, near-zero logic |
+| `net/Socket.as` | 649 | See §8: most of it is dead code |
+| `screens/BaseMatchScreen.as` | 447 | Highest genuine complexity |
+| `screens/DecksScreen.as` | 423 | |
+| `display/Card.as` | 423 | |
+| `controls/MainButton.as` | 402 | Hand-rolled Starling button → one Compose `Button` |
+| `utils/TTOCore.as` | 395 | Rules engine — the critical path |
+| `screens/PVPMatchScreen.as` | 376 | |
+| `screens/PVEScreen.as` | 373 | |
+
+**Effective migration surface**: of the 16,965 lines, roughly 3,450 (`BaseTTOTheme`,
+`NPCs`, `MainButton`) are boilerplate or static data that shrink dramatically or
+convert to resources. Line count alone overstates the work; `TTOCore.as` +
+`BaseMatchScreen.as` + `Card.as` + `Tile.as` (~1,570 lines) carry most of the risk.
 
 ---
 
@@ -715,16 +792,29 @@ public static function get DATAS():Array {
 
 ### External Dependencies
 
-| Library | Usage | Replacement |
-|--------|-------|-------------|
-| ArrayUtil | Array operations | Kotlin Collections |
-| (None identified) | | |
+The `sources/src/` tree contains **579 `.as` files / ~186,000 lines** in total;
+only 103 files / 16,965 lines are game code under `tto/`. The rest are vendored
+third-party libraries that must be accounted for:
+
+| Library | Package | Usage | Replacement |
+|---------|---------|-------|-------------|
+| **Starling** | `starling.*` | GPU rendering, display list, TextField, Texture, TouchEvent | Compose Canvas / Skia |
+| **Feathers UI** | `feathers.*` | Screen, ScreenNavigator, Panel, LayoutGroup, Label, Alert, DragDropManager, themes | Compose + Navigation |
+| **as3crypto** | `com.hurlant.*` | `AESKey`, `Hex` — used by `utils/CryptoHelper.as` to encrypt `.sav` files | `javax.crypto` (Android) / CryptoKit (iOS) via expect/actual, or Krypto (KMP) |
+| **Adobe corelib** | `com.adobe.*` | `ArrayUtil` (`copyArray`, `arrayContainsValue`) in `tools.as`, `cards.as` | Kotlin Collections |
+| **Adobe AIR SDK** | `flash.*`, `flash.filesystem.*`, `flash.desktop.*` | File I/O, XMLSocket, Capabilities, NativeApplication | Ktor, okio/expect-actual file APIs |
+
+> **Note**: `CryptoHelper` uses AES from as3crypto. Existing `.sav` files are
+> AES-encrypted JSON. To read legacy saves the Kotlin implementation must
+> reproduce the exact key derivation, mode and padding used by
+> `com.hurlant.crypto.symmetric.AESKey` — inspect `utils/CryptoHelper.as` before
+> assuming save-file compatibility is free.
 
 ### Internal Dependencies
 
 ```
 Game.as
-├── All screens (28 files)
+├── All screens (32 files)
 ├── TTOTheme.as
 ├── Assets (utils/Assets.as)
 ├── i18n (utils/i18n.as)
@@ -838,7 +928,7 @@ Socket.as (net/Socket.as)
 
 ### Tier 6: Animations
 
-All 25+ animations (Phase 6)
+All 24 animations (Phase 6)
 
 ---
 

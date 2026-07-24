@@ -80,6 +80,11 @@ triple-triad-kotlin/
 
 ### Week 3: Project Foundation
 
+> ⚠️ **Task numbering collides with Phase 0.** Both documents number their tasks
+> 1.1, 1.2, 1.3… so "Task 1.2" is ambiguous across the plan. Renumber Phase 1 tasks
+> as 1.1-1.13 → **P1.1-P1.13** (and likewise for other phases) before using these
+> IDs in a tracker.
+
 #### Task 1.1: Root Project Setup
 **Owner**: DevOps | **Duration**: 1 day | **Priority**: CRITICAL
 
@@ -90,10 +95,22 @@ Create root project files:
 - `.gitignore`, `.editorconfig`
 
 **Key configurations**:
-- Kotlin Multiplatform plugin
-- Compose Multiplatform plugin
-- Version catalog for dependencies
-- Repository configuration
+- Kotlin Multiplatform plugin (`androidTarget()`, explicit `iosX64/iosArm64/iosSimulatorArm64`)
+- Compose Multiplatform plugin **plus** `org.jetbrains.kotlin.plugin.compose`
+  (required from Kotlin 2.0 — the Compose compiler now ships with Kotlin)
+- Kotlin serialization plugin (`@Serializable` is used throughout the data layer).
+  The first PoC used `@Serializable` without ever applying this plugin, which is
+  one of the reasons it could not compile — don't repeat it.
+- Version catalog (`gradle/libs.versions.toml`) — see the verified compatible
+  version set in [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md). A working
+  catalog for this exact stack already exists in
+  [`kotlin/gradle/libs.versions.toml`](../../kotlin/gradle/libs.versions.toml);
+  start from it rather than from scratch.
+- Repository configuration (`google()`, `mavenCentral()`, plus
+  `gradlePluginPortal()` under `pluginManagement`)
+- **Gradle wrapper** — commit `gradlew`, `gradlew.bat` and `gradle/wrapper/`. The
+  first PoC had none, so its own `./gradlew` build instructions could not run. The
+  `kotlin/` PoC pins Gradle 8.14.3.
 
 **Acceptance Criteria**:
 - [ ] `./gradlew projects` shows all modules
@@ -155,21 +172,49 @@ Configure iosApp module:
 #### Task 1.5: Platform Audio (expect/actual)
 **Owner**: Android + iOS Specialists | **Duration**: 2 days | **Priority**: HIGH
 
-Create unified audio API:
+Create unified audio API.
+
+> ⚠️ **Corrected.** Two problems with the API previously sketched here:
+> 1. It was inconsistent with [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md),
+>    which declared `stopSound()` where this document declared `stopAll()`.
+> 2. More importantly it modelled a **single** audio stream. The AS3
+>    `SoundManager` has **two independent channels** — `BACKGROUND_CHANNEL` and
+>    `NOISE_CHANNEL` — with separate persisted volumes
+>    (`BACKGROUND_VOLUME`, `NOISE_VOLUME`, saved in `UserSettings.json` and exposed
+>    as two sliders in `SettingsScreen`). With one stream, every card-flip sound
+>    would cut the background music, and the settings screen could not be built.
+>
+> Note also that `SoundManager.playSound(soundId, isNoise, loops)`'s second
+> parameter selects the **channel**, not looping — a detail that an earlier
+> revision of [15-CHEAT-SHEET.md](./15-CHEAT-SHEET.md) got wrong.
+
 ```kotlin
 // commonMain
-expect class AudioPlayer {
-    fun playSound(soundId: String, loop: Boolean)
+enum class AudioChannel { BACKGROUND, EFFECTS }
+
+interface AudioPlayer {
+    fun play(soundId: String, channel: AudioChannel = AudioChannel.EFFECTS, loop: Boolean = false)
+    fun stop(channel: AudioChannel)
     fun stopAll()
-    fun setVolume(volume: Float)
+    fun setVolume(channel: AudioChannel, volume: Float)   // 0f..1f, persisted
+    fun release()
 }
+
+expect fun createAudioPlayer(): AudioPlayer
 ```
 
-Implement for Android (Media3 ExoPlayer) and iOS (AVFoundation).
+Implement for Android (Media3 ExoPlayer for music + `SoundPool` for short effects)
+and iOS (`AVAudioPlayer` / `AVAudioEngine`).
+
+> **Overlapping effects**: `ExoPlayer` restarts on each `setMediaItem`, so rapid
+> card-flip sounds cut each other off. Use `SoundPool` on Android and pooled
+> `AVAudioPlayer` instances on iOS for effects; reserve ExoPlayer for music.
 
 **Acceptance Criteria**:
 - [ ] Audio works on both platforms
-- [ ] Volume/mute control works
+- [ ] Effects do not interrupt background music
+- [ ] Independent per-channel volume works and persists
+- [ ] Overlapping short effects play concurrently
 
 ---
 
@@ -247,15 +292,32 @@ Convert AS3 data to JSON:
 #### Task 1.10: Localization
 **Owner**: Tech Lead | **Duration**: 1 day | **Priority**: MEDIUM
 
-Extract all strings from AS3:
-- `shared/src/commonMain/resources/locales/en.json`
-- `shared/src/commonMain/resources/locales/fr.json`
+Extract all strings from AS3 — **4 locales**, not 2:
+- `shared/src/commonMain/resources/locales/de_DE.json`
+- `shared/src/commonMain/resources/locales/en_US.json`
+- `shared/src/commonMain/resources/locales/fr_FR.json`
+- `shared/src/commonMain/resources/locales/ja_JA.json`
 - `I18n.kt` - Localization class
 
+> ⚠️ **Corrected.** An earlier revision listed only `en.json` and `fr.json`, which
+> would have silently dropped German and Japanese. Both are supported in the
+> original: `application.xml` declares
+> `<supportedLanguages>de en fr ja</supportedLanguages>`, and
+> `utils/conf.as::supportedLanguages` maps
+> `{en_US, fr_FR, de_DE, ja_JA}`. Translated string bundles already exist under
+> `sources/bin/assets/{de_DE,en_US,fr_FR,ja_JA}/` — they should be converted, not
+> re-translated.
+>
+> **Japanese needs a font.** `Eurostile` (used in `display/Card.as:81`) has no CJK
+> coverage. Audit `sources/bin/assets/fonts/` and budget a CJK fallback family;
+> also check that the licence of any bundled font permits redistribution in a
+> mobile app.
+
 **Acceptance Criteria**:
-- [ ] All strings extracted
-- [ ] Localization works for both languages
-- [ ] Fallback to English works
+- [ ] All strings extracted from the 4 existing `rulesAtlas.xml` / string bundles
+- [ ] Localization works for all 4 locales
+- [ ] Japanese renders correctly with a CJK-capable font
+- [ ] Fallback to `en_US` works for missing keys
 
 ---
 
@@ -384,6 +446,6 @@ Create development guides:
 
 ---
 
-*Generated: 2026-07-21*  
-*Status: PLANNING COMPLETE - Ready for execution after Phase 0*  
+*Generated: 2026-07-21*
+*Status: PLANNING COMPLETE - Ready for execution after Phase 0*
 *Review Required: Tech Lead approval before starting*

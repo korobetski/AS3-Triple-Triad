@@ -18,7 +18,7 @@
         /    \
        /------\ Integration Tests (20%) - Component interactions
       /        \
-     /          \ Unit Tests (70%) - Kotest, JUnit
+     /          \ Unit Tests (70%) - kotlin.test + Kotest assertions
     /____________\
 ```
 
@@ -37,17 +37,58 @@
 
 ## 1. Unit Testing
 
-### Framework: Kotest + Turbine + MockK
+### Framework: kotlin.test + Kotest assertions + Turbine
+
+> ⚠️ **The setup previously documented here could not work.** Five defects, all of
+> which would surface on the first `./gradlew allTests`:
+>
+> 1. **`testImplementation` in a KMP module does nothing.** Dependencies must be
+>    declared per source set (`commonTest`, `androidUnitTest`, `jvmTest`).
+> 2. **MockK is JVM-only.** It has no Kotlin/Native target, so it cannot appear in
+>    `commonTest` — the iOS test compilation fails outright. Yet every example in
+>    this document used `mockk`, and `koin-test` was imported without being declared.
+> 3. **`Dispatchers.Unconfined` is not a `TestDispatcher`.** The declaration
+>    `val testDispatcher: TestDispatcher = Dispatchers.Unconfined` is a type error.
+>    Use `StandardTestDispatcher()` or `UnconfinedTestDispatcher()`.
+> 4. **`protected fun runTest(...) { runTest(testDispatcher) { ... } }` recurses
+>    infinitely** — the inner call resolves to the member, not
+>    `kotlinx.coroutines.test.runTest`. Same for
+>    `inline fun <reified T> mockk(): T = mockk<T>()` and `mockkClass()`; both are
+>    unconditional self-calls and stack-overflow on the first invocation.
+> 5. **Kotest specs and `kotlin.test` annotations do not mix.** Classes extended
+>    `FunSpec()` (whose lifecycle is `beforeTest {}` inside `init`) but then declared
+>    `@BeforeTest fun setup()`, which Kotest never calls — so `core`/`repository`
+>    would be uninitialised. Several examples also used the form
+>    `test("name") = runTest { }`, which is not valid syntax either way: Kotest's
+>    `test()` takes a lambda argument, it is not an assignable declaration.
+>
+> All examples in this document have been rewritten to the `@Test fun` form.
+>
+> **Decision: use `kotlin.test` as the runner** (works on every KMP target, needs no
+> extra plugin) with Kotest *assertions* for readability, and hand-written fakes
+> instead of MockK so shared tests run on iOS too. Kotest's `checkAll` property
+> testing is available via `kotest-property`, which is multiplatform.
 
 **Dependencies** (`shared/build.gradle.kts`):
 ```kotlin
-dependencies {
-    testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
-    testImplementation("io.kotest:kotest-assertions-core:5.8.0")
-    testImplementation("io.kotest:kotest-property:5.8.0")
-    testImplementation("app.cash.turbine:turbine:1.0.0")
-    testImplementation("io.mockk:mockk:1.13.9")
+kotlin {
+    sourceSets {
+        commonTest.dependencies {
+            implementation(kotlin("test"))                                   // runner
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+            implementation("io.kotest:kotest-assertions-core:5.9.1")         // shouldBe etc.
+            implementation("io.kotest:kotest-property:5.9.1")                // checkAll
+            implementation("app.cash.turbine:turbine:1.1.0")                 // Flow testing
+            implementation("io.insert-koin:koin-test:3.5.6")                 // io.insert-koin!
+        }
+        // JVM-only tools stay out of commonTest.
+        jvmTest.dependencies {
+            implementation("io.mockk:mockk:1.13.12")
+        }
+        androidUnitTest.dependencies {
+            implementation("io.mockk:mockk:1.13.12")
+        }
+    }
 }
 ```
 
@@ -55,44 +96,42 @@ dependencies {
 
 ```kotlin
 // shared/src/commonTest/kotlin/com/tripletriad/test/BaseTest.kt
-import io.kotest.core.spec.style.FunSpec
-import io.mockk.clearAllMocks
-import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runTest
-import org.koin.core.context.startKoin
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.Dispatchers
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import org.koin.core.context.stopKoin
-import org.koin.test.KoinTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
-abstract class BaseTest : FunSpec(), KoinTest {
-    protected val testDispatcher: TestDispatcher = Dispatchers.Unconfined
-    protected val testScope: TestScope = TestScope(testDispatcher)
-    
-    init {
-        beforeTest {
-            startKoin { modules(emptyList()) }
-        }
-        
-        afterTest {
-            stopKoin()
-            clearAllMocks()
-        }
+abstract class BaseTest {
+    protected val testDispatcher: TestDispatcher = StandardTestDispatcher()
+
+    @BeforeTest
+    fun baseSetUp() {
+        Dispatchers.setMain(testDispatcher)
     }
-    
-    // Helper functions
-    protected fun runTest(block: suspend TestScope.() -> Unit) {
-        runTest(testDispatcher) { block() }
+
+    @AfterTest
+    fun baseTearDown() {
+        Dispatchers.resetMain()
+        stopKoin()   // no-op if Koin was never started
     }
-    
-    protected inline fun <reified T : Any> mockk(): T = mockk<T>()
-    
-    protected inline fun <reified T : Any> mockkClass(): T = mockk<T>()
 }
 ```
+
+> **Note**: `Dispatchers.setMain` requires `kotlinx-coroutines-test` and only has an
+> effect where a Main dispatcher exists. If the shared module holds no
+> `Dispatchers.Main` usage, drop it — do not carry ceremony that does nothing.
+>
+> If you prefer Kotest's spec DSL, use it *consistently*: extend `FunSpec`, put
+> setup in `beforeTest {}`, never use `@BeforeTest`, and add the
+> `io.kotest:kotest-framework-engine` dependency plus the Kotest Gradle plugin.
+> Do not mix the two styles in one class.
 
 ### Test Data Factory
 
@@ -105,7 +144,7 @@ import com.tripletriad.core.utils.CardType
 import com.tripletriad.data.models.*
 
 object TestDataFactory {
-    
+
     // Cards
     fun createTestCard(
         id: UInt = 1u,
@@ -125,42 +164,48 @@ object TestDataFactory {
             element = element
         )
     }
-    
+
     fun createCardWithPower(top: String, right: String, bottom: String, left: String): Card {
         return createTestCard(power = listOf(top, right, bottom, left))
     }
-    
+
     // Board
     fun createEmptyBoard(): Board {
         return Board()
     }
-    
-    fun createTestBoard(): Board {
-        val board = Board()
-        board.placeCard(createTestCard(1), board[0], CardColor.BLUE)
-        board.placeCard(createTestCard(2), board[1], CardColor.RED)
-        return board
-    }
-    
-    fun createFullBoard(): Board {
-        val board = Board()
-        repeat(9) { i ->
-            board.placeCard(createTestCard(i.toUInt() + 1u), board[i], 
-                if (i % 2 == 0) CardColor.BLUE else CardColor.RED)
+
+    // Board is immutable: placeCard returns a NEW Board and takes a tile ID,
+    // not a Tile. See 13-DATA-MODELS.md.
+    fun createTestBoard(): Board =
+        Board()
+            .placeCard(createTestCard(1u), tileId = 0, color = CardColor.BLUE)
+            .placeCard(createTestCard(2u), tileId = 1, color = CardColor.RED)
+
+    fun createFullBoard(): Board =
+        (0 until 9).fold(Board()) { board, i ->
+            board.placeCard(
+                createTestCard(i.toUInt() + 1u),
+                tileId = i,
+                color = if (i % 2 == 0) CardColor.BLUE else CardColor.RED
+            )
         }
-        return board
-    }
-    
-    fun createComboBoard(): Board {
-        // Create a board where placing a card triggers a combo chain
-        val board = Board()
-        // Setup specific card arrangement that enables combo
-        board.placeCard(createCardWithPower("A", "5", "5", "5"), board[0], CardColor.BLUE)
-        board.placeCard(createCardWithPower("4", "4", "4", "4"), board[1], CardColor.RED)
-        board.placeCard(createCardWithPower("4", "4", "4", "4"), board[3], CardColor.RED)
-        return board
-    }
-    
+
+    // A combo chain requires SAME/PLUS/SAME_WALL to fire first -- combos never
+    // cascade from a plain capture (TTOCore.as: comboRule is only called from
+    // specialRule). Lay the board out so a SAME pair triggers on placement at the
+    // centre, then a captured card in turn out-powers its own neighbour.
+    //   0 1 2
+    //   3 4 5
+    //   6 7 8
+    fun createComboBoard(): Board =
+        Board()
+            // Red cards at 1 (above centre) and 3 (left of centre) with matching
+            // facing edges, so placing at 4 triggers SAME on both.
+            .placeCard(createCardWithPower("5", "5", "5", "5"), tileId = 1, color = CardColor.RED)
+            .placeCard(createCardWithPower("5", "5", "5", "5"), tileId = 3, color = CardColor.RED)
+            // A weak red card at 0, adjacent to both 1 and 3, for the cascade to hit.
+            .placeCard(createCardWithPower("1", "1", "1", "1"), tileId = 0, color = CardColor.RED)
+
     // Game State
     fun createTestGameState(
         mode: GameMode = GameMode.FF14,
@@ -174,7 +219,7 @@ object TestDataFactory {
             redDeck = listOf(createTestCard(4), createTestCard(5), createTestCard(6))
         )
     }
-    
+
     // Game Rules
     fun createTestRules(
         suddenDeath: Boolean = false,
@@ -202,39 +247,41 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
 class CardTest : BaseTest() {
-    init {
-        test("Card creation with default values") {
-            val card = TestDataFactory.createTestCard()
-            card.id shouldBe 1u
-            card.collection shouldBe CardCollection.FF14
-            card.power shouldBe listOf("5", "5", "5", "5")
-        }
-        
-        test("Card power conversion") {
-            val card = TestDataFactory.createCardWithPower("A", "5", "6", "8")
-            card.topPow shouldBe 10u
-            card.rightPow shouldBe 5u
-            card.bottomPow shouldBe 6u
-            card.leftPow shouldBe 8u
-        }
-        
-        test("Card canFlipAgainst returns correct result") {
-            val card1 = TestDataFactory.createCardWithPower("6", "6", "6", "6")
-            val card2 = TestDataFactory.createCardWithPower("4", "4", "4", "4")
-            
-            card1.canFlipAgainst(card2, Direction.TOP) shouldBe true
-            card2.canFlipAgainst(card1, Direction.TOP) shouldBe false
-            card1.canFlipAgainst(card1, Direction.TOP) shouldBe false
-        }
-        
-        test("Card equality") {
-            val card1 = TestDataFactory.createTestCard(1u)
-            val card2 = TestDataFactory.createTestCard(1u)
-            val card3 = TestDataFactory.createTestCard(2u)
-            
-            card1 shouldBe card2
-            card1 shouldNotBe card3
-        }
+    @Test
+    fun `Card creation with default values`() {
+        val card = TestDataFactory.createTestCard()
+        card.id shouldBe 1u
+        card.collection shouldBe CardCollection.FF14
+        card.power shouldBe listOf("5", "5", "5", "5")
+    }
+
+    @Test
+    fun `Card power conversion`() {
+        val card = TestDataFactory.createCardWithPower("A", "5", "6", "8")
+        card.topPow shouldBe 10u
+        card.rightPow shouldBe 5u
+        card.bottomPow shouldBe 6u
+        card.leftPow shouldBe 8u
+    }
+
+    @Test
+    fun `Card canFlipAgainst returns correct result`() {
+        val card1 = TestDataFactory.createCardWithPower("6", "6", "6", "6")
+        val card2 = TestDataFactory.createCardWithPower("4", "4", "4", "4")
+
+        card1.canFlipAgainst(card2, Direction.TOP) shouldBe true
+        card2.canFlipAgainst(card1, Direction.TOP) shouldBe false
+        card1.canFlipAgainst(card1, Direction.TOP) shouldBe false
+    }
+
+    @Test
+    fun `Card equality`() {
+        val card1 = TestDataFactory.createTestCard(1u)
+        val card2 = TestDataFactory.createTestCard(1u)
+        val card3 = TestDataFactory.createTestCard(2u)
+
+        card1 shouldBe card2
+        card1 shouldNotBe card3
     }
 }
 ```
@@ -250,54 +297,59 @@ import io.kotest.matchers.collections.shouldHaveSize
 
 class TTOCoreTest : BaseTest() {
     private lateinit var core: TTOCore
-    
+
     @BeforeTest
     fun setup() {
         core = TTOCore()
     }
-    
-    init {
-        test("basicRule flips adjacent card with lower power") {
-            val board = TestDataFactory.createTestBoard()
-            val tile = board[0]
-            
-            val result = core.basicRule(tile, CardColor.BLUE)
-            
-            result shouldHaveSize 1
-            result[0] shouldBe board[1] // Should flip adjacent tile
-        }
-        
-        test("basicRule does not flip card with higher power") {
-            val board = Board()
-            board.placeCard(TestDataFactory.createCardWithPower("4", "4", "4", "4"), board[0], CardColor.BLUE)
-            board.placeCard(TestDataFactory.createCardWithPower("6", "6", "6", "6"), board[1], CardColor.RED)
-            
-            val result = core.basicRule(board[0], CardColor.BLUE)
-            
-            result shouldHaveSize 0
-        }
-        
-        test("comboRule triggers chain reaction") {
-            val board = TestDataFactory.createComboBoard()
-            val tile = board[2] // Empty center tile
-            
-            // Place a high-power card in center
-            board.placeCard(TestDataFactory.createCardWithPower("A", "A", "A", "A"), tile, CardColor.BLUE)
-            
-            val result = core.comboRule(tile, listOf(board[1]), 0u, CardColor.BLUE, mutableListOf())
-            
-            result shouldContain board[1]
-            result shouldContain board[3]
-        }
-        
-        test("applyRules returns distinct tiles") {
-            val board = TestDataFactory.createTestBoard()
-            val tile = board[0]
-            
-            val result = core.applyRules(tile, CardColor.BLUE, false)
-            
-            result.distinct() shouldHaveSize result.size
-        }
+
+    @Test
+    fun `basicRule flips adjacent card with lower power`() {
+        val board = TestDataFactory.createTestBoard()
+        val tile = board[0]
+
+        val result = core.basicRule(tile, CardColor.BLUE)
+
+        result shouldHaveSize 1
+        result[0] shouldBe board[1] // Should flip adjacent tile
+    }
+
+    @Test
+    fun `basicRule does not flip card with higher power`() {
+        val board = Board()
+        board.placeCard(TestDataFactory.createCardWithPower("4", "4", "4", "4"), board[0], CardColor.BLUE)
+        board.placeCard(TestDataFactory.createCardWithPower("6", "6", "6", "6"), board[1], CardColor.RED)
+
+        val result = core.basicRule(board[0], CardColor.BLUE)
+
+        result shouldHaveSize 0
+    }
+
+    @Test
+    fun `comboRule triggers chain reaction`() {
+        val board = TestDataFactory.createComboBoard()
+        // board[2] is the TOP-RIGHT tile in row-major order; the centre is
+        // board[4]. The previous comment was wrong, and tile 2 is not adjacent
+        // to tile 3, so the assertions below could not have held.
+        val tile = board[4] // centre tile (row 1, col 1)
+
+        // Place a high-power card in center
+        board.placeCard(TestDataFactory.createCardWithPower("A", "A", "A", "A"), tile, CardColor.BLUE)
+
+        val result = core.comboRule(tile, listOf(board[1]), 0u, CardColor.BLUE, mutableListOf())
+
+        result shouldContain board[1]
+        result shouldContain board[3]
+    }
+
+    @Test
+    fun `applyRules returns distinct tiles`() {
+        val board = TestDataFactory.createTestBoard()
+        val tile = board[0]
+
+        val result = core.applyRules(tile, CardColor.BLUE, false)
+
+        result.distinct() shouldHaveSize result.size
     }
 }
 ```
@@ -314,48 +366,51 @@ import io.kotest.property.checkAll
 
 class TTOCorePropertyTest : BaseTest() {
     private lateinit var core: TTOCore
-    
+
     @BeforeTest
     fun setup() {
         core = TTOCore()
     }
-    
-    init {
-        test("flipping a card never results in infinite loop") {
-            checkAll(Arb.uint(1u..15u), Arb.uint(1u..15u)) { topPow, adjacentPow ->
-                // Create a board where we try to trigger infinite combo
-                val board = Board()
-                val card = TestDataFactory.createCardWithPower(
-                    topPow.toString(16), 
-                    "5", "5", "5"
-                )
-                val adjacentCard = TestDataFactory.createCardWithPower(
-                    adjacentPow.toString(16),
-                    "5", "5", "5"
-                )
-                
-                board.placeCard(card, board[0], CardColor.BLUE)
-                board.placeCard(adjacentCard, board[1], CardColor.RED)
-                
-                val result = core.applyRules(board[0], CardColor.BLUE, false)
-                
-                // Should not return more tiles than exist on board
-                result.size <= board.tiles.size
-            }
+
+    @Test
+    fun `flipping a card never results in infinite loop`() {
+        checkAll(Arb.uint(1u..15u), Arb.uint(1u..15u)) { topPow, adjacentPow ->
+            // Create a board where we try to trigger infinite combo
+            val board = Board()
+            val card = TestDataFactory.createCardWithPower(
+                topPow.toString(16),
+                "5", "5", "5"
+            )
+            val adjacentCard = TestDataFactory.createCardWithPower(
+                adjacentPow.toString(16),
+                "5", "5", "5"
+            )
+
+            board.placeCard(card, board[0], CardColor.BLUE)
+            board.placeCard(adjacentCard, board[1], CardColor.RED)
+
+            val result = core.applyRules(board[0], CardColor.BLUE, false)
+
+            // Should not return more tiles than exist on board
+            result.size <= board.tiles.size
         }
-        
-        test("board state remains valid after any flip") {
-            checkAll(Arb.uint(1u..9u), Arb.uint(1u..9u)) { sourceIndex, targetIndex ->
-                val board = TestDataFactory.createFullBoard()
-                val sourceTile = board[sourceIndex.toInt()]
-                
-                val result = core.applyRules(sourceTile, CardColor.BLUE, false)
-                
-                // Verify board state is still valid
-                // All cards should still be on valid tiles
-                // No duplicate cards
-                // etc.
-            }
+    }
+
+    @Test
+    fun `board state remains valid after any flip`() {
+        // Board indices are 0..8. The previous version generated 1u..9u, so
+        // index 9 threw IndexOutOfBounds -- and the block asserted nothing,
+        // making the test vacuous even when it passed.
+        checkAll(Arb.int(0..8)) { sourceIndex ->
+            val board = TestDataFactory.createFullBoard()
+            val sourceTile = board[sourceIndex.toInt()]
+
+            val result = core.applyRules(sourceTile, CardColor.BLUE, false)
+
+            // Verify board state is still valid
+            // All cards should still be on valid tiles
+            // No duplicate cards
+            // etc.
         }
     }
 }
@@ -373,50 +428,55 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.verify
 
+// MockK is JVM-only: this file must live in jvmTest/ or androidUnitTest/,
+// NOT commonTest/. For a test that must also run on iOS, use a hand-written fake
+// (see FakeCardDataSource at the end of this document).
 class CardRepositoryTest : BaseTest() {
     private lateinit var repository: CardRepository
-    private val mockDataSource = mockkClass<LocalCardDataSource>()
-    
+    private val mockDataSource = mockk<LocalCardDataSource>()
+
     @BeforeTest
     fun setup() {
         repository = CardRepository(mockDataSource)
     }
-    
-    init {
-        test("getAllCards returns all cards from data source") = runTest {
-            val expectedCards = listOf(
-                TestDataFactory.createTestCard(1u),
-                TestDataFactory.createTestCard(2u),
-                TestDataFactory.createTestCard(3u)
-            )
-            
-            every { mockDataSource.getAll(any()) } returns expectedCards
-            
-            val result = repository.getAllCards(CardCollection.FF14)
-            
-            result shouldHaveSize 3
-            result shouldContain TestDataFactory.createTestCard(1u)
-            
-            verify { mockDataSource.getAll(CardCollection.FF14) }
-        }
-        
-        test("getCardById returns correct card") = runTest {
-            val expectedCard = TestDataFactory.createTestCard(5u)
-            every { mockDataSource.getById(5u, any()) } returns expectedCard
-            
-            val result = repository.getCardById(5u, CardCollection.FF14)
-            
-            result shouldBe expectedCard
-            verify { mockDataSource.getById(5u, CardCollection.FF14) }
-        }
-        
-        test("getCardById returns null when not found") = runTest {
-            every { mockDataSource.getById(999u, any()) } returns null
-            
-            val result = repository.getCardById(999u, CardCollection.FF14)
-            
-            result shouldBe null
-        }
+
+    @Test
+    fun `getAllCards returns all cards from data source`() = runTest(testDispatcher) {
+        val expectedCards = listOf(
+            TestDataFactory.createTestCard(1u),
+            TestDataFactory.createTestCard(2u),
+            TestDataFactory.createTestCard(3u)
+        )
+
+        // getAll is a suspend function -> coEvery, not every
+        coEvery { mockDataSource.getAll(any()) } returns expectedCards
+
+        val result = repository.getAllCards(CardCollection.FF14)
+
+        result shouldHaveSize 3
+        result shouldContain TestDataFactory.createTestCard(1u)
+
+        coVerify { mockDataSource.getAll(CardCollection.FF14) }
+    }
+
+    @Test
+    fun `getCardById returns correct card`() = runTest(testDispatcher) {
+        val expectedCard = TestDataFactory.createTestCard(5u)
+        coEvery { mockDataSource.getById(5u, any()) } returns expectedCard
+
+        val result = repository.getCardById(5u, CardCollection.FF14)
+
+        result shouldBe expectedCard
+        coVerify { mockDataSource.getById(5u, CardCollection.FF14) }
+    }
+
+    @Test
+    fun `getCardById returns null when not found`() = runTest(testDispatcher) {
+        coEvery { mockDataSource.getById(999u, any()) } returns null
+
+        val result = repository.getCardById(999u, CardCollection.FF14)
+
+        result shouldBe null
     }
 }
 ```
@@ -432,58 +492,61 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import kotlinx.coroutines.flow.MutableStateFlow
 
+// JVM-only (MockK). See the note on CardRepositoryTest.
 class GameViewModelTest : BaseTest() {
     private lateinit var viewModel: GameViewModel
-    private val mockCore = mockkClass<TTOCore>()
-    private val mockRepository = mockkClass<CardRepository>()
-    
+    private val mockCore = mockk<TTOCore>()
+    private val mockRepository = mockk<CardRepository>()
+
     @BeforeTest
     fun setup() {
-        every { mockRepository.getAllCards(any()) } returns listOf(
-            TestDataFactory.createTestCard(1),
-            TestDataFactory.createTestCard(2),
-            TestDataFactory.createTestCard(3),
-            TestDataFactory.createTestCard(4),
-            TestDataFactory.createTestCard(5)
+        coEvery { mockRepository.getAllCards(any()) } returns listOf(
+            // createTestCard(id: UInt) -- Int literals do not compile
+            TestDataFactory.createTestCard(1u),
+            TestDataFactory.createTestCard(2u),
+            TestDataFactory.createTestCard(3u),
+            TestDataFactory.createTestCard(4u),
+            TestDataFactory.createTestCard(5u)
         )
-        
+
         viewModel = GameViewModel(mockCore, mockRepository)
     }
-    
-    init {
-        test("initializeGame sets game state") = runTest {
-            viewModel.initializeGame(GameMode.FF14)
-            
-            viewModel.state.test {
-                val state = awaitItem()
-                state.mode shouldBe GameMode.FF14
-                state.blueDeck shouldHaveSize 5
-                state.redDeck shouldHaveSize 5
-            }
+
+    @Test
+    fun `initializeGame sets game state`() = runTest(testDispatcher) {
+        viewModel.initializeGame(GameMode.FF14)
+
+        viewModel.state.test {
+            val state = awaitItem()
+            state.mode shouldBe GameMode.FF14
+            state.blueDeck shouldHaveSize 5
+            state.redDeck shouldHaveSize 5
         }
-        
-        test("selectCard updates selected card") = runTest {
-            val card = TestDataFactory.createTestCard(1)
-            viewModel.selectCard(card)
-            
-            viewModel.state.test {
-                val state = awaitItem()
-                state.selectedCard shouldBe card
-            }
+    }
+
+    @Test
+    fun `selectCard updates selected card`() = runTest(testDispatcher) {
+        val card = TestDataFactory.createTestCard(1)
+        viewModel.selectCard(card)
+
+        viewModel.state.test {
+            val state = awaitItem()
+            state.selectedCard shouldBe card
         }
-        
-        test("placeCardOnTile clears selection") = runTest {
-            val card = TestDataFactory.createTestCard(1)
-            val tile = Tile(id = 0, row = 0, col = 0)
-            
-            viewModel.selectCard(card)
-            viewModel.placeCardOnTile(tile)
-            
-            viewModel.state.test {
-                val state = awaitItem() // Skip initial state
-                val nextState = awaitItem()
-                nextState.selectedCard shouldBe null
-            }
+    }
+
+    @Test
+    fun `placeCardOnTile clears selection`() = runTest(testDispatcher) {
+        val card = TestDataFactory.createTestCard(1)
+        val tile = Tile(id = 0)   // row/col are derived, not constructor args
+
+        viewModel.selectCard(card)
+        viewModel.placeCardOnTile(tile)
+
+        viewModel.state.test {
+            val state = awaitItem() // Skip initial state
+            val nextState = awaitItem()
+            nextState.selectedCard shouldBe null
         }
     }
 }
@@ -528,38 +591,38 @@ import com.tripletriad.test.TestDataFactory
 import org.junit.Test
 
 class GameFlowIntegrationTest : BaseIntegrationTest() {
-    
+
     @Test
     fun completeGameFlow_worksEndToEnd() {
         val viewModel = GameViewModel()
-        
+
         composeTestRule.setContent {
             TripleTriadTheme {
                 GameScreen(viewModel = viewModel)
             }
         }
-        
+
         // Initialize game
         viewModel.initializeGame(GameMode.FF14)
-        
+
         // Wait for initialization
-        composeTestRule.waitUntilTimeout(1000) {
+        composeTestRule.waitUntil(timeoutMillis = 1000) {
             viewModel.state.value.phase == GamePhase.DECK_SELECTION
         }
-        
+
         // Select first card from deck
         composeTestRule.onNodeWithText("Card 1").performClick()
-        
+
         // Verify card is selected
-        composeTestRule.waitUntilTimeout(1000) {
+        composeTestRule.waitUntil(timeoutMillis = 1000) {
             viewModel.state.value.selectedCard != null
         }
-        
+
         // Place card on first tile
         composeTestRule.onNodeWithContentDescription("Tile 0").performClick()
-        
+
         // Verify card is placed
-        composeTestRule.waitUntilTimeout(1000) {
+        composeTestRule.waitUntil(timeoutMillis = 1000) {
             viewModel.state.value.board.tiles[0].hasCard()
         }
     }
@@ -574,37 +637,37 @@ import com.tripletriad.test.BaseIntegrationTest
 import org.junit.Test
 
 class NavigationIntegrationTest : BaseIntegrationTest() {
-    
+
     @Test
     fun menuScreen_navigatesToDecks() {
         val navController = TestNavController()
-        
+
         composeTestRule.setContent {
             TripleTriadTheme {
                 AppNavigation(navController = navController)
             }
         }
-        
+
         // Click Decks button
         composeTestRule.onNodeWithText("Decks").performClick()
-        
+
         // Verify navigation
         assert(navController.currentBackStackEntry?.destination?.route == "decks")
     }
-    
+
     @Test
     fun menuScreen_navigatesToSettings() {
         val navController = TestNavController()
-        
+
         composeTestRule.setContent {
             TripleTriadTheme {
                 AppNavigation(navController = navController)
             }
         }
-        
+
         // Click Settings button
         composeTestRule.onNodeWithText("Settings").performClick()
-        
+
         // Verify navigation
         assert(navController.currentBackStackEntry?.destination?.route == "settings")
     }
@@ -624,45 +687,46 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 
 class SocketManagerIntegrationTest : BaseTest() {
-    private val mockClient = mockkClass<HttpClient>()
-    private val mockWebSocket = mockkClass<WebSocketSession>()
-    
-    init {
-        test("connect and receive messages") = runTest {
-            val socketManager = SocketManager(mockClient, SocketConfiguration())
-            
-            coEvery { mockClient.webSocket(any(), any(), any()) } returns mockWebSocket
-            coEvery { mockWebSocket.send(any()) } returns Unit
-            
-            // Setup mock incoming messages
-            val messages = listOf(
-                Frame.Text("{\"type\":\"pong\"}"),
-                Frame.Text("{\"type\":\"clients\",\"data\":{\"users\":[]}}")
-            )
-            coEvery { mockWebSocket.incoming } returns messages.asFlow()
-            
-            socketManager.connect()
-            
-            // Verify connection state
-            val connectionState = socketManager.connectionState.first()
-            connectionState shouldBe ConnectionState.Connected("main_room")
-            
-            // Verify messages received
-            val receivedMessages = socketManager.incomingMessages.take(2).toList()
-            receivedMessages shouldHaveSize 2
-        }
-        
-        test("disconnect closes WebSocket") = runTest {
-            val socketManager = SocketManager(mockClient, SocketConfiguration())
-            
-            coEvery { mockClient.webSocket(any(), any(), any()) } returns mockWebSocket
-            coEvery { mockWebSocket.close() } returns Unit
-            
-            socketManager.connect()
-            socketManager.close()
-            
-            coVerify { mockWebSocket.close() }
-        }
+    // JVM-only (MockK). Also: the session type is DefaultClientWebSocketSession.
+    private val mockClient = mockk<HttpClient>()
+    private val mockWebSocket = mockk<DefaultClientWebSocketSession>()
+
+    @Test
+    fun `connect and receive messages`() = runTest(testDispatcher) {
+        val socketManager = SocketManager(mockClient, SocketConfiguration())
+
+        coEvery { mockClient.webSocket(any(), any(), any()) } returns mockWebSocket
+        coEvery { mockWebSocket.send(any()) } returns Unit
+
+        // Setup mock incoming messages
+        val messages = listOf(
+            Frame.Text("{\"type\":\"pong\"}"),
+            Frame.Text("{\"type\":\"clients\",\"data\":{\"users\":[]}}")
+        )
+        coEvery { mockWebSocket.incoming } returns messages.asFlow()
+
+        socketManager.connect()
+
+        // Verify connection state
+        val connectionState = socketManager.connectionState.first()
+        connectionState shouldBe ConnectionState.Connected("main_room")
+
+        // Verify messages received
+        val receivedMessages = socketManager.incomingMessages.take(2).toList()
+        receivedMessages shouldHaveSize 2
+    }
+
+    @Test
+    fun `disconnect closes WebSocket`() = runTest(testDispatcher) {
+        val socketManager = SocketManager(mockClient, SocketConfiguration())
+
+        coEvery { mockClient.webSocket(any(), any(), any()) } returns mockWebSocket
+        coEvery { mockWebSocket.close() } returns Unit
+
+        socketManager.connect()
+        socketManager.close()
+
+        coVerify { mockWebSocket.close() }
     }
 }
 ```
@@ -688,7 +752,7 @@ import com.tripletriad.test.BaseIntegrationTest
 import org.junit.Test
 
 class MenuScreenTest : BaseIntegrationTest() {
-    
+
     @Test
     fun menuScreen_displaysAllButtons() {
         composeTestRule.setContent {
@@ -696,7 +760,7 @@ class MenuScreenTest : BaseIntegrationTest() {
                 MenuScreen(navController = TestNavController())
             }
         }
-        
+
         // Verify all buttons are displayed
         composeTestRule.onNodeWithText("New Game").assertExists()
         composeTestRule.onNodeWithText("PvP").assertExists()
@@ -705,20 +769,20 @@ class MenuScreenTest : BaseIntegrationTest() {
         composeTestRule.onNodeWithText("Settings").assertExists()
         composeTestRule.onNodeWithText("Help").assertExists()
     }
-    
+
     @Test
     fun menuScreen_newGameButtonIsClickable() {
         val navController = TestNavController()
-        
+
         composeTestRule.setContent {
             TripleTriadTheme {
                 MenuScreen(navController = navController)
             }
         }
-        
+
         composeTestRule.onNodeWithText("New Game").assertIsEnabled()
         composeTestRule.onNodeWithText("New Game").performClick()
-        
+
         // Verify navigation
         assert(navController.navigatedTo("new_game"))
     }
@@ -734,40 +798,40 @@ import com.tripletriad.test.TestDataFactory
 import org.junit.Test
 
 class BoardComponentTest : BaseIntegrationTest() {
-    
+
     @Test
     fun board_displaysAllTiles() {
         val board = TestDataFactory.createEmptyBoard()
-        
+
         composeTestRule.setContent {
             TripleTriadTheme {
                 BoardComponent(board = board, onTileClick = {})
             }
         }
-        
+
         // Verify 9 tiles are displayed
         composeTestRule.onAllNodesWithContentDescription("Tile").assertCountEquals(9)
     }
-    
+
     @Test
     fun board_displaysCardsOnTiles() {
         val board = TestDataFactory.createFullBoard()
-        
+
         composeTestRule.setContent {
             TripleTriadTheme {
                 BoardComponent(board = board, onTileClick = {})
             }
         }
-        
+
         // Verify cards are displayed
         composeTestRule.onAllNodesWithContentDescription(/Card \d/.toRegex()).assertCountEquals(9)
     }
-    
+
     @Test
     fun tile_clickCallsHandler() {
         val board = TestDataFactory.createEmptyBoard()
         var clickedTile: Tile? = null
-        
+
         composeTestRule.setContent {
             TripleTriadTheme {
                 BoardComponent(
@@ -776,9 +840,9 @@ class BoardComponentTest : BaseIntegrationTest() {
                 )
             }
         }
-        
+
         composeTestRule.onNodeWithContentDescription("Tile 0").performClick()
-        
+
         clickedTile shouldBe board[0]
     }
 }
@@ -793,12 +857,12 @@ import com.tripletriad.test.TestDataFactory
 import org.junit.Test
 
 class DragDropTest : BaseIntegrationTest() {
-    
+
     @Test
     fun card_canBeDragged() {
         val card = TestDataFactory.createTestCard(1)
         var dragStarted = false
-        
+
         composeTestRule.setContent {
             TripleTriadTheme {
                 DraggableCard(
@@ -808,7 +872,7 @@ class DragDropTest : BaseIntegrationTest() {
                 )
             }
         }
-        
+
         // Perform drag gesture
         composeTestRule.onNodeWithContentDescription("Card 1")
             .performTouchInput {
@@ -816,16 +880,16 @@ class DragDropTest : BaseIntegrationTest() {
                 moveTo(Offset(100f, 100f))
                 up()
             }
-        
+
         dragStarted shouldBe true
     }
-    
+
     @Test
     fun card_canBeDroppedOnTile() {
         val card = TestDataFactory.createTestCard(1)
-        val tile = Tile(id = 0, row = 0, col = 0)
+        val tile = Tile(id = 0)   // row/col are derived, not constructor args
         var droppedCard: Card? = null
-        
+
         composeTestRule.setContent {
             TripleTriadTheme {
                 Box {
@@ -841,17 +905,17 @@ class DragDropTest : BaseIntegrationTest() {
                 }
             }
         }
-        
+
         // Perform drag and drop
         val cardNode = composeTestRule.onNodeWithContentDescription("Card 1")
         val tileNode = composeTestRule.onNodeWithContentDescription("Tile 0")
-        
+
         cardNode.performTouchInput {
             down(center)
             moveTo(tileNode.center)
             up()
         }
-        
+
         droppedCard shouldBe card
     }
 }
@@ -885,14 +949,14 @@ import org.junit.runner.RunWith
 class AnimationPerformanceTest {
     @get:Rule
     val benchmarkRule = BenchmarkRule()
-    
+
     @get:Rule
     val composeTestRule = createComposeRule()
-    
+
     @Test
     fun cardFlipAnimation_performance() {
         val card = TestDataFactory.createTestCard(1)
-        
+
         benchmarkRule.measureRepeated {
             composeTestRule.setContent {
                 CardFlipAnimation(
@@ -901,30 +965,30 @@ class AnimationPerformanceTest {
                     onComplete = {}
                 )
             }
-            
+
             // Run animation
             composeTestRule.waitForIdle()
         }
     }
-    
+
     @Test
     fun boardRender_performance() {
         val board = TestDataFactory.createFullBoard()
-        
+
         benchmarkRule.measureRepeated {
             composeTestRule.setContent {
                 BoardComponent(board = board, onTileClick = {})
             }
-            
+
             composeTestRule.waitForIdle()
         }
     }
-    
+
     @Test
     fun comboAnimation_performance() {
         val board = TestDataFactory.createComboBoard()
         val core = TTOCore()
-        
+
         benchmarkRule.measureRepeated {
             core.comboRule(board[0], listOf(), 0u, CardColor.BLUE, mutableListOf())
         }
@@ -938,20 +1002,30 @@ class AnimationPerformanceTest {
 // shared/src/commonMain/kotlin/com/tripletriad/utils/PerformanceMonitor.kt
 import io.github.aakira.napier.Napier
 
+// NOTE: this file is in commonMain, so it CANNOT call System.nanoTime() —
+// that is JVM-only. Take the timestamp from Compose's frame clock instead,
+// which is multiplatform and gives the real frame time:
+//
+//     @Composable
+//     fun FrameMonitor(monitor: PerformanceMonitor) {
+//         LaunchedEffect(Unit) {
+//             while (true) withFrameNanos { nanos -> monitor.onFrame(nanos) }
+//         }
+//     }
+//
 class PerformanceMonitor {
     private val frameTimes = mutableListOf<Long>()
     private val memoryUsage = mutableListOf<Long>()
     private var lastFrameTime = 0L
-    
-    fun onFrame() {
-        val currentTime = System.nanoTime()
+
+    fun onFrame(currentTime: Long) {
         if (lastFrameTime > 0) {
             val frameTime = currentTime - lastFrameTime
             frameTimes.add(frameTime)
             if (frameTimes.size > 100) {
                 frameTimes.removeAt(0)
             }
-            
+
             // Log if frame time too high
             if (frameTime > 16_666_667) { // >16.67ms (60fps)
                 Napier.w("Frame time: ${frameTime / 1_000_000}ms")
@@ -959,24 +1033,24 @@ class PerformanceMonitor {
         }
         lastFrameTime = currentTime
     }
-    
+
     fun recordMemory(usage: Long) {
         memoryUsage.add(usage)
         if (memoryUsage.size > 100) {
             memoryUsage.removeAt(0)
         }
-        
+
         if (usage > 100 * 1024 * 1024) { // >100MB
             Napier.w("Memory usage: ${usage / (1024 * 1024)}MB")
         }
     }
-    
+
     fun getAverageFPS(): Float {
         if (frameTimes.isEmpty()) return 0f
         val avgFrameTime = frameTimes.average() / 1_000_000
         return 1000f / avgFrameTime
     }
-    
+
     fun getFrameTimeStats(): FrameStats {
         if (frameTimes.isEmpty()) return FrameStats(0f, 0f, 0f)
         val sorted = frameTimes.sorted()
@@ -986,7 +1060,7 @@ class PerformanceMonitor {
             p99 = sorted[(sorted.size * 0.99).toInt()] / 1_000_000f
         )
     }
-    
+
     fun getMemoryStats(): MemoryStats {
         if (memoryUsage.isEmpty()) return MemoryStats(0L, 0L, 0L)
         val sorted = memoryUsage.sorted()
@@ -1026,43 +1100,43 @@ import kotlinx.coroutines.awaitAll
 import java.util.concurrent.atomic.AtomicInteger
 
 class ConcurrencyStressTest : BaseTest() {
-    
-    init {
-        test("100 concurrent animations") = runTest {
-            val animations = (1..100).map { i ->
-                async {
-                    // Simulate animation
-                    val card = TestDataFactory.createTestCard(i.toUInt())
-                    val tile = Tile(id = i % 9, row = (i / 3) % 3, col = i % 3)
-                    
-                    // Simulate animation work
-                    kotlinx.coroutines.delay(10)
-                }
+
+    @Test
+    fun `100 concurrent animations`() = runTest(testDispatcher) {
+        val animations = (1..100).map { i ->
+            async {
+                // Simulate animation
+                val card = TestDataFactory.createTestCard(i.toUInt())
+                val tile = Tile(id = i % 9, row = (i / 3) % 3, col = i % 3)
+
+                // Simulate animation work
+                kotlinx.coroutines.delay(10)
             }
-            
-            animations.awaitAll()
-            
-            // Verify no crashes
         }
-        
-        test("50 rapid card placements") = runTest {
-            val viewModel = GameViewModel()
-            val cards = (1..50).map { TestDataFactory.createTestCard(it.toUInt()) }
-            val counter = AtomicInteger(0)
-            
-            cards.forEach { card ->
-                async {
-                    viewModel.selectCard(card)
-                    viewModel.placeCardOnTile(Tile(id = counter.getAndIncrement() % 9, row = 0, col = 0))
-                }
+
+        animations.awaitAll()
+
+        // Verify no crashes
+    }
+
+    @Test
+    fun `50 rapid card placements`() = runTest(testDispatcher) {
+        val viewModel = GameViewModel()
+        val cards = (1..50).map { TestDataFactory.createTestCard(it.toUInt()) }
+        val counter = AtomicInteger(0)
+
+        cards.forEach { card ->
+            async {
+                viewModel.selectCard(card)
+                viewModel.placeCardOnTile(Tile(id = counter.getAndIncrement() % 9, row = 0, col = 0))
             }
-            
-            // Wait for all placements
-            delay(1000)
-            
-            // Verify game state is valid
-            viewModel.state.value.board.getTakenTiles().size shouldBeLessThanOrEqual 9
         }
+
+        // Wait for all placements
+        delay(1000)
+
+        // Verify game state is valid
+        viewModel.state.value.board.getTakenTiles().size shouldBeLessThanOrEqual 9
     }
 }
 ```
@@ -1269,13 +1343,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
       - run: ./gradlew :shared:allTests
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: unit-test-results
           path: shared/build/reports/tests/**/*.xml
@@ -1285,10 +1359,13 @@ jobs:
     needs: unit-tests
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
+        with:
+          distribution: \'temurin\'
+          java-version: \'17\'
       - run: ./gradlew :shared:integrationTests
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: integration-test-results
           path: shared/build/reports/tests/**/*.xml
@@ -1298,10 +1375,13 @@ jobs:
     needs: integration-tests
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
+        with:
+          distribution: \'temurin\'
+          java-version: \'17\'
       - run: ./gradlew :androidApp:connectedDebugAndroidTest
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ui-test-results
           path: androidApp/build/reports/**/*.xml
@@ -1311,14 +1391,81 @@ jobs:
     needs: android-ui-tests
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
+        with:
+          distribution: \'temurin\'
+          java-version: \'17\'
       - run: ./gradlew :androidApp:benchmarkDebugAndroidTest
       - name: Upload performance results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-test-results
           path: androidApp/build/reports/**/*.json
 ```
+
+---
+
+## 🧩 Hand-Written Fakes (for `commonTest`)
+
+MockK cannot run on Kotlin/Native, so any test that must execute on iOS uses a fake
+instead. Fakes are also faster and survive refactors better than mock DSLs.
+
+```kotlin
+// shared/src/commonTest/kotlin/com/tripletriad/test/FakeCardDataSource.kt
+class FakeCardDataSource(
+    private var cards: List<Card> = emptyList()
+) : LocalCardDataSource {
+
+    // Recorded calls, so tests can assert interactions without verify {}.
+    val getAllCalls = mutableListOf<CardCollection>()
+    var failWith: Throwable? = null
+
+    fun setCards(newCards: List<Card>) { cards = newCards }
+
+    override suspend fun getAll(collection: CardCollection): List<Card> {
+        failWith?.let { throw it }
+        getAllCalls += collection
+        return cards.filter { it.collection == collection }
+    }
+
+    override suspend fun getById(id: UInt, collection: CardCollection): Card? {
+        failWith?.let { throw it }
+        return cards.firstOrNull { it.id == id && it.collection == collection }
+    }
+}
+```
+
+Rewriting the earlier `CardRepositoryTest` against the fake makes it multiplatform:
+
+```kotlin
+class CardRepositoryTest : BaseTest() {
+    private val dataSource = FakeCardDataSource()
+    private val repository = CardRepositoryImpl(dataSource)
+
+    @Test
+    fun `getAllCards returns all cards from the data source`() = runTest(testDispatcher) {
+        dataSource.setCards(listOf(
+            TestDataFactory.createTestCard(1u),
+            TestDataFactory.createTestCard(2u),
+            TestDataFactory.createTestCard(3u)
+        ))
+
+        val result = repository.getAllCards(CardCollection.FF14)
+
+        result shouldHaveSize 3
+        dataSource.getAllCalls shouldBe listOf(CardCollection.FF14)
+    }
+
+    @Test
+    fun `getCardById returns null when not found`() = runTest(testDispatcher) {
+        repository.getCardById(999u, CardCollection.FF14) shouldBe null
+    }
+}
+```
+
+> **Rule of thumb**: `commonTest` uses fakes only. Reserve MockK for
+> `jvmTest`/`androidUnitTest` where mocking an Android or JVM type is genuinely
+> unavoidable.
 
 ---
 
@@ -1350,5 +1497,5 @@ jobs:
 
 ---
 
-*Generated: 2026-07-21*  
+*Generated: 2026-07-21*
 *Status: PLANNING COMPLETE*

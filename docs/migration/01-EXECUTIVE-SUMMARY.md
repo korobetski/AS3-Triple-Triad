@@ -16,10 +16,14 @@
 
 **Triple Triad Online** is a digital implementation of the classic **Triple Triad** card game from the Final Fantasy series. It features:
 
-- **Card Collection**: 100+ cards per collection (FF8 and FF14)
+- **Card Collection**: 153 FF14 cards + 110 FF8 cards (`datas/cards.as`)
 - **Game Modes**: Single-player (PvE) and Multiplayer (PvP)
-- **Special Rules**: 15+ special Triple Triad rules (Fallen Ace, Reverse, Same, Plus, etc.)
-- **Online Features**: Matchmaking, chat, ranked matches
+- **Special Rules**: 17 special Triple Triad rules (Fallen Ace, Reverse, Same,
+  Same Wall, Plus, Combo, Ascension, Descension, Elemental, Swap, Roulette,
+  Sudden Death, Random, Order, Chaos, All Open, Three Open)
+- **Online Features**: Matchmaking, chat, ranked matches — ⚠️ **non-functional in
+  the source**; only connect/ping/user-list are wired up (see
+  [02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md) §8)
 - **Progression**: XP, ranks, achievements, inventory
 - **Customization**: Decks, avatars, themes
 
@@ -27,14 +31,15 @@
 
 | Component | Technology | Notes |
 |-----------|------------|-------|
-| **Language** | ActionScript 3 | Adobe AIR |
-| **Runtime** | Adobe AIR | Desktop only |
+| **Language** | ActionScript 3 | Adobe AIR 16.0 SDK |
+| **Runtime** | Adobe AIR | `supportedProfiles: desktop extendedDesktop` — desktop only; landscape, fullscreen |
 | **UI Framework** | Feathers UI | Component-based |
 | **Rendering** | Starling Framework | GPU-accelerated |
 | **Build** | Flex/ANT | Legacy system |
-| **Network** | XMLSocket | Custom protocol |
-| **Storage** | File API + SharedObject | Local saves |
-| **Audio** | SoundManager | Flash audio |
+| **Network** | XMLSocket (raw TCP) | Custom protocol, mixed JSON/XML, largely dead |
+| **Storage** | AIR `flash.filesystem.File` | AES-encrypted JSON `.sav` files + `UserSettings.json` |
+| **Audio** | `SoundManager` (custom) | Flash audio, 2 channels (background + noise) with independent volumes |
+| **i18n** | `i18n.as` + asset bundles | **4 languages**: `de_DE`, `en_US`, `fr_FR`, `ja_JA` |
 
 ### Migration Target
 
@@ -81,20 +86,20 @@
 
 ✅ **All Game Logic**
 - Complete Triple Triad rules engine (TTOCore)
-- All 15+ special rules (Fallen Ace, Reverse, Same, Plus, Combo, etc.)
+- All 17 special rules (Fallen Ace, Reverse, Same, Plus, Combo, etc.)
 - Card flipping logic
 - Turn management
 - Scoring system
 
 ✅ **All Data**
-- 100+ FF14 cards
-- 100+ FF8 cards
-- All card types and rarities
+- 153 FF14 cards
+- 110 FF8 cards
+- All card types (12) and rarities (1-5)
 - Player profiles and saves
 - Achievements
 - Inventory items
 
-✅ **All UI Screens** (28 total)
+✅ **All UI Screens** (22 navigable destinations + 9 embedded panels/components)
 - Menu and navigation
 - Game boards (PvE and PvP)
 - Deck management
@@ -105,24 +110,39 @@
 - Profile
 - Help and tutorials
 
-✅ **All Animations** (25+ animations)
+✅ **All Animations** (24 animation classes)
 - Card flips
 - Card movement (fly)
 - Rule-specific animations
 - Turn indicators
 - Win/lose animations
 
-✅ **Network Features**
+⚠️ **Network Features** — scope conflict, must be resolved before approval
 - WebSocket communication
 - Multiplayer matchmaking
 - Game state synchronization
 - Chat system
 - Server integration
 
+> **The plan contradicts itself here.** This section claims full multiplayer
+> parity, while "What's NOT Included" below states the backend server "remains
+> as-is". Both cannot hold:
+> 1. The AS3 client speaks **XMLSocket** (raw TCP). Ktor WebSocket cannot talk to
+>    it. Reaching the existing server requires either a server-side WebSocket
+>    endpoint or a TCP↔WebSocket proxy — both are backend work.
+> 2. Worse, there is nothing to reach parity *with*: 27 of the 29 message handlers
+>    in `net/Socket.as` are unreachable dead code. Multiplayer does not function in
+>    the source build.
+>
+> Pick one: **(a)** treat multiplayer as new development and budget backend work
+> (Phase 5 becomes design + client + server), or **(b)** move multiplayer out of
+> scope for v1 and ship PvE-only. Option (b) removes 3 weeks from the timeline
+> and is consistent with the current state of the codebase.
+
 ✅ **Platform Features**
 - Save/load system
 - Audio (sound effects and music)
-- Internationalization (EN/FR)
+- Internationalization (DE / EN / FR / JA — 4 locales)
 - Offline mode
 
 ### What's NOT Included (Out of Scope)
@@ -160,25 +180,28 @@
 │                      MIGRATION TIMELINE                          │
 ├─────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  Month 1-2:   Month 3-6:   Month 7-9:   Month 10-15:         │
+│  Week 1-2:    Week 3-6:    Week 7-8:    Week 9-12:           │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────┐    │
-│  │ PREP    │  │INFRA   │  │ DATA    │  │ CORE + UI    │    │
+│  │ PREP    │  │ INFRA   │  │ DATA    │  │ CORE LOGIC   │    │
 │  │         │  │         │  │         │  │              │    │
 │  └─────────┘  └─────────┘  └─────────┘  └─────────────┘    │
 │                                                                  │
-│  Month 16-20:  Month 21-23:  Month 24-26:  Month 27-30:      │
+│  Week 13-20:   Week 21-23:  Week 24-26:  Week 27-30:         │
 │  ┌─────────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │
 │  │   UI        │  │NETWORK  │  │ANIMATION│  │TESTING  │   │
-│  │  (cont.)    │  │         │  │         │  │         │   │
+│  │             │  │         │  │         │  │         │   │
 │  └─────────────┘  └─────────┘  └─────────┘  └─────────┘   │
 │                                                                  │
-│  Month 31-32:                                                   │
+│  Week 31-32:                                                    │
 │  ┌─────────┐                                                   │
 │  │ RELEASE │                                                   │
 │  └─────────┘                                                   │
 │                                                                  │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+*(Units are **weeks**, matching the phase table below: 2+4+2+4+8+3+3+4+2 = 32 weeks
+≈ 7.5 months.)*
 
 ### Phase Breakdown
 
@@ -188,37 +211,67 @@
 | **1: Infrastructure** | 4 weeks | Project structure, CI/CD | Gradle config, KMP setup, CI/CD |
 | **2: Data Layer** | 2 weeks | Models, Repositories | All data models, JSON data |
 | **3: Core Logic** | 4 weeks | Game engine | TTOCore, Rules, GameState |
-| **4: UI Layer** | 8 weeks | All screens | 28 screens, Components, Theme |
+| **4: UI Layer** | 8 weeks | All screens | 22 screens, 9 components, Theme |
 | **5: Network** | 3 weeks | WebSocket, Sync | SocketManager, Network layer |
-| **6: Animations** | 3 weeks | All animations | 25+ animations |
+| **6: Animations** | 3 weeks | All animations | 24 animations |
 | **7: Testing** | 4 weeks | Comprehensive testing | >80% test coverage |
 | **8: Release** | 2 weeks | Beta, Launch | Published apps |
 
-**Total Duration**: **30-32 weeks** (7-8 months)
+**Total Duration**: **32 weeks** (~7.5 months) — the phase durations above sum
+to exactly 32 (2+4+2+4+8+3+3+4+2). This is the **unbuffered** figure; see PR-001 in
+[16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md).
 
 ---
 
 ## 💰 Budget Estimate
 
+> ⚠️ **Corrected.** The previously published figure (€232,500–€297,500) was
+> arithmetically inconsistent with its own inputs: 8–9 people over 7–9 months at
+> €8k–10k/month is €448k–€810k in salary alone, and the monthly burn-rate table
+> below independently implied €475k–€590k. The €200k–€250k salary line understated
+> the stated team by a factor of ~2.4. Corrected figures follow.
+
 ### Cost Breakdown
+
+Anchored on **FTE-months**: 32 weeks ≈ 7.4 months × 8 FTE average = **59 FTE-months**.
 
 | Category | Low Estimate | High Estimate | Notes |
 |----------|--------------|---------------|-------|
-| **Salaries** | €200,000 | €250,000 | 8-9 people × 7-9 months @ €8k-10k/month |
-| Tools & Software | €5,000 | €10,000 | IDE, services, cloud |
-| Infrastructure | €3,000 | €5,000 | CI/CD, test servers |
+| **Salaries** | €475,000 | €590,000 | 59 FTE-months @ €8k–10k/month |
+| Tools & Software | €5,000 | €10,000 | IDE licences, services, cloud |
+| Infrastructure | €3,000 | €5,000 | CI/CD, macOS runners, test servers |
 | Training | €2,000 | €5,000 | Kotlin/Compose training |
-| Contingency (10%) | €22,500 | €27,500 | Unforeseen issues |
-| **TOTAL** | **€232,500** | **€297,500** | |
+| Apple/Google developer accounts | €150 | €150 | €99/yr Apple + $25 Google one-off |
+| Subtotal | €485,150 | €610,150 | |
+| Contingency (10%) | €48,515 | €61,015 | Unforeseen issues |
+| **TOTAL** | **€533,665** | **€671,165** | |
 
 ### Monthly Burn Rate
 
 | Period | Team Size | Monthly Cost |
 |--------|-----------|--------------|
-| Months 1-2 | 5-6 people | €40,000 - €60,000 |
-| Months 3-6 | 7-8 people | €56,000 - €80,000 |
-| Months 7-9 | 8-9 people | €64,000 - €90,000 |
+| Month 1 (Phase 0) | 5-6 people | €40,000 - €60,000 |
+| Months 2-3 (Phases 1-3) | 7-8 people | €56,000 - €80,000 |
+| Months 4-7.5 (Phases 4-8) | 8-9 people | €64,000 - €90,000 |
 | **Average** | **8 people** | **€64,000 - €80,000** |
+
+### If €232,500 is a hard ceiling
+
+That budget buys roughly **23 FTE-months** after non-salary costs — for example
+**3 FTE for 7.5 months**, not 8–9. At that staffing level the 32-week plan is not
+achievable and scope must be cut explicitly. Realistic options:
+
+| Option | Team | Duration | Scope |
+|--------|------|----------|-------|
+| A — Reduced team, longer schedule | 3 FTE | ~20 months | Full parity |
+| B — Reduced team, reduced scope | 3 FTE | ~8 months | Android only, PvE only, no PvP/network, simplified animations |
+| C — Full plan | 8-9 FTE | 7.5 months | Full parity — requires ~€534k-€671k |
+
+**This decision is a prerequisite for approving the plan** and should be settled
+before Phase 0 starts. Option B is the only one that fits both the original
+budget and a sub-year timeline; note it drops the network layer entirely, which
+[02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md) shows is
+non-functional in the source anyway.
 
 ---
 
@@ -259,11 +312,42 @@
 
 ## ⚠️ Key Risks
 
-### High Priority Risks
+### 🔴 Blocking risk: intellectual property
+
+**This is an unlicensed fan implementation of Square Enix intellectual property.**
+Triple Triad, Final Fantasy VIII and Final Fantasy XIV are Square Enix
+trademarks; the card artwork under `sources/assets/cards/` and `sources/bin/assets/atlas/`
+consists of extracted FFXIV/FF8 game assets, and `application.xml` carries a
+"© Moogle Works" notice with no licence from the rights holder.
+
+[12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md) currently plans public submission
+to Google Play and the Apple App Store, using "final fantasy" as a store keyword.
+That would almost certainly result in a DMCA takedown, developer-account
+penalties, and possible legal exposure — after the full project cost has been
+spent.
+
+**No amount of engineering mitigates this.** It must be resolved before any budget
+is committed. Viable paths:
+
+| Path | Description | Consequence |
+|------|-------------|-------------|
+| **A — Licence** | Obtain written permission from Square Enix | Unlikely for a third-party commercial release; worth a formal enquiry |
+| **B — Reskin** | Keep the rules engine, replace *all* Final Fantasy names, artwork, fonts, audio and the "Triple Triad" title with original assets | Legally viable (game *mechanics* are not copyrightable). Adds an art/audio workstream absent from this plan |
+| **C — Private distribution** | No public store listing; personal/archival use only | Removes the store-release rationale for the whole migration |
+| **D — Cancel** | Do not proceed | |
+
+Path B is the only one compatible with the stated goal of a public mobile
+release, and it materially changes scope, budget and team composition (an artist
+is required, and none is staffed). See **BR-003** in
+[16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md).
+
+### Other High Priority Risks
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Compose MP immaturity | Medium | High | Use stable versions, extensive testing |
+| **IP / copyright (above)** | **Very High** | **Critical** | **Reskin with original assets, or do not release publicly** |
+| Multiplayer is greenfield, not a migration | Very High | High | Re-scope Phase 5 or drop PvP from v1 |
+| Compose MP immaturity | Medium | High | Use stable, mutually compatible versions; extensive testing |
 | Performance on mobile | Medium | High | Early performance testing, optimization |
 | Animation complexity | High | High | Prioritize critical animations |
 | iOS compatibility | Medium | High | Dedicated iOS developer |
@@ -364,7 +448,7 @@
 
 ## 📞 Contact Information
 
-- **Project Repository**: [AS3-Triple-Triad](https://github.com/korobetski/tto)
+- **Project Repository**: [AS3-Triple-Triad](https://github.com/korobetski/AS3-Triple-Triad)
 - **Migration Branch**: `migration/kotlin-multiplatform`
 - **Documentation**: `docs/migration/`
 

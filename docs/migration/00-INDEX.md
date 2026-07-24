@@ -47,11 +47,38 @@ This directory contains the complete migration plan for moving **Triple Triad On
 
 ---
 
+## 🔴 Blocking issues — resolve before approving this plan
+
+Three items must be settled before Phase 0 is signed off. Each one changes scope,
+budget or feasibility, and none is an engineering problem.
+
+| # | Issue | Where | Impact |
+|---|-------|-------|--------|
+| 1 | **Unlicensed Square Enix IP.** All card art, character art, UI sprites, audio and the "Triple Triad" / "Final Fantasy" names are Square Enix property. Phase 8 plans public store releases using `final fantasy` as a keyword. | BR-003 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md) | Guaranteed takedown; total loss of investment. Requires a full reskin (adds an unstaffed art + audio workstream), private distribution only, or cancellation. |
+| 2 | **Multiplayer is greenfield, not a migration.** 27 of the 29 `Socket_On_*` handlers in `net/Socket.as` are unreachable dead code; only connect / ping / user-list work. XMLSocket is also not wire-compatible with WebSocket, so server work is unavoidable — contradicting the "server remains as-is" scope. | TR-007 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md), §8 of [02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md) | Phase 5's 3-week estimate is unfounded (realistically 8-12 weeks incl. server). Recommended: drop PvP from v1. |
+| 3 | **Budget was arithmetically inconsistent.** The published €232,500-€297,500 understated its own staffing assumption (8-9 FTE × 7-9 months at €8-10k/month) by ~130%. Corrected to **€533,665-€671,165**. | [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) | Either fund ~€534k-€671k, or cut scope/team explicitly. Three costed options are set out in the executive summary. |
+
+On the PoC: the first attempt (`poc/`) was reported COMPLETE and "technology stack
+validated" but had never been compiled and had 12 build-blocking defects. It has
+been **deleted and rewritten** as [../../kotlin/](../../kotlin/README.md), which
+does build — Android debug + release APKs, a JVM desktop host, 5 model tests and
+3 Compose UI tests that actually exercise the flip. See
+[kotlin/README.md § Verified build results](../../kotlin/README.md#verified-build-results).
+
+That validates the *toolchain* (Kotlin 2.2.20 / Compose Multiplatform 1.9.3 /
+AGP 8.13.2 / Gradle 8.14.3) and single-source Compose UI on Android. It does
+**not** validate the highest-risk areas, which remain untouched: card artwork
+sliced from Starling texture atlases, the 3×3 board with drag-and-drop, the rules
+engine, networking, iOS (never compiled — Kotlin/Native cannot target Apple from a
+Windows host), and performance on real devices.
+
+---
+
 ## 📊 Project Status
 
 | Phase | Status | Start Date | End Date | Owner |
 |-------|--------|------------|----------|-------|
-| Phase 0: Preparation | ⏳ NOT STARTED | - | - | - |
+| Phase 0: Preparation | ⚠️ IN PROGRESS - PoC builds; scope of PoC is narrow (see above) | - | - | - |
 | Phase 1: Infrastructure | ⏳ NOT STARTED | - | - | - |
 | Phase 2: Data Layer | ⏳ NOT STARTED | - | - | - |
 | Phase 3: Core Logic | ⏳ NOT STARTED | - | - | - |
@@ -61,13 +88,18 @@ This directory contains the complete migration plan for moving **Triple Triad On
 | Phase 7: Testing | ⏳ NOT STARTED | - | - | - |
 | Phase 8: Release | ⏳ NOT STARTED | - | - | - |
 
-**Overall Status**: 📝 **PLANNING COMPLETE** - Ready to start migration
+**Overall Status**: ⚠️ **PLANNING REVISED — NOT READY TO START.** The plan is
+documented, but the three blocking issues above must be resolved first, and the PoC
+must actually build before the technology choice can be called validated.
 
 ---
 
 ## 🔗 Related Files
 
-- **Source Code**: `sources/src/tto/` - Original AS3 source files
+- **Source Code**: `sources/src/tto/` - Original AS3 game code
+  (**103 files, 16,965 lines**). The wider `sources/src/` tree holds 579 files /
+  ~186,000 lines; the remainder is vendored Starling, Feathers UI, as3crypto
+  (`com.hurlant`) and Adobe corelib (`com.adobe`).
 - **Assets**: `sources/assets/` - Game assets (cards, sounds, images)
 - **Build Files**: `sources/` - Original Flex/ANT build configuration
 
@@ -81,13 +113,18 @@ This directory contains the complete migration plan for moving **Triple Triad On
 | 1 - Infrastructure | 4 weeks | Project structure, CI/CD |
 | 2 - Data Layer | 2 weeks | Models, Repositories |
 | 3 - Core Logic | 4 weeks | TTOCore, Rules Engine |
-| 4 - UI Layer | 8 weeks | All screens and components |
+| 4 - UI Layer | 8 weeks | 22 screens + 9 embedded components |
 | 5 - Network | 3 weeks | WebSocket, SocketManager |
-| 6 - Animations | 3 weeks | All 25+ animations |
+| 6 - Animations | 3 weeks | All 24 animation classes |
 | 7 - Testing | 4 weeks | Unit, Integration, UI tests |
 | 8 - Release | 2 weeks | Beta, Release, Deployment |
 
-**Total Estimated Duration**: **30-32 weeks** (7-8 months)
+**Total Estimated Duration**: **32 weeks** (~7.5 months) — the sum of the phase
+durations above is exactly 32 (2+4+2+4+8+3+3+4+2). Note this is the **unbuffered**
+figure: PR-001 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md) allocates a 10%
+buffer that totals 35.2 weeks but was never reflected in any published schedule.
+Per-week task allocations are also over-committed in several phases (up to 10 days
+of work for one owner in a 5-day week) and need re-levelling.
 
 ---
 
@@ -105,18 +142,39 @@ This directory contains the complete migration plan for moving **Triple Triad On
 
 **Total**: 8-9 FTE
 
+⚠️ **Roles missing from this plan but required by its own scope**:
+- **Artist**: needed to produce original card art, UI and icons if blocking issue
+  #1 is resolved by reskinning (263 cards plus UI). Currently 0 FTE.
+- **Sound designer**: same reasoning for audio. Currently 0 FTE.
+- **Backend developer**: needed for the WebSocket endpoint and game-server logic
+  per blocking issue #2. Currently 0 FTE, while Phase 5 assumes a "Network Team"
+  that does not appear in this roster at all.
+
 ---
 
 ## 💰 Budget Summary
 
+> ⚠️ **Corrected.** The previous figures did not add up: 8-9 people over 7-9 months
+> at €8-10k/month is €448k-€810k in salary alone, not €200k-€250k. Anchored on
+> **59 FTE-months** (32 weeks ≈ 7.4 months × 8 FTE average):
+
 | Category | Estimated Cost |
 |----------|----------------|
-| Salaries (8-9 people × 7-9 months) | €200,000 - €250,000 |
+| Salaries (59 FTE-months @ €8-10k) | €475,000 - €590,000 |
 | Tools & Software | €5,000 - €10,000 |
 | Infrastructure | €3,000 - €5,000 |
 | Training | €2,000 - €5,000 |
-| Contingency (10%) | €22,500 - €27,500 |
-| **Total** | **€232,500 - €297,500** |
+| Apple + Google developer accounts | €150 |
+| Contingency (10%) | €48,515 - €61,015 |
+| **Total** | **€533,665 - €671,165** |
+
+If €232,500 is a hard ceiling it buys roughly **23 FTE-months** (e.g. 3 FTE for
+7.5 months), not 8-9 FTE. See the three costed scope options in
+[01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md#if-2325000-is-a-hard-ceiling).
+
+**Not included in any figure above**: the asset-replacement work required by
+blocking issue #1 (original card art for 263 cards, UI, fonts and audio), and the
+server-side work required by blocking issue #2.
 
 ---
 
@@ -131,4 +189,6 @@ This directory contains the complete migration plan for moving **Triple Triad On
 ---
 
 *Generated for AI agent consumption and human reference*
-*Last updated: 2026-07-21*
+*Last updated: 2026-07-24 — documents reviewed against the AS3 source; factual
+errors, arithmetic inconsistencies and non-compiling code samples corrected. See
+the correction notices in individual documents.*

@@ -35,10 +35,43 @@ The migration from **ActionScript 3 / Adobe AIR** to **Kotlin Multiplatform** wi
 
 | Component | Selected Technology | Version | Notes |
 |-----------|---------------------|---------|-------|
-| **Build Tool** | Gradle | 8.5+ | Industry standard, Kotlin DSL support |
-| **Kotlin Plugin** | Kotlin Multiplatform | 2.0+ | Required for KMP |
-| **Compose Plugin** | JetBrains Compose | 1.6.0 | Compose Multiplatform support |
-| **Android Gradle Plugin** | AGP | 8.2.0 | Android support |
+| **Build Tool** | Gradle | 8.7+ | Industry standard, Kotlin DSL support |
+| **Kotlin Plugin** | Kotlin Multiplatform | 2.0.21 | Required for KMP |
+| **Compose Compiler Plugin** | `org.jetbrains.kotlin.plugin.compose` | 2.0.21 | **Versioned with Kotlin from 2.0 onward** |
+| **Compose Plugin** | JetBrains Compose | 1.6.11 | Compose Multiplatform support |
+| **Android Gradle Plugin** | AGP | 8.5.2 | Android support |
+
+> ⚠️ **Compatibility correction.** An earlier revision paired "Kotlin 2.0+" with
+> "Compose MP 1.6.0". That combination does not build: Compose MP 1.6.0 is
+> compiled against Kotlin 1.9.2x. Compose MP 1.6.11 is the first release in the
+> 1.6 line that supports Kotlin 2.0.
+>
+> Also note that from Kotlin 2.0 the Compose compiler moved **into** the Kotlin
+> repository. `composeOptions { kotlinCompilerExtensionVersion = … }` and the
+> `androidx.compose.compiler:compiler` artifact are obsolete; apply the
+> `org.jetbrains.kotlin.plugin.compose` plugin instead and let it track the
+> Kotlin version.
+>
+> Pick **one** set and record it in a version catalog. Set C is the one to use:
+> it is the only one that has actually been compiled here.
+>
+> | | Set A (conservative) | Set B | **Set C (measured — use this)** |
+> |---|---|---|---|
+> | Kotlin | 1.9.24 | 2.0.21 | **2.2.20** |
+> | Compose MP | 1.6.11 | 1.6.11 | **1.9.3** |
+> | Compose compiler | `composeOptions` ext. 1.5.14 | `kotlin.plugin.compose` 2.0.21 | **`kotlin.plugin.compose` 2.2.20** |
+> | AGP | 8.4.2 | 8.5.2 | **8.13.2** |
+> | Gradle | 8.7 | 8.9 | **8.14.3** |
+> | JDK | 17 | 17 | **17** |
+> | compileSdk | — | — | **36** |
+> | Status | reasoned only | reasoned only | **built: Android debug+release APK, JVM desktop, 8 tests green** |
+>
+> Sets A and B are internally consistent on paper but were never built; the whole
+> point of the Set C column is that it was. See
+> [`kotlin/gradle/libs.versions.toml`](../../kotlin/gradle/libs.versions.toml) and
+> [kotlin/README.md § Verified build results](../../kotlin/README.md#verified-build-results).
+> Caveat: Set C is verified for the Compose UI stack only — Ktor,
+> kotlinx.serialization, SQLDelight, Koin and Media3 have not been added to it yet.
 
 ---
 
@@ -133,29 +166,38 @@ triple-triad-kotlin/
 ```kotlin
 // shared/build.gradle.kts
 kotlin {
-    android()
-    ios()
-    jvm()
-    
+    // `android()` was removed in Kotlin 1.9 — use androidTarget().
+    androidTarget()
+
+    // The `ios()` shortcut was removed in Kotlin 1.9.20 — declare targets explicitly.
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+
+    jvm() // desktop / test target
+
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                // Shared dependencies
-            }
+        commonMain.dependencies {
+            // Shared dependencies
         }
-        val androidMain by getting {
-            dependencies {
-                // Android-specific dependencies
-            }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
         }
-        val iosMain by getting {
-            dependencies {
-                // iOS-specific dependencies
-            }
+        androidMain.dependencies {
+            // Android-specific dependencies
+        }
+        // iosMain is created automatically by the default hierarchy template
+        // and is the parent of iosX64Main / iosArm64Main / iosSimulatorArm64Main.
+        iosMain.dependencies {
+            // iOS-specific dependencies
         }
     }
 }
 ```
+
+> **Note**: in KMP, test dependencies go in `commonTest`/`androidUnitTest` source
+> sets — a bare top-level `dependencies { testImplementation(...) }` block does
+> nothing in a multiplatform module.
 
 **Use Cases in Triple Triad**:
 - Game core logic (TTOCore)
@@ -183,12 +225,15 @@ kotlin {
 ```kotlin
 // shared/build.gradle.kts
 plugins {
-    id("org.jetbrains.compose") version "1.6.0"
+    id("org.jetbrains.kotlin.multiplatform")
+    id("org.jetbrains.compose") version "1.6.11"
+    // Required from Kotlin 2.0: the Compose compiler ships with Kotlin.
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
 }
 
-compose {
-    kotlinCompilerExtensionVersion = "1.5.3"
-}
+// No `compose { kotlinCompilerExtensionVersion = ... }` block:
+// that property does not exist on the Compose Multiplatform extension.
+// The compiler version is determined by the kotlin.plugin.compose version.
 ```
 
 **Use Cases in Triple Triad**:
@@ -304,11 +349,23 @@ startKoin {
 
 ```kotlin
 // shared/build.gradle.kts
-dependencies {
-    implementation("io.ktor:ktor-client-core:2.3.10")
-    implementation("io.ktor:ktor-client-websockets:2.3.10")
-    implementation("io.ktor:ktor-client-serialization:2.3.10")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.10")
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("io.ktor:ktor-client-core:2.3.12")
+            implementation("io.ktor:ktor-client-websockets:2.3.12")
+            implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+            implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
+            // NOTE: ktor-client-serialization is the deprecated Ktor 1.x artifact.
+            // Use ktor-client-content-negotiation + ktor-serialization-kotlinx-json.
+        }
+        androidMain.dependencies {
+            implementation("io.ktor:ktor-client-okhttp:2.3.12")
+        }
+        iosMain.dependencies {
+            implementation("io.ktor:ktor-client-darwin:2.3.12")
+        }
+    }
 }
 ```
 
@@ -317,31 +374,42 @@ dependencies {
 ```kotlin
 // SocketManager.kt
 class SocketManager(
-    private val client: HttpClient
+    private val client: HttpClient,
+    private val scope: CoroutineScope
 ) {
-    private var webSocket: WebSocketSession? = null
+    private var session: DefaultClientWebSocketSession? = null
+    private var sessionJob: Job? = null
     private val _messages = MutableSharedFlow<SocketMessage>()
     val messages: SharedFlow<SocketMessage> = _messages.asSharedFlow()
-    
+
+    // `client.webSocket(url) { ... }` returns Unit and closes the session when the
+    // block ends — it cannot be assigned to a field. Use webSocketSession() to get
+    // a long-lived session, and pump `incoming` in a separate coroutine.
     suspend fun connect(serverUrl: String) {
-        webSocket = client.webSocket(serverUrl) {
-            incoming.consumeAsFlow().collect { frame ->
-                when (frame) {
-                    is Frame.Text -> {
-                        val message = Json.decodeFromString<SocketMessage>(frame.readText())
-                        _messages.emit(message)
+        val s = client.webSocketSession(urlString = serverUrl)
+        session = s
+        sessionJob = scope.launch {
+            try {
+                for (frame in s.incoming) {
+                    if (frame is Frame.Text) {
+                        _messages.emit(Json.decodeFromString<SocketMessage>(frame.readText()))
                     }
                 }
+            } finally {
+                session = null
             }
         }
     }
-    
+
     suspend fun send(message: SocketMessage) {
-        webSocket?.send(Frame.Text(Json.encodeToString(message)))
+        session?.send(Frame.Text(Json.encodeToString(message)))
     }
-    
-    fun disconnect() {
-        webSocket?.close()
+
+    // WebSocketSession.close() is a suspend function.
+    suspend fun disconnect() {
+        session?.close()
+        sessionJob?.cancelAndJoin()
+        session = null
     }
 }
 
@@ -358,30 +426,30 @@ sealed class SocketMessage {
 **Platform-Specific Setup**:
 
 ```kotlin
-// Android
+// commonMain
 expect fun createHttpClient(): HttpClient
 
-actual fun createHttpClient(): HttpClient = HttpClient(Android) {
+// androidMain
+actual fun createHttpClient(): HttpClient = HttpClient(OkHttp) {
     install(WebSockets)
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
-    }
-    engine {
-        // Android-specific config
     }
 }
 
-// iOS
-actual fun createHttpClient(): HttpClient = HttpClient(Ios) {
+// iosMain — the engine is `Darwin` (io.ktor:ktor-client-darwin).
+// The old `Ios` engine was deprecated in Ktor 2.0 and removed in 3.0.
+actual fun createHttpClient(): HttpClient = HttpClient(Darwin) {
     install(WebSockets)
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
-    }
-    engine {
-        // iOS-specific config
     }
 }
 ```
+
+> **Caveat**: `install(WebSockets)` on the Darwin engine is supported from Ktor
+> 2.3.x onward. Verify WebSocket behaviour on a physical iOS device during Phase 1,
+> not just the simulator.
 
 ---
 
@@ -393,14 +461,14 @@ actual fun createHttpClient(): HttpClient = HttpClient(Ios) {
 |-----------|------------|---------|
 | **Structured Data** | SQLDelight | Save games, user profiles, decks |
 | **Preferences** | Multiplatform Settings | Simple key-value settings |
-| **Encryption** | Custom | Encrypt save files |
+| **Encryption** | expect/actual AES wrapper | Read **legacy** `.sav` files — must reproduce `com.hurlant.crypto.symmetric.AESKey` key/mode/padding exactly, see [02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md) |
 
 **Configuration**:
 
 ```kotlin
 // shared/build.gradle.kts
 plugins {
-    id("app.cash.sqldelight") version "2.0.1"
+    id("app.cash.sqldelight") version "2.0.2"
 }
 
 sqldelight {
@@ -412,11 +480,16 @@ sqldelight {
 }
 
 dependencies {
-    implementation("app.cash.sqldelight:runtime:2.0.1")
-    implementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
-    implementation("app.cash.sqldelight:primitive-adapters:2.0.1")
+    implementation("app.cash.sqldelight:runtime:2.0.2")
+    implementation("app.cash.sqldelight:coroutines-extensions:2.0.2")
+    implementation("app.cash.sqldelight:primitive-adapters:2.0.2")
     implementation("com.russhwolf:multiplatform-settings:1.1.1")
 }
+
+// Platform drivers are required and easy to forget:
+//   androidMain: app.cash.sqldelight:android-driver:2.0.2
+//   iosMain:     app.cash.sqldelight:native-driver:2.0.2
+//   jvmMain:     app.cash.sqldelight:sqlite-driver:2.0.2
 ```
 
 **Database Schema** (`shared/src/commonMain/sqldelight/com/tripletriad/data/db/`):
@@ -465,44 +538,73 @@ CREATE TABLE Card (
 
 ### 6. Asset Management
 
-**Selected**: **Coil + Compose AsyncImage**
+**Selected**: **Compose Multiplatform Resources** (`org.jetbrains.compose.components.resources`)
+
+> ⚠️ **Corrected.** An earlier revision selected "Coil + Compose AsyncImage" but
+> then listed the `io.github.qdsfdhvh:image-loader` dependency, and the usage
+> example called `LocalContext.current`, `ImageRequest.Builder` and `R.drawable` —
+> all Android-only APIs, in code that was supposed to live in `commonMain`.
+> Coil **2.x is Android-only**; only Coil 3 supports KMP.
+>
+> All card art ships **inside the app** — there is no network image loading in this
+> game. An async image loader is the wrong tool: use Compose Resources, which is
+> multiplatform, compile-time checked, and requires no third-party dependency.
 
 | Asset Type | Technology | Purpose |
 |------------|------------|---------|
-| **Images** | Coil | Loading images from assets/resources |
-| **SVG** | Accompanist (if needed) | Vector graphics |
-| **Fonts** | Compose Text | Custom fonts |
+| **Bundled images** | Compose Resources (`painterResource`) | Card art, UI, backgrounds |
+| **Remote images** (if ever needed) | Coil 3 (`coil3.compose.AsyncImage`) | Avatars from server — not required for v1 |
+| **Fonts** | Compose Resources (`Font(Res.font.…)`) | Custom fonts |
+| **Vector graphics** | Compose `ImageVector` / bundled SVG via Resources | Icons. *Accompanist is Android-only and not an SVG library* |
 
 **Configuration**:
 
 ```kotlin
 // shared/build.gradle.kts
-dependencies {
-    implementation("io.github.qdsfdhvh:image-loader:1.7.0")
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(compose.components.resources)
+        }
+    }
 }
 ```
 
-**Usage**:
+Resources live in `shared/src/commonMain/composeResources/` and generate a typed
+`Res` accessor:
+
+```
+shared/src/commonMain/composeResources/
+├── drawable/
+│   ├── card_back.png
+│   ├── ff14_card_1.png
+│   └── ...
+├── font/
+│   └── eurostile.ttf
+└── values/
+    ├── strings.xml        # en (default)
+    └── strings-fr.xml     # etc.
+```
+
+**Usage** (fully multiplatform — no `Context`, no `R`):
 
 ```kotlin
-// Image loading in Compose
 @Composable
 fun CardImage(card: Card) {
-    val painter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(LocalContext.current)
-            .data("file:///android_asset/cards/${card.collection}/${card.id}.png")
-            .placeholder(R.drawable.card_back)
-            .crossfade(true)
-            .build()
-    )
-    
     Image(
-        painter = painter,
-        contentDescription = card.name,
-        modifier = Modifier.size(104.dp, 128.dp)
+        painter = painterResource(cardDrawable(card)),
+        contentDescription = null, // decorative; the name is rendered as text
+        modifier = Modifier.size(88.dp, 118.dp) // matches AS3 Card.as
     )
 }
 ```
+
+> **Atlas note**: the AS3 build packs card art into Starling texture atlases
+> (`sources/bin/assets/atlas/ff14_cards.xml` + `.png`). Phase 1 needs a one-off
+> script to slice those atlases into individual images keyed by `SubTexture name`,
+> or a small Compose helper that draws a sub-rectangle of the atlas bitmap. Decide
+> which before Task 1.9 — the atlas route saves memory but needs custom drawing
+> code. This work is **not currently in any task estimate**.
 
 **Asset Organization**:
 
@@ -528,9 +630,11 @@ androidApp/src/main/assets/
 │   ├── se_ttriad.scd_1.mp3
 │   ├── se_ttriad.scd_2.mp3
 │   └── ...
-└── locales/
-    ├── en.json
-    └── fr.json
+└── locales/          # 4 locales, matching application.xml supportedLanguages
+    ├── de_DE.json
+    ├── en_US.json
+    ├── fr_FR.json
+    └── ja_JA.json
 ```
 
 ---
@@ -627,7 +731,13 @@ val i18n = I18n("fr_FR")
 val greeting = i18n.get("STR_HELLO") // "Bonjour"
 ```
 
-**Locale Files** (`shared/src/commonMain/resources/locales/`):
+**Locale Files** (`shared/src/commonMain/resources/locales/`) — **4 locales**:
+`de_DE`, `en_US`, `fr_FR`, `ja_JA`, per `application.xml`
+(`<supportedLanguages>de en fr ja</supportedLanguages>`) and
+`utils/conf.as::supportedLanguages`. Earlier revisions of this plan listed only
+EN/FR and would have dropped German and Japanese support. Japanese also requires a
+CJK-capable font — the bundled `Eurostile` face has no CJK coverage, and
+`sources/bin/assets/fonts/` must be audited during Task 1.10.
 
 ```json
 {
@@ -659,19 +769,51 @@ val greeting = i18n.get("STR_HELLO") // "Bonjour"
 
 ```kotlin
 // shared/build.gradle.kts
+kotlin {
+    sourceSets {
+        // Multiplatform tests: must be KMP-compatible libraries only.
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+            implementation("io.kotest:kotest-assertions-core:5.9.1")
+            implementation("io.kotest:kotest-property:5.9.1")
+            implementation("app.cash.turbine:turbine:1.1.0")
+            implementation("io.insert-koin:koin-test:3.5.6") // group is io.insert-koin, NOT org.koin
+        }
+        // MockK is JVM-only — it cannot go in commonTest.
+        androidUnitTest.dependencies {
+            implementation("io.mockk:mockk:1.13.12")
+        }
+        jvmTest.dependencies {
+            implementation("io.mockk:mockk:1.13.12")
+        }
+    }
+}
+
+// androidApp/build.gradle.kts — instrumented tests
 dependencies {
-    testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
-    testImplementation("io.kotest:kotest-assertions-core:5.8.0")
-    testImplementation("app.cash.turbine:turbine:1.0.0")
-    testImplementation("io.mockk:mockk:1.13.9")
-    testImplementation("org.koin:koin-test:3.5.6")
-    
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.0")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.8")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.6.8")
 }
 ```
+
+> ⚠️ **Three corrections applied**:
+> 1. `org.koin:koin-test` → **`io.insert-koin:koin-test`**. The `org.koin` group
+>    does not exist on Maven Central; the previous coordinate would fail to resolve.
+> 2. **MockK is JVM-only.** It has no Kotlin/Native target, so it cannot be used
+>    in `commonTest` for iOS. For shared code, prefer hand-written fakes, or use
+>    [mokkery](https://mokkery.dev/) which is KMP-native. See
+>    [17-TESTING-GUIDE.md](./17-TESTING-GUIDE.md).
+> 3. Test dependencies must be declared **per source set** in a KMP module. A
+>    top-level `dependencies { testImplementation(…) }` block is silently ignored.
+>
+> **Also**: "Unit Tests: Kotest" is only half-true as written. The examples below
+> use `kotlin.test` annotations (`@Test`, `@BeforeTest`) with *Kotest assertions*
+> (`shouldBe`). That is a valid and common combination, but it is **not** the Kotest
+> spec runner (`FunSpec`, `StringSpec`) — you cannot mix `@BeforeTest` with a Kotest
+> spec class and expect it to run. Pick one style per test class and state which.
 
 **Test Examples**:
 
@@ -747,8 +889,12 @@ class CardComponentTest {
 
 ```kotlin
 // shared/build.gradle.kts
-dependencies {
-    implementation("io.github.aakira:napier:2.6.1")
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("io.github.aakira:napier:2.7.1")
+        }
+    }
 }
 ```
 
@@ -851,28 +997,50 @@ fun AppNavigation() {
 
 ## 🎯 Final Technology Stack Summary
 
+All versions below are mutually compatible (Set B from the Build System section).
+Put them in `gradle/libs.versions.toml` so they cannot drift apart.
+
 | Category | Technology | Version | Platform |
 |----------|------------|---------|----------|
-| **Language** | Kotlin | 2.0+ | All |
-| **Multiplatform** | Kotlin Multiplatform | 2.0+ | All |
-| **UI Framework** | Compose Multiplatform | 1.6.0 | Android, iOS |
-| **UI (Android)** | Jetpack Compose | 1.6.0 | Android |
-| **UI (iOS)** | Compose MP + SwiftUI | 1.6.0 | iOS |
-| **Build System** | Gradle | 8.5+ | All |
-| **DI** | Koin | 3.5.6 | All |
-| **State Management** | StateFlow + SharedFlow | 1.8.0 | All |
-| **Coroutines** | Kotlin Coroutines | 1.8.0 | All |
-| **Serialization** | Kotlinx Serialization | 1.6.0 | All |
-| **Network** | Ktor Client | 2.3.10 | All |
-| **WebSocket** | Ktor WebSocket | 2.3.10 | All |
-| **Database** | SQLDelight | 2.0.1 | All |
+| **Language** | Kotlin | 2.0.21 | All |
+| **Multiplatform** | Kotlin Multiplatform | 2.0.21 | All |
+| **UI Framework** | Compose Multiplatform | 1.6.11 | Android, iOS |
+| **UI (Android)** | Jetpack Compose BOM | 2024.06.00 | Android |
+| **UI (iOS)** | Compose MP + SwiftUI interop | 1.6.11 | iOS |
+| **Compose compiler** | `org.jetbrains.kotlin.plugin.compose` | 2.0.21 | All |
+| **Build System** | Gradle | 8.9 | All |
+| **AGP** | Android Gradle Plugin | 8.5.2 | Android |
+| **DI** | Koin (`io.insert-koin`) | 3.5.6 | All |
+| **State Management** | StateFlow + SharedFlow | 1.8.1 | All |
+| **Coroutines** | Kotlin Coroutines | 1.8.1 | All |
+| **Serialization** | Kotlinx Serialization | 1.7.1 | All |
+| **Network** | Ktor Client | 2.3.12 | All |
+| **WebSocket** | Ktor WebSocket | 2.3.12 | All |
+| **HTTP engine** | ktor-client-okhttp / ktor-client-darwin | 2.3.12 | Android / iOS |
+| **Database** | SQLDelight | 2.0.2 | All |
 | **Settings** | Multiplatform Settings | 1.1.1 | All |
-| **Image Loading** | Coil | 2.5.0 | All |
-| **Audio (Android)** | Media3 ExoPlayer | 2.19.1 | Android |
+| **Images** | Compose Resources (`compose.components.resources`) | 1.6.11 | All |
+| **Audio (Android)** | Media3 ExoPlayer (`androidx.media3`) | **1.3.1** | Android |
 | **Audio (iOS)** | AVFoundation | Native | iOS |
-| **Logging** | Napier | 2.6.1 | All |
-| **Navigation** | Compose Navigation | 2.7.7 | All |
-| **Testing** | Kotest + Turbine | 5.8.0 + 1.0.0 | All |
+| **Logging** | Napier | 2.7.1 | All |
+| **Navigation** | Compose Navigation | 2.7.7 (Android) — see note | Android |
+| **Testing** | kotlin.test + Kotest assertions + Turbine | 5.9.1 + 1.1.0 | All |
+
+> **Version corrections from the previous revision**:
+> - **Media3 was listed as `2.19.1`.** That is an `com.google.android.exoplayer`
+>   version number. `androidx.media3` uses its own 1.x scheme — the correct
+>   coordinate is `androidx.media3:media3-exoplayer:1.3.1`. `2.19.1` does not exist.
+> - **Coil 2.5.0 was listed as "All" platforms.** Coil 2.x is Android-only.
+>   Replaced with Compose Resources (see §6).
+> - **Kotlin 2.0 + Compose MP 1.6.0** is not a valid pairing (see §Build System).
+>
+> **Navigation caveat**: `androidx.navigation:navigation-compose` 2.7.7 is
+> **Android-only**. For shared navigation in Compose MP either
+> (a) use `org.jetbrains.androidx.navigation:navigation-compose` (the KMP port,
+> 2.7.0-alpha0x at time of writing — alpha, so validate in the PoC), or
+> (b) implement navigation as a `StateFlow<Screen>` in shared code with a
+> `when` on the current destination, which is trivial for this app's ~22 routes
+> and avoids an alpha dependency. **Option (b) is recommended for v1.**
 
 ---
 

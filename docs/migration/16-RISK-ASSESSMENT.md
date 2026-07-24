@@ -75,7 +75,11 @@
 - Limited community support for complex issues
 
 **Mitigation Strategies**:
-1. ✅ Use stable versions (Kotlin 2.0+, Compose MP 1.6.0)
+1. ⚠️ Use stable **and mutually compatible** versions. Note that "Kotlin 2.0+
+   with Compose MP 1.6.0" as previously specified is *not* a valid pairing —
+   Compose MP 1.6.0 targets Kotlin 1.9.2x. Use Kotlin 1.9.24 + Compose MP 1.6.11,
+   or Kotlin 2.0.x + Compose MP 1.6.11+ with the `org.jetbrains.kotlin.plugin.compose`
+   plugin. See [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md).
 2. ✅ Create Proof of Concept (PoC) in Phase 0 to validate
 3. ✅ Test on both Android and iOS early and often
 4. ✅ Have fallback plans (separate Android/iOS UIs if needed)
@@ -133,7 +137,7 @@
 | Field | Value |
 |-------|-------|
 | **Category** | Technical |
-| **Description** | The 25+ custom animations from AS3 may be difficult to recreate in Compose with the same visual fidelity |
+| **Description** | The 24 custom animation classes from AS3 may be difficult to recreate in Compose with the same visual fidelity |
 | **Probability** | High (4) |
 | **Impact** | High (4) |
 | **Risk Score** | **16** (CRITICAL) |
@@ -239,6 +243,50 @@
 
 ---
 
+### 🔴 TR-007: Multiplayer Is Greenfield Development, Not a Migration
+
+| Field | Value |
+|-------|-------|
+| **Category** | Technical / Scope |
+| **Description** | The plan treats Phase 5 as porting an existing, working network layer. It is not. `net/Socket.as` declares 29 `Socket_On_*` handlers; `dataHandler()` dispatches to exactly **two** (`pong`, `clients`). The other 27 are unreachable dead code left over from an abandoned XML→JSON protocol refactor. No match synchronisation runs in the source build. |
+| **Probability** | Very High (5) — verified by inspection, not projected |
+| **Impact** | High (4) |
+| **Risk Score** | **20** (CRITICAL) |
+| **Phase Affected** | Phase 5, and the Phase 0 protocol-analysis deliverable |
+
+**Evidence**: `net/Socket.as:dataHandler()` is 17 lines and handles only the literal
+string `'pong'` plus a JSON payload's `users` field. Every other `Socket_On_*`
+method has exactly one occurrence in the file — its own declaration.
+
+**Compounding factor**: the transport is `flash.net.XMLSocket` — a raw TCP socket.
+Ktor WebSocket **cannot** connect to it (no HTTP upgrade, no frame protocol).
+Server-side work is unavoidable, contradicting the "backend server remains as-is"
+scope statement in [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md).
+
+**Potential Consequences**:
+- Phase 5's 3-week estimate is unfounded; designing a protocol, implementing both
+  client and server, and testing multiplayer is realistically 8–12 weeks
+- "100% feature parity" is unachievable and also meaningless for a feature that
+  does not work in the baseline
+- Phase 0's "reverse-engineer the server protocol" deliverable cannot succeed —
+  there is no live protocol to observe beyond connect/ping/user-list
+
+**Mitigation Strategies**:
+1. ⬜ **Re-scope: drop PvP from v1** (recommended). Ship PvE-only, removing 3
+    weeks and all backend dependency. Nothing that currently works is lost.
+2. ⬜ Or re-plan Phase 5 as greenfield design + client + server, and staff backend
+    capacity (currently 0 FTE allocated to server work).
+3. ⬜ Either way: correct the Phase 0 deliverable from "reverse-engineer protocol"
+    to "specify protocol", and mine the 27 dead handlers as design input for the
+    intended message set.
+4. ⬜ Confirm whether `triple-triad-online.com:2468` (the commented-out production
+    endpoint in `PVPScreen.as:315`) still exists before assuming any server at all.
+
+**Owner**: Tech Lead + Project Manager
+**Status**: 🔴 **UNRESOLVED — re-scope required before Phase 5 estimate is valid**
+
+---
+
 ### TR-006: Dependency Conflicts
 
 | Field | Value |
@@ -258,8 +306,12 @@
 
 **Mitigation Strategies**:
 1. ✅ Use version catalog for dependency management
-2. ✅ Test all library combinations
-3. ✅ Use compatible versions (tested in PoC)
+2. ⚠️ Test all library combinations — only the base UI stack has been tested so
+   far. Ktor, kotlinx.serialization, SQLDelight, Koin and Media3 are still
+   unverified against it.
+3. ✅ Use compatible versions — Kotlin 2.2.20 / Compose Multiplatform 1.9.3 /
+   AGP 8.13.2 / Gradle 8.14.3 / JDK 17 is verified working in
+   [`kotlin/`](../../kotlin/README.md#verified-build-results)
 4. ✅ Resolve conflicts early
 5. ✅ Document all dependencies and versions
 6. ✅ Use dependency lock files
@@ -316,9 +368,24 @@
 - Phase 6: 3 weeks → 3.3 weeks
 - Phase 7: 4 weeks → 4.4 weeks
 - Phase 8: 2 weeks → 2.2 weeks
+- **Sum with buffer: 35.2 weeks**
+
+> ⚠️ **The buffer is not actually in the plan.** The buffered total is 35.2 weeks,
+> but every other document states the project duration as 30–32 weeks. The
+> published schedule is the *un*buffered 32-week figure, so a 10% overrun consumes
+> the whole margin and slips the release date. Either publish 35 weeks as the
+> committed timeline, or state explicitly that there is no schedule buffer.
+>
+> Independently, the per-week task allocations are over-committed. Examples, all
+> for the same owner in the same week: Phase 2 Week 7 assigns the Tech Lead
+> 3+2+2+1 = 8 days of work; Phase 3 Week 9 assigns 5+3 = 8 days; Phase 3 Week 10
+> assigns 3+4 = 7 days; Phase 4 Week 14 assigns 2+5+3 = 10 days; Phase 7 Week 30
+> assigns 5+3+2 = 10 days. A 5-day week cannot absorb these. Task durations must
+> be re-levelled against owner capacity before the schedule is credible.
 
 **Owner**: Project Manager
-**Status**: ✅ MITIGATED - Buffer included in plan
+**Status**: ⚠️ ACTIVE — buffer claimed but not reflected in the published 32-week
+schedule; task-level allocations exceed owner capacity
 
 ---
 
@@ -327,7 +394,7 @@
 | Field | Value |
 |-------|-------|
 | **Category** | Project |
-| **Description** | Actual costs may exceed the estimated budget of €232,500-€297,500 |
+| **Description** | Actual costs may exceed the corrected budget of €533,665-€671,165. Note the original €232,500-€297,500 estimate was arithmetically inconsistent with its own staffing assumptions — see the corrected breakdown in [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) |
 | **Probability** | Medium (3) |
 | **Impact** | High (4) |
 | **Risk Score** | **12** (HIGH) |
@@ -355,7 +422,8 @@
 - Defer nice-to-have features if needed
 
 **Owner**: Project Manager + Finance
-**Status**: ✅ MITIGATED - Contingency included
+**Status**: ⚠️ ACTIVE — a 10% contingency does not cover a baseline that was
+understated by ~130%. Re-baseline before approval.
 
 ---
 
@@ -471,6 +539,63 @@
 ---
 
 ## 3. Business Risks
+
+### 🔴 BR-003: Unlicensed Use of Square Enix Intellectual Property
+
+| Field | Value |
+|-------|-------|
+| **Category** | Business / Legal |
+| **Description** | The project is an unlicensed fan implementation of Square Enix IP. "Triple Triad", "Final Fantasy", FFVIII and FFXIV are Square Enix trademarks. All card artwork, fonts, character art and sound effects are extracted from shipped Square Enix titles. Phase 8 plans public distribution on Google Play and the Apple App Store. |
+| **Probability** | Very High (5) |
+| **Impact** | Critical (5) |
+| **Risk Score** | **25** (CRITICAL — highest in the register) |
+| **Phase Affected** | Phase 8 primarily, but invalidates the entire investment |
+
+**Evidence in the repository**:
+- `application.xml`: `<copyright>© Moogle Works 2015</copyright>` — no Square Enix licence
+- `sources/assets/cards/ff8_cards.xml`, `ff14_cards.xml` — texture atlases of extracted card art
+- `sources/bin/assets/atlas/` — FFXIV UI, avatar and NPC sprites
+- `datas/cards.as` — card names as `STR_FF14_CARD_n` / `STR_FF8_CARD_n` localisation keys
+  resolving to Square Enix character names
+- `sources/assets/-mogu_anime_en.xml`, `anims/Mogu.as` — Moogle character
+- [12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md) Task 8.3 lists `final fantasy`
+  as a Google Play store tag
+
+**Potential Consequences**:
+- DMCA takedown of both store listings, typically within weeks of launch
+- Suspension or termination of the Apple and Google developer accounts
+- Cease-and-desist; statutory damages exposure for wilful infringement
+- Total loss of the project investment (€534k–€671k under the corrected budget)
+- Reputational damage to everyone credited on the release
+
+**Mitigation Strategies** — engineering cannot mitigate this; only scope can:
+1. ⬜ **Legal review before Phase 0 sign-off.** Non-negotiable gate.
+2. ⬜ **Reskin (recommended):** retain the rules engine — game mechanics are not
+   copyrightable — and replace *every* Square Enix asset: card art, card names,
+   the "Triple Triad" title, fonts, audio, NPC art, UI atlases. Budget an
+   artist and a sound designer; **neither is currently staffed** in
+   [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md).
+3. ⬜ **Or** restrict to private/personal distribution with no store listing —
+   which removes the commercial rationale for the migration.
+4. ⬜ **Or** formally approach Square Enix for a licence (low probability of
+   success, but cheap to ask and definitive either way).
+5. ⬜ Remove `final fantasy` and all franchise terms from store metadata under
+   every scenario except a granted licence.
+6. ⬜ Strip the bundled `AdobeAIRInstaller-32.0.exe` (11 MB) from the repository —
+   redistributing the Adobe AIR installer is a separate licensing question.
+
+**Contingency Plan**:
+- If a licence is refused and reskinning is rejected → **cancel the project**.
+  Proceeding to a public release under those conditions is not a risk to manage,
+  it is a decision to infringe.
+
+**Note on BR-001**: that risk lists "Final Fantasy IP value" as a market
+*positive*. Absent a licence it is a liability, not an asset.
+
+**Owner**: Project Sponsor + Legal Counsel
+**Status**: 🔴 **UNRESOLVED — BLOCKS PHASE 0 SIGN-OFF**
+
+---
 
 ### BR-001: Market Timing
 
@@ -588,7 +713,7 @@
 | Field | Value |
 |-------|-------|
 | **Category** | Quality |
-| **Description** | The final app may have more bugs than the target rate of <2% critical bugs |
+| **Description** | The final app may have more bugs than target. Note the target is stated inconsistently: [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) says "<2% critical bugs" while the Quality Targets below say "Critical bugs: 0". Adopt zero critical/major as the release gate and drop the 2% figure. |
 | **Probability** | Medium (3) |
 | **Impact** | High (4) |
 | **Risk Score** | **12** (HIGH) |
@@ -623,34 +748,48 @@
 
 ### By Category
 
+Scores below are the arithmetic sum of each category's individual risk scores.
+(The previous version of this table did not add up: Technical was listed as 79
+against an actual 73, Project as 60 against 56, and the grand total as 178 against
+168. Corrected, and extended with BR-003 and TR-007.)
+
 | Category | Count | Critical | High | Medium | Low | Total Score |
 |----------|-------|----------|------|--------|-----|--------------|
-| Technical | 6 | 1 | 4 | 1 | 0 | 79 |
-| Project | 5 | 0 | 4 | 1 | 0 | 60 |
-| Business | 2 | 0 | 1 | 1 | 0 | 15 |
+| Technical | 7 | 2 | 5 | 0 | 0 | 93 |
+| Project | 5 | 0 | 4 | 1 | 0 | 56 |
+| Business | 3 | 1 | 1 | 1 | 0 | 40 |
 | Quality | 2 | 0 | 2 | 0 | 0 | 24 |
-| **Total** | **15** | **1** | **11** | **3** | **0** | **178** |
+| **Total** | **17** | **3** | **12** | **2** | **0** | **213** |
+
+*Technical: 16+20+12+12+12+12+9 = 93 · Project: 12+12+12+12+8 = 56 ·
+Business: 25+9+6 = 40 · Quality: 12+12 = 24*
+
+> **Note on banding**: per the scale in this document, 9–15 is *High*. TR-006
+> (score 9) is therefore High, not Medium — the previous summary miscategorised it.
 
 ### Top 10 Risks by Score
 
 | Rank | ID | Risk | Score | Status |
 |------|-----|------|-------|--------|
-| 1 | TR-003 | Animation Complexity | 16 | ⚠️ ACTIVE |
-| 2 | TR-001 | Kotlin Multiplatform Immaturity | 12 | ⚠️ ACTIVE |
-| 3 | TR-002 | Compose Performance | 12 | ⚠️ ACTIVE |
-| 4 | TR-004 | iOS Compatibility | 12 | ⚠️ ACTIVE |
-| 5 | TR-005 | WebSocket Protocol | 12 | ⚠️ ACTIVE |
-| 6 | PR-001 | Schedule Delays | 12 | ✅ MITIGATED |
-| 7 | PR-002 | Budget Overrun | 12 | ✅ MITIGATED |
-| 8 | PR-003 | Team Skill Gaps | 12 | ⏳ NOT STARTED |
-| 9 | PR-005 | Scope Creep | 12 | ⏳ NOT STARTED |
-| 10 | QR-001 | Feature Parity | 12 | ⏳ NOT STARTED |
+| 1 | **BR-003** | **Unlicensed Square Enix IP** | **25** | 🔴 UNRESOLVED — blocks sign-off |
+| 2 | **TR-007** | **Multiplayer is greenfield, not a migration** | **20** | 🔴 UNRESOLVED — re-scope required |
+| 3 | TR-003 | Animation Complexity | 16 | ⚠️ ACTIVE |
+| 4 | TR-001 | Kotlin Multiplatform Immaturity | 12 | ⚠️ ACTIVE |
+| 5 | TR-002 | Compose Performance | 12 | ⚠️ ACTIVE |
+| 6 | TR-004 | iOS Compatibility | 12 | ⚠️ ACTIVE |
+| 7 | TR-005 | XMLSocket → WebSocket Protocol | 12 | ⚠️ ACTIVE |
+| 8 | PR-001 | Schedule Delays | 12 | ⚠️ ACTIVE (see note) |
+| 9 | PR-002 | Budget Overrun | 12 | ⚠️ ACTIVE (see note) |
+| 10 | PR-003 | Team Skill Gaps | 12 | ⏳ NOT STARTED |
+
+*Also at score 12 and not shown: PR-005 (Scope Creep), QR-001 (Feature Parity),
+QR-002 (Bug Rate).*
 
 ### Risk Distribution
 
-- **Critical (16-25)**: 1 risk (7%)
-- **High (9-15)**: 11 risks (73%)
-- **Medium (4-8)**: 3 risks (20%)
+- **Critical (16-25)**: 3 risks (18%)
+- **High (9-15)**: 12 risks (71%)
+- **Medium (4-8)**: 2 risks (12%)
 - **Low (1-3)**: 0 risks (0%)
 
 ---

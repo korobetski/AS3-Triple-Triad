@@ -14,10 +14,12 @@
 ## 🎯 Phase Overview
 
 ### Purpose
-Phase 4 migrates all user interface components from Feathers UI (AS3) to Compose Multiplatform, including 28 screens, custom components, theme system, and navigation.
+Phase 4 migrates all user interface components from Feathers UI (AS3) to Compose
+Multiplatform: 32 screen/panel classes (22 navigable destinations + 9 embedded
+components + 1 abstract base), custom components, theme system, and navigation.
 
 ### Key Objectives
-1. Migrate all 28 screens from AS3 to Compose
+1. Migrate all 32 screen/panel classes from AS3 to Compose
 2. Create reusable Compose components
 3. Implement theme system
 4. Set up navigation
@@ -30,14 +32,22 @@ Phase 4 migrates all user interface components from Feathers UI (AS3) to Compose
 
 | Weeks | Focus | Screens | Owner |
 |-------|-------|---------|-------|
-| 13-14 | Foundation: Theme, Components, Navigation | 4 screens | UI/UX + Team |
-| 15-16 | Core Screens: Menu, Game, Match | 10 screens | Senior Devs |
-| 17-18 | Remaining Screens | 12 screens | Team |
-| 19-20 | Polish, Animations, Testing | All screens | QA + Team |
+| 13-14 | Foundation: Theme, Components, Navigation | 4 (Tier 1) | UI/UX + Team |
+| 15-16 | Core Screens: Menu, Game, Match | 10 (Tier 2) | Senior Devs |
+| 17-18 | Collection + Multiplayer screens | 15 (Tiers 3-4) | Team |
+| 19-20 | Secondary screens, Polish, Animations, Testing | 3 (Tier 5) + all | QA + Team |
+
+**Total: 32** (4 + 10 + 15 + 3), matching the 32 files in `sources/src/tto/screens/`.
 
 ---
 
 ## 📝 Screen Migration Priority
+
+> ⚠️ **The lists below were incomplete.** They named 28 items, but `screens/`
+> contains **32** files. Missing entirely were **PVEScreen** (the PvE lobby — while
+> `PVEMatchScreen` *was* listed), **shopScreen**, **CCGroupRematchPanel** and
+> **GSGroupRematchPanel**. All four are now included. The timeline table above also
+> did not add up (4 + 10 + 12 = 26 ≠ 28); it is corrected against the tiers below.
 
 ### Tier 1: Foundation (Week 13)
 - **LoadScreen** - Loading screen
@@ -62,15 +72,25 @@ Phase 4 migrates all user interface components from Feathers UI (AS3) to Compose
 - **InventoryScreen** - Inventory
 - **cardListScreen** - Card list
 - **profileScreen** - Player profile
+- **shopScreen** - Item shop *(was missing from this plan)*
 
 ### Tier 4: Multiplayer (Weeks 17-18)
+- **PVEScreen** - PvE lobby / opponent selection *(was missing from this plan)*
 - **PVPScreen** - PvP lobby
 - **GSGroupScreen** - Group selection
 - **CCGroupScreen** - Custom group
 - **CCGroupMatchScreen** - Custom group match
 - **GSGroupMatchScreen** - Group match
 - **RematchPanel** - Rematch panel
+- **CCGroupRematchPanel** - CC group rematch *(was missing from this plan)*
+- **GSGroupRematchPanel** - GS group rematch *(was missing from this plan)*
 - **TutorialRematchPanel** - Tutorial rematch
+
+> **Tier 4 note**: everything here except `PVEScreen` depends on the network layer.
+> Per **TR-007** in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md), multiplayer
+> does not function in the AS3 source. If PvP is descoped for v1 (recommended),
+> this tier shrinks to `PVEScreen` + `RematchPanel` + `TutorialRematchPanel` and
+> frees roughly 1.5 weeks.
 
 ### Tier 5: Secondary (Weeks 19-20)
 - **TutorialScreen** - Tutorial
@@ -111,51 +131,100 @@ See [14-COMPONENT-MAPPING.md](./14-COMPONENT-MAPPING.md) for detailed mappings.
 - Two themes: BaseTTOTheme, TTOTheme
 
 **Compose Theme Implementation**:
+
+> ⚠️ **Three errors in the previous version of this snippet**:
+> 1. `val AppTheme = MaterialTheme(...)` — `MaterialTheme` is a `@Composable`
+>    function, not a constructor. It cannot be assigned to a top-level `val`.
+> 2. `TripleTriadTheme` referenced `AppColors`, which was never defined anywhere.
+> 3. `Font(R.font.ff14)` uses the Android `R` class inside code destined for
+>    `commonMain`. Use Compose Resources (`Res.font.*`), which is multiplatform.
+>
+> **Also, the card colours were wrong.** `0xFF43a7c8` / `0xFFbb594f` are the
+> *text* colours `largeBlueElementFormat` / `largeRedElementFormat` from
+> `theme/BaseTTOTheme.as:1537-1544`. The actual card background colours are
+> declared in `display/Card.as:29-31`:
+>
+> | Constant | AS3 value | Source |
+> |----------|-----------|--------|
+> | `Card.GREY_COLOR` | `0x5a595a` | `display/Card.as:29` |
+> | `Card.BLUE_COLOR` | `0x2d4660` | `display/Card.as:30` |
+> | `Card.RED_COLOR`  | `0x602d2d` | `display/Card.as:31` |
+> | `PRIMARY_BACKGROUND_COLOR` | `0x202020` | `theme/BaseTTOTheme.as:124` |
+> | `LIGHT_TEXT_COLOR` | `0xe5e5e5` | `theme/BaseTTOTheme.as:125` |
+> | `SELECTED_TEXT_COLOR` | `0xff9900` | `theme/BaseTTOTheme.as:127` |
+> | `DISABLED_TEXT_COLOR` | `0x8a8a8a` | `theme/BaseTTOTheme.as:128` |
+> | `LIST_BACKGROUND_COLOR` | `0x383430` | `theme/BaseTTOTheme.as:130` |
+> | `MODAL_OVERLAY_COLOR` | `0x29241e` | `theme/BaseTTOTheme.as:135` |
+>
+> `0xFF1a1a1a` and `0xFF2a2a2a` in the old snippet were invented. Transcribe the
+> remaining constants from `BaseTTOTheme.as:124-137` rather than approximating.
+
 ```kotlin
-// Colors.kt
-val BlueColor = Color(0xFF43a7c8)
-val RedColor = Color(0xFFbb594f)
-val GreyColor = Color(0xFF5a595a)
-val BackgroundColor = Color(0xFF1a1a1a)
-val SurfaceColor = Color(0xFF2a2a2a)
+// Colors.kt — values transcribed from the AS3 source
+val CardBlue   = Color(0xFF2D4660)   // Card.BLUE_COLOR
+val CardRed    = Color(0xFF602D2D)   // Card.RED_COLOR
+val CardGrey   = Color(0xFF5A595A)   // Card.GREY_COLOR
+val TextBlue   = Color(0xFF43A7C8)   // largeBlueElementFormat
+val TextRed    = Color(0xFFBB594F)   // largeRedElementFormat
+val BackgroundColor  = Color(0xFF202020)  // PRIMARY_BACKGROUND_COLOR
+val SurfaceColor     = Color(0xFF383430)  // LIST_BACKGROUND_COLOR
+val LightTextColor   = Color(0xFFE5E5E5)  // LIGHT_TEXT_COLOR
+val SelectedTextColor = Color(0xFFFF9900) // SELECTED_TEXT_COLOR
+val DisabledTextColor = Color(0xFF8A8A8A) // DISABLED_TEXT_COLOR
 
-// Typography.kt
-val AppTypography = Typography(
-    headlineLarge = TextStyle(
-        fontFamily = FontFamily(Font(R.font.ff14)),
-        fontSize = 24.sp,
-        color = Color.White
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily(Font(R.font.ff14)),
-        fontSize = 16.sp,
-        color = Color.White
-    )
+// Game colours that Material's ColorScheme has no slot for.
+@Immutable
+data class TtoColors(
+    val cardBlue: Color = CardBlue,
+    val cardRed: Color = CardRed,
+    val cardGrey: Color = CardGrey,
+    val textBlue: Color = TextBlue,
+    val textRed: Color = TextRed
 )
 
-// Theme.kt
-val AppTheme = MaterialTheme(
-    colorScheme = darkColorScheme(
-        primary = BlueColor,
-        secondary = RedColor,
-        background = BackgroundColor,
-        surface = SurfaceColor
-    ),
-    typography = AppTypography
-)
+val LocalTtoColors = staticCompositionLocalOf { TtoColors() }
 
-// AppTheme.kt
+// Typography.kt — @Composable, because Compose Resources font loading is.
 @Composable
-fun TripleTriadTheme(
-    content: @Composable () -> Unit
-) {
-    MaterialTheme(
-        colorScheme = AppColors,
-        typography = AppTypography,
-        content = content
+fun appTypography(): Typography {
+    val gameFont = FontFamily(Font(Res.font.eurostile))
+    return Typography(
+        headlineLarge = TextStyle(fontFamily = gameFont, fontSize = 24.sp),
+        bodyLarge     = TextStyle(fontFamily = gameFont, fontSize = 16.sp),
+        labelSmall    = TextStyle(fontFamily = gameFont, fontSize = 12.sp)
     )
 }
+
+// Theme.kt
+private val TtoColorScheme = darkColorScheme(
+    primary    = TextBlue,
+    secondary  = TextRed,
+    background = BackgroundColor,
+    surface    = SurfaceColor,
+    onBackground = LightTextColor,
+    onSurface    = LightTextColor
+)
+
+@Composable
+fun TripleTriadTheme(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalTtoColors provides TtoColors()) {
+        MaterialTheme(
+            colorScheme = TtoColorScheme,
+            typography = appTypography(),
+            content = content
+        )
+    }
+}
 ```
+
+> **Note**: do not set `color` inside `TextStyle` *and* rely on
+> `colorScheme.onBackground` — pick one source of truth for text colour, otherwise
+> the typography silently overrides the scheme everywhere.
+>
+> **Font caveat**: `Eurostile` (used in `display/Card.as:81`) has no CJK coverage,
+> so the `ja_JA` locale needs a fallback family. Audit
+> `sources/bin/assets/fonts/` during Task 4.1, and note that redistributing
+> Eurostile may itself require a licence.
 
 **Acceptance Criteria**:
 - [ ] Theme colors match original
@@ -194,8 +263,9 @@ fun CardComponent(
     onClick: () -> Unit = {},
     onDragStart: () -> Unit = {}
 ) {
-    val cardWidth = 104.dp
-    val cardHeight = 128.dp
+    // See the dimensions note below.
+    val cardWidth = 88.dp
+    val cardHeight = 118.dp
     
     Box(
         modifier = modifier
@@ -235,6 +305,13 @@ fun CardComponent(
     }
 }
 ```
+
+> **Dimensions**: verified against the AS3 source — card `88 x 118`
+> (`display/Card.as:73`, `new Quad(88, 118, 0x5a595a)`), tile `136 x 136`
+> (`display/Tile.as:51`). Earlier revisions used `104 x 128` for cards, which
+> appears nowhere in the source. Note that AS3 values are **pixels at a fixed
+> 1280x720 landscape stage**, not density-independent units — treat them as design
+> ratios (card ≈ 0.65 x tile) and scale to the viewport rather than hardcoding dp.
 
 **Acceptance Criteria**:
 - [ ] All common components created
@@ -321,6 +398,11 @@ fun NavController.navigateToPvP() {
 #### Task 4.4: Menu Screen
 **Owner**: Senior Kotlin Dev | **Duration**: 2 days | **Priority**: HIGH
 
+> ⚠️ **Week 14 is over-allocated**: Task 4.4 (2 d) + Task 4.5 (5 d) + Task 4.6 (3 d)
+> = 10 days in a single week, and Task 4.5 and 4.6 share the Tech Lead / Senior Dev
+> pool. The Tier 2 heading says "Weeks 14-16" while these tasks are all filed under
+> Week 14. Re-level against the tier schedule.
+
 **MenuScreen.as Features**:
 - Main menu with multiple options
 - New Game button
@@ -401,7 +483,7 @@ fun MenuScreen(navController: NavController) {
 - Manages game flow through phases
 - Handles card placement and rules
 - Manages turn system
-- ~448 lines
+- 447 lines
 - Uses setTimeout for phase delays
 - Complex event handling
 
@@ -526,7 +608,7 @@ fun PhaseIndicator(phase: GamePhase, modifier: Modifier = Modifier) {
 - Contains 9 tiles
 - Handles board layout
 - Connects adjacent tiles
-- ~83 lines
+- 82 lines
 
 **Compose Implementation**:
 ```kotlin
@@ -599,7 +681,7 @@ fun TileComponent(
             CardComponent(
                 card = tile.card!!,
                 color = tile.color,
-                modifier = Modifier.size(104.dp, 128.dp)
+                modifier = Modifier.size(88.dp, 118.dp)
             )
         }
     }
@@ -689,64 +771,128 @@ fun DraggableCard(
     }
 }
 
-// DropTargetTile.kt
-@Composable
-fun DropTargetTile(
-    tile: Tile,
-    onCardDrop: (Card) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var isDraggingOver by remember { mutableStateOf(false) }
-    var draggedCard by remember { mutableStateOf<Card?>(null) }
-    
-    Box(
-        modifier = modifier
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragEnter = {
-                        isDraggingOver = true
-                        true
-                    },
-                    onDragExit = {
-                        isDraggingOver = false
-                    },
-                    onDragEnd = {
-                        if (isDraggingOver && draggedCard != null) {
-                            onCardDrop(draggedCard!!)
-                        }
-                        isDraggingOver = false
-                        draggedCard = null
-                    }
-                )
-            }
-            .border(
-                width = if (isDraggingOver) 2.dp else 0.dp,
-                color = Color.Green
-            )
-    ) {
-        TileComponent(tile = tile)
+// ⚠️ `detectDragGestures` has NO onDragEnter / onDragExit parameters. Its
+// signature is (onDragStart, onDragEnd, onDragCancel, onDrag) — the previous
+// version of this snippet would not compile.
+//
+// Compose has no built-in "drop target" for in-process drags (the
+// Modifier.dragAndDropTarget API targets cross-application drag & drop). The
+// standard approach is a single shared drag state plus per-tile bounds
+// registration, with hit-testing done in the parent's coordinate space.
+
+// DragState.kt — one instance per board, hoisted above both card and tiles.
+class BoardDragState {
+    var draggedCard by mutableStateOf<Card?>(null)
+        private set
+    var dragPosition by mutableStateOf(Offset.Unspecified)
+        private set
+
+    /** Tile bounds in the board's coordinate space, keyed by tile id. */
+    private val tileBounds = mutableMapOf<Int, Rect>()
+
+    fun registerTile(id: Int, bounds: Rect) { tileBounds[id] = bounds }
+    fun unregisterTile(id: Int) { tileBounds.remove(id) }
+
+    fun startDrag(card: Card, position: Offset) {
+        draggedCard = card
+        dragPosition = position
+    }
+
+    fun updateDrag(delta: Offset) {
+        if (dragPosition != Offset.Unspecified) dragPosition += delta
+    }
+
+    /** Tile currently under the pointer, or null. */
+    fun hoveredTileId(): Int? =
+        if (dragPosition == Offset.Unspecified) null
+        else tileBounds.entries.firstOrNull { it.value.contains(dragPosition) }?.key
+
+    /** Returns the drop target, then clears the drag. */
+    fun endDrag(): Pair<Card, Int>? {
+        val card = draggedCard
+        val tileId = hoveredTileId()
+        draggedCard = null
+        dragPosition = Offset.Unspecified
+        return if (card != null && tileId != null) card to tileId else null
+    }
+
+    fun cancelDrag() {
+        draggedCard = null
+        dragPosition = Offset.Unspecified
     }
 }
 
-// Drag state management
-class DragManager {
-    private val _draggedCard = MutableStateFlow<Card?>(null)
-    val draggedCard: StateFlow<Card?> = _draggedCard.asStateFlow()
-    
-    fun startDrag(card: Card) {
-        _draggedCard.value = card
+// DropTargetTile.kt — registers its bounds; no gesture detector of its own.
+@Composable
+fun DropTargetTile(
+    tile: Tile,
+    dragState: BoardDragState,
+    boardCoordinates: LayoutCoordinates?,
+    modifier: Modifier = Modifier
+) {
+    val isHovered = dragState.hoveredTileId() == tile.id && !tile.isTaken
+
+    Box(
+        modifier = modifier
+            .onGloballyPositioned { coords ->
+                // Convert to the board's coordinate space so hit-testing matches
+                // the drag position.
+                boardCoordinates?.let {
+                    val topLeft = it.localPositionOf(coords, Offset.Zero)
+                    dragState.registerTile(
+                        tile.id,
+                        Rect(topLeft, coords.size.toSize())
+                    )
+                }
+            }
+            .border(
+                width = if (isHovered) 2.dp else 0.dp,
+                color = if (isHovered) Color.Green else Color.Transparent
+            )
+    ) {
+        TileComponent(tile = tile, onClick = {})
     }
-    
-    fun endDrag() {
-        _draggedCard.value = null
+
+    DisposableEffect(tile.id) {
+        onDispose { dragState.unregisterTile(tile.id) }
     }
-    
-    fun dropOnTile(tile: Tile, card: Card) {
-        // Handle drop
-        endDrag()
+}
+
+// DraggableCard.kt
+@Composable
+fun DraggableCard(
+    card: Card,
+    dragState: BoardDragState,
+    onDrop: (Card, Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDragging = dragState.draggedCard == card
+
+    Box(
+        modifier = modifier.pointerInput(card.id) {
+            detectDragGestures(
+                onDragStart = { offset -> dragState.startDrag(card, offset) },
+                onDrag = { change, delta ->
+                    change.consume()
+                    dragState.updateDrag(delta)
+                },
+                onDragEnd = { dragState.endDrag()?.let { (c, id) -> onDrop(c, id) } },
+                onDragCancel = { dragState.cancelDrag() }
+            )
+        }
+    ) {
+        CardComponent(
+            card = card,
+            modifier = Modifier.alpha(if (isDragging) 0.7f else 1f)
+        )
     }
 }
 ```
+
+> **Also support tap-to-select + tap-tile-to-place.** The AS3 code offers both
+> interactions (`Card.onTouch` for drag, `Tile.onTouch` + `BaseMatchScreen.tileTouched`
+> for tap), and tapping is significantly easier on a phone than dragging a card to
+> a 3×3 grid. Do not ship drag-only.
 
 **Acceptance Criteria**:
 - [ ] Cards can be dragged
@@ -759,7 +905,7 @@ class DragManager {
 #### Task 4.8: UI Animations
 **Owner**: UI/UX Designer + Team | **Duration**: 5 days | **Priority**: HIGH
 
-**Animations to Implement** (25+ from `anims/`):
+**Animations to Implement** (all 24 classes in `anims/`):
 - AllOpenAnim - All cards revealed
 - AscensionAnim - Ascension rule
 - BlueTurnAnim - Blue player's turn
@@ -782,34 +928,48 @@ class DragManager {
 - SuddenDeathAnim - Sudden Death rule
 - SwapAnim - Swap rule
 - TalkAnim - Chat/talk
+- ThreeOpenAnim - Three Open rule *(was missing from this list)*
+- UnlockCardAnim - Card unlocked reward *(was missing from this list)*
 
 **Animation Implementation**:
 ```kotlin
 // CardFlipAnimation.kt
+//
+// ⚠️ The previous version of this snippet had two bugs:
+//   1. `.graphicsLayer { rotationY = rotationY }` — inside the graphicsLayer
+//      lambda, `rotationY` resolves to the SCOPE's own property, so this is a
+//      self-assignment that does nothing. The animated value is shadowed and
+//      never applied. The state must have a different name.
+//   2. Without `cameraDistance`, a 180° Y-rotation looks like a flat squash
+//      rather than a card turning, and the back face renders mirrored.
 @Composable
 fun CardFlipAnimation(
     card: Card,
-    isFlipping: Boolean,
-    modifier: Modifier = Modifier
+    isFlipped: Boolean,
+    modifier: Modifier = Modifier,
+    durationMillis: Int = 400,
+    onFlipFinished: () -> Unit = {}
 ) {
-    val rotationY by animateFloatAsState(
-        targetValue = if (isFlipping) 180f else 0f,
-        animationSpec = tween(
-            durationMillis = 400,
-            easing = LinearOutSlowInEasing
-        )
+    val angle by animateFloatAsState(          // note: NOT named rotationY
+        targetValue = if (isFlipped) 180f else 0f,
+        animationSpec = tween(durationMillis, easing = LinearOutSlowInEasing),
+        finishedListener = { onFlipFinished() },
+        label = "cardFlip"
     )
-    
+
     Box(
-        modifier = modifier
-            .graphicsLayer { rotationY = rotationY }
+        modifier = modifier.graphicsLayer {
+            rotationY = angle                  // scope property = animated state
+            cameraDistance = 12f * density     // avoids the flat-squash look
+        }
     ) {
-        if (rotationY <= 90f) {
-            // Front of card
+        if (angle <= 90f) {
             CardFront(card = card)
         } else {
-            // Back of card
-            CardBack()
+            // Counter-rotate, otherwise the back face is drawn mirrored.
+            Box(modifier = Modifier.graphicsLayer { rotationY = 180f }) {
+                CardBack()
+            }
         }
     }
 }
@@ -905,11 +1065,11 @@ data class AnimationJob(val id: String) {
 
 ### Code Deliverables
 - [ ] Theme system
-- [ ] All common components (20+)
+- [ ] All common components (13 listed in Task 4.2)
 - [ ] Navigation system
-- [ ] All 28 screens
+- [ ] All 32 screen/panel classes
 - [ ] Drag and drop implementation
-- [ ] All 25+ animations
+- [ ] All 24 animations
 - [ ] Screen tests
 - [ ] Animation tests
 

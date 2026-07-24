@@ -39,11 +39,19 @@ Phase 2 focuses on completing the data layer, including all remaining models, re
 
 ### Week 7: Models and Repositories
 
+> ⚠️ **Week 7 is over-allocated**: Tasks 2.1 (3 d) + 2.2 (2 d) + 2.3 (2 d) +
+> 2.4 (1 d) = **8 days**, all four naming the Tech Lead as owner, inside a 5-day
+> week. Re-level or delegate before committing to this schedule.
+
 #### Task 2.1: Complete Data Models
 **Owner**: Tech Lead + Senior Kotlin Devs | **Duration**: 3 days | **Priority**: CRITICAL
 
 **Models to Complete** (from AS3 analysis):
-- Item hierarchy (Item.kt, BoosterItem.kt, PotionItem.kt)
+- Item hierarchy (Item.kt, **CardItem.kt**, BoosterItem.kt, PotionItem.kt).
+  ⚠️ Note `Item` extends `starling.display.Sprite` in the original, so display and
+  state must be separated; and all three subclasses extend `Item` directly, not
+  `CardItem`. See the corrected hierarchy in
+  [13-DATA-MODELS.md](./13-DATA-MODELS.md)
 - Achievements.kt
 - NPC.kt, NPCs.kt
 - Rank.kt
@@ -131,6 +139,16 @@ CREATE TABLE GameSave (
 ```
 
 **CardCache.sq**:
+
+> ⚠️ **Naming inconsistency**: [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md)
+> calls this table `Card`, this document calls it `CardCache`. Pick one — SQLDelight
+> generates types from the table name, so the mismatch propagates into the code.
+>
+> ⚠️ **Do you need this table at all?** Card definitions are static bundled data
+> loaded from JSON. Mirroring them into SQLite adds a migration surface and a
+> synchronisation bug class for no benefit. Recommended: **drop it** and keep only
+> `GameSave` and `MatchHistory` in the database.
+
 ```sql
 CREATE TABLE CardCache (
     id INTEGER PRIMARY KEY,
@@ -224,9 +242,25 @@ class CardRepositoryImpl(
 
 **Migration Scripts to Create**:
 1. **Card Data Extractor** - Extract card data from AS3 `cards.as` to JSON
-2. **Save File Converter** - Convert AS3 save files to new format
-3. **Asset Migrator** - Help migrate assets from old to new structure
-4. **Configuration Converter** - Convert AS3 config to Kotlin
+   (263 entries: 153 FF14 + 110 FF8, plus the `"Back"` placeholder at index 0 of
+   each array). Note power values are **hex** and mix integers with quoted letters
+   (`power:[1,8,'A',8]`), parsed in AS3 via `uint("0x" + value)`
+2. **Texture Atlas Slicer** - Extract individual card images from the Starling
+   atlases (`sources/bin/assets/atlas/ff14_cards.xml` + `.png`, and equivalents for
+   FF8, thumbs, avatars, NPCs). ⚠️ **This was missing from the plan entirely** and
+   is a prerequisite for any card rendering — see
+   [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md) §6
+3. **Localization Extractor** - Convert the 4 `rulesAtlas.xml` string bundles under
+   `sources/bin/assets/{de_DE,en_US,fr_FR,ja_JA}/` to JSON
+4. **Save File Converter** - Convert AS3 `.sav` files to the new format.
+   ⚠️ These are **AES-encrypted** JSON (`CryptoHelper` → `com.hurlant.crypto.symmetric.AESKey`).
+   Reading legacy saves requires reproducing the exact key, mode and padding; read
+   `utils/CryptoHelper.as` before assuming compatibility is free. If legacy saves
+   are not required, say so explicitly and skip this script
+5. **Asset Migrator** - Help migrate assets from old to new structure
+6. **Configuration Converter** - Convert `UserSettings.json`
+   (`My Games/Triple Triad Online/UserSettings.json`: `background_volume`,
+   `noise_volume`, `language`) to Multiplatform Settings
 
 **Migration Strategy**:
 - Create standalone scripts (can run independently)
@@ -252,26 +286,45 @@ class CardRepositoryImpl(
 - **Database Queries**: Use SQLDelight efficiently
 
 **Cache Implementation**:
-```kotlin
-class CardCache(private val maxSize: Int = 100) {
-    private val cache = LruCache<CardKey, Card>(maxSize)
-    
-    suspend fun get(key: CardKey): Card? {
-        return cache.get(key) ?: loadAndCache(key)
-    }
-    
-    private suspend fun loadAndCache(key: CardKey): Card? {
-        val card = loadFromSource(key)
-        card?.let { cache.put(key, it) }
-        return card
-    }
-    
-    fun clear() = cache.evictAll()
-    fun remove(key: CardKey) = cache.remove(key)
-}
 
-data class CardKey(val id: UInt, val collection: CardCollection)
+> ⚠️ **`LruCache` is `android.util.LruCache` — Android-only.** It does not exist in
+> `commonMain` and would break the iOS build. There is no LRU cache in the Kotlin
+> stdlib either.
+>
+> More to the point, an LRU cache is the wrong tool here. There are **263 cards
+> total** (153 FF14 + 110 FF8) and they are static, bundled, immutable data of a few
+> hundred bytes each — well under 100 KB for the whole set. Load all of them once at
+> startup into a plain map. Eviction logic adds complexity and buys nothing.
+>
+> (Card *images* are a different matter and are handled by Compose Resources, not
+> by this cache.)
+
+```kotlin
+// commonMain — all 263 cards fit comfortably in memory; no eviction needed.
+class CardCache(private val dataSource: LocalCardDataSource) {
+    private val mutex = Mutex()
+    private var byCollection: Map<CardCollection, List<Card>>? = null
+
+    private suspend fun ensureLoaded(): Map<CardCollection, List<Card>> =
+        byCollection ?: mutex.withLock {
+            byCollection ?: CardCollection.entries
+                .associateWith { dataSource.getAll(it) }
+                .also { byCollection = it }
+        }
+
+    suspend fun getAll(collection: CardCollection): List<Card> =
+        ensureLoaded()[collection].orEmpty()
+
+    suspend fun getById(id: UInt, collection: CardCollection): Card? =
+        getAll(collection).firstOrNull { it.id == id }
+
+    suspend fun clear() = mutex.withLock { byCollection = null }
+}
 ```
+
+> If a bounded cache is ever genuinely needed (e.g. for decoded bitmaps), use a
+> multiplatform implementation or an `expect`/`actual` pair — do not reach for
+> `android.util.LruCache` from shared code.
 
 **Acceptance Criteria**:
 - [ ] Caching implemented for all data types
@@ -420,5 +473,5 @@ class MigrationTest : BaseTest() {
 
 ---
 
-*Generated: 2026-07-21*  
+*Generated: 2026-07-21*
 *Status: PLANNING COMPLETE*

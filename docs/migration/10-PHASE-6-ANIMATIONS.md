@@ -14,7 +14,7 @@
 ## 🎯 Phase Overview
 
 ### Purpose
-Complete and polish all 25+ animations from the AS3 codebase, ensuring smooth performance and visual fidelity on mobile devices.
+Complete and polish all 24 animation classes from the AS3 codebase, ensuring smooth performance and visual fidelity on mobile devices.
 
 ### Key Objectives
 1. Complete any remaining animations
@@ -36,7 +36,15 @@ Complete and polish all 25+ animations from the AS3 codebase, ensuring smooth pe
 
 ## 📝 Animations List
 
-**From `sources/src/tto/anims/` (25 animations)**:
+**From `sources/src/tto/anims/` — 24 classes, verified against the directory**:
+
+> WARNING: the previous version of this list claimed 25 animations, named only 23,
+> **invented `ElementalAnim`** (no such file exists), and **omitted `ThreeOpenAnim`
+> and `UnlockCardAnim`** (both do exist). Corrected below.
+>
+> The Elemental rule has no dedicated animation class: it is applied as a power
+> modifier in `TTOCore.applyRules` and shown via the tile element sprite. Do not
+> plan work for an animation that was never there.
 
 ### Game Flow Animations
 - **StartAnim** - Game start animation
@@ -64,12 +72,16 @@ Complete and polish all 25+ animations from the AS3 codebase, ensuring smooth pe
 - **SameAnim** - Same rule activation
 - **SuddenDeathAnim** - Sudden Death rule activation
 - **SwapAnim** - Swap rule activation
-- **ElementalAnim** - Elemental rule activation
+- **ThreeOpenAnim** - Three Open rule reveal *(was missing from this list)*
 
 ### Special Animations
-- **Mogu** - Special effect
-- **PileOuFace** - Coin flip for tiebreaker
-- **TalkAnim** - Chat/talk animation
+- **Mogu** - Moogle mascot animation
+- **PileOuFace** - Coin flip for turn order
+- **TalkAnim** - NPC dialogue bubble
+- **UnlockCardAnim** - Card unlocked reward *(was missing from this list)*
+
+**Count check**: 3 + 2 + 2 + 13 + 4 = **24**, matching the 24 files in
+`sources/src/tto/anims/`.
 
 ---
 
@@ -81,30 +93,35 @@ Complete and polish all 25+ animations from the AS3 codebase, ensuring smooth pe
 **Used by**: Card placement, rule activation, combo chains
 
 ```kotlin
+// WARNING: `.graphicsLayer { rotationY = rotationY }` is a SELF-ASSIGNMENT.
+// Inside the lambda, `rotationY` resolves to the GraphicsLayerScope property, so
+// the animated state is shadowed and never applied. Rename the state.
 @Composable
 fun CardFlipAnimation(
     card: Card,
-    isFlipping: Boolean,
+    isFlipped: Boolean,
     duration: Int = 400,
     onComplete: () -> Unit = {}
 ) {
-    val rotationY by animateFloatAsState(
-        targetValue = if (isFlipping) 180f else 0f,
-        animationSpec = tween(
-            durationMillis = duration,
-            easing = LinearOutSlowInEasing
-        ),
-        finishedListener = { onComplete() }
+    val angle by animateFloatAsState(        // NOT named rotationY
+        targetValue = if (isFlipped) 180f else 0f,
+        animationSpec = tween(duration, easing = LinearOutSlowInEasing),
+        finishedListener = { onComplete() },
+        label = "cardFlip"
     )
-    
+
     Box(
-        modifier = Modifier.graphicsLayer { rotationY = rotationY },
+        modifier = Modifier.graphicsLayer {
+            rotationY = angle
+            cameraDistance = 12f * density   // without this it looks like a squash
+        },
         contentAlignment = Alignment.Center
     ) {
-        if (rotationY <= 90f) {
+        if (angle <= 90f) {
             CardFront(card = card)
         } else {
-            CardBack()
+            // Counter-rotate or the back face renders mirrored.
+            Box(modifier = Modifier.graphicsLayer { rotationY = 180f }) { CardBack() }
         }
     }
 }
@@ -123,7 +140,7 @@ fun CardFlyAnimation(
     onComplete: () -> Unit = {}
 ) {
     var position by remember { mutableStateOf(from) }
-    
+
     LaunchedEffect(Unit) {
         animate(
             initialValue = from,
@@ -135,7 +152,7 @@ fun CardFlyAnimation(
         }
         onComplete()
     }
-    
+
     CardComponent(card = card, modifier = Modifier.offset { position.toIntOffset() })
 }
 ```
@@ -144,23 +161,31 @@ fun CardFlyAnimation(
 **Used by**: Turn indicators, active elements
 
 ```kotlin
+// WARNING: `animateFloatAsState` with an `infiniteRepeatable` spec is a misuse -
+// that API animates TOWARDS a target and settles, so an infinite spec leaves it
+// permanently unsettled. For a looping pulse use rememberInfiniteTransition.
 @Composable
 fun TurnIndicatorPulse(
     color: Color,
     isActive: Boolean
 ) {
-    val pulseScale by animateFloatAsState(
-        targetValue = if (isActive) 1.1f else 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-    
+    val scale = if (isActive) {
+        val transition = rememberInfiniteTransition(label = "turnPulse")
+        transition.animateFloat(
+            initialValue = 1.0f,
+            targetValue = 1.1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseScale"
+        ).value
+    } else 1.0f
+
     Box(
         modifier = Modifier
             .size(32.dp)
-            .scale(pulseScale)
+            .scale(scale)
             .background(color, CircleShape)
     )
 }
@@ -176,7 +201,7 @@ fun SequentialAnimation(
     delayBetween: Long = 100
 ) {
     var currentIndex by remember { mutableStateOf(0) }
-    
+
     LaunchedEffect(currentIndex) {
         if (currentIndex < animations.size) {
             animations[currentIndex]()
@@ -211,7 +236,7 @@ fun ParallelAnimation(
 **Owner**: UI/UX Designer | **Duration**: 1 day | **Priority**: HIGH
 
 **Actions**:
-- Review all 25 animations from AS3
+- Review all 24 animations from AS3
 - Identify which are already implemented in Phase 4
 - Prioritize remaining animations
 - Assign animations to team members
@@ -230,6 +255,8 @@ fun ParallelAnimation(
 - Mogu
 - PileOuFace (coin flip)
 - TalkAnim
+- ThreeOpenAnim
+- UnlockCardAnim
 - Any rule animations not completed
 
 **Implementation Approach**:
@@ -298,13 +325,13 @@ class AnimationPerformanceTest : BaseTest() {
             // Measure frame time
             // Assert FPS > 60
         }
-        
+
         test("Multiple animations don't drop frames") {
             // Test 10 concurrent card flips
             // Measure FPS
             // Assert no frame drops
         }
-        
+
         test("Combo animation performance") {
             // Test combo chain of 5 cards
             // Measure FPS
@@ -317,12 +344,16 @@ class AnimationPerformanceTest : BaseTest() {
 **Performance Monitoring**:
 ```kotlin
 // AnimationMonitor.kt
+// WARNING: System.nanoTime() is JVM-only. In commonMain take the frame time from
+// Compose itself, which is multiplatform and gives the real frame clock:
+//     LaunchedEffect(Unit) {
+//         while (true) withFrameNanos { nanos -> monitor.onFrame(nanos) }
+//     }
 class AnimationMonitor {
     private val frameTimes = mutableListOf<Long>()
     private var lastFrameTime = 0L
-    
-    fun onFrame() {
-        val currentTime = System.nanoTime()
+
+    fun onFrame(currentTime: Long) {
         if (lastFrameTime > 0) {
             val frameTime = currentTime - lastFrameTime
             frameTimes.add(frameTime)
@@ -332,13 +363,15 @@ class AnimationMonitor {
         }
         lastFrameTime = currentTime
     }
-    
+
+
+
     fun getCurrentFPS(): Float {
         if (frameTimes.isEmpty()) return 0f
         val avgFrameTime = frameTimes.average() / 1_000_000
         return 1000f / avgFrameTime
     }
-    
+
     fun getFrameTimeStats(): FrameStats {
         return FrameStats(
             average = frameTimes.average() / 1_000_000,
@@ -391,7 +424,7 @@ class CardFlipFunctionalTest : BaseTest() {
     @Test
     fun cardFlip_callsOnComplete() = runTest {
         var completed = false
-        
+
         composeTestRule.setContent {
             CardFlipAnimation(
                 card = testCard,
@@ -399,12 +432,12 @@ class CardFlipFunctionalTest : BaseTest() {
                 onComplete = { completed = true }
             )
         }
-        
+
         // Wait for animation
-        composeTestRule.waitUntilTimeout(1000) {
-            completed
-        }
-        
+        // `waitUntilTimeout` does not exist. The API is
+        // waitUntil(timeoutMillis) { condition }
+        composeTestRule.waitUntil(timeoutMillis = 1000) { completed }
+
         assertTrue(completed)
     }
 }
@@ -465,7 +498,7 @@ class AnimationIntegrationTest : BaseTest() {
 ## 📊 Phase 6 Deliverables
 
 ### Code Deliverables
-- [ ] All 25+ animations implemented
+- [ ] All 24 animations implemented
 - [ ] Animation utilities and helpers
 - [ ] Performance monitoring
 - [ ] Animation tests
@@ -520,5 +553,5 @@ class AnimationIntegrationTest : BaseTest() {
 
 ---
 
-*Generated: 2026-07-21*  
+*Generated: 2026-07-21*
 *Status: PLANNING COMPLETE*

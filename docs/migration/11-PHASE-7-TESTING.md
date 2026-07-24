@@ -196,7 +196,7 @@ class TTOCorePropertyTest : BaseTest() {
 **Comparison Tests**:
 - Use known AS3 game states as test oracles
 - Verify Kotlin implementation produces same results
-- Test all 15+ rules against AS3 behavior
+- Test all 17 rules against AS3 behavior
 
 **Acceptance Criteria**:
 - [ ] All core logic validated
@@ -272,7 +272,7 @@ class NetworkIntegrationTest : BaseTest() {
 **Owner**: QA + Team | **Duration**: 3 days | **Priority**: HIGH
 
 **UI Test Areas**:
-1. All 28 screens
+1. All 32 screen/panel classes (22 navigable + 9 embedded + 1 base)
 2. All common components
 3. Navigation between screens
 4. User interactions
@@ -392,7 +392,8 @@ class DragDropTest : BaseTest() {
 **Owner**: QA + Tech Lead | **Duration**: 4 days | **Priority**: CRITICAL
 
 **Performance Metrics**:
-- FPS: >60 (target: >90)
+- FPS: >60 (target: >90 - only meaningful on 90/120 Hz panels; on a 60 Hz device
+  60 FPS IS the ceiling, so state the target per refresh rate)
 - Frame time: <16.67ms (60fps), <11.11ms (90fps)
 - Memory usage: <100MB
 - Launch time: <2s
@@ -461,9 +462,13 @@ class PerformanceMonitor {
         if (memoryUsage.size > 100) memoryUsage.removeAt(0)
     }
     
+    // WARNING: the previous formula was wrong by a factor of 1e6. With frame
+    // times in nanoseconds, `average() / 1_000_000` is milliseconds, so dividing
+    // 1e9 by milliseconds yields nonsense. Either 1e9/ns or 1000/ms.
     fun getAverageFPS(): Float {
         if (frameTimes.isEmpty()) return 0f
-        return 1_000_000_000f / (frameTimes.average() / 1_000_000)
+        val avgNanos = frameTimes.average()
+        return (1_000_000_000.0 / avgNanos).toFloat()
     }
     
     fun getAverageMemory(): Long = memoryUsage.average().toLong()
@@ -645,16 +650,24 @@ class StressTest : BaseTest() {
 - [ ] App size within limits
 
 ## Compatibility
-- [ ] Android API 26+ supported
-- [ ] iOS 15+ supported
+- [ ] Android minSdk 24 supported (matching the PoC; an earlier revision of this
+      checklist said API 26 while the PoC targets 24 - pick one and align both)
+- [ ] iOS 15+ supported (Phase 0 states "iOS 17+" for the PoC simulator; that is a
+      test-environment choice, not the deployment target - state both explicitly)
 - [ ] All target devices tested
-- [ ] Both orientations tested (if applicable)
+- [ ] Landscape orientation tested. NOTE: the AS3 original is
+      `<aspectRatio>landscape</aspectRatio>` + `<fullScreen>true</fullScreen>`
+      (application.xml). An earlier revision claimed "portrait only", which
+      contradicts the source. A 3x3 board plus two player panels is a landscape
+      layout; decide deliberately whether to add a portrait layout.
 
 ## Localization
-- [ ] English works
-- [ ] French works
-- [ ] All strings translated
-- [ ] RTL not applicable (portrait only)
+- [ ] German (de_DE) works
+- [ ] English (en_US) works
+- [ ] French (fr_FR) works
+- [ ] Japanese (ja_JA) works - requires a CJK-capable font; Eurostile has none
+- [ ] All strings translated across all 4 locales
+- [ ] RTL not applicable (no RTL locale is supported)
 
 ## Security
 - [ ] No hardcoded secrets

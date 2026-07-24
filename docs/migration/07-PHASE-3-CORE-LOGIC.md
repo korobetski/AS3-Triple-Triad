@@ -43,12 +43,16 @@ Phase 3 migrates the core game logic from ActionScript 3 to Kotlin, including th
 #### Task 3.1: Migrate TTOCore.as
 **Owner**: Tech Lead | **Duration**: 5 days | **Priority**: CRITICAL
 
+> ⚠️ **Week 9 is over-allocated**: Task 3.1 (5 days) + Task 3.2 (3 days) = 8 days,
+> both owned by the Tech Lead, in a 5-day week. Week 10 has the same problem
+> (3 + 4 = 7 days). Re-level before committing to the schedule.
+
 **TTOCore.as Analysis** (from 02-CURRENT-SYSTEM-ANALYSIS.md):
 - Primary rules engine for Triple Triad
 - Handles card flipping logic based on game rules
 - Manages special rule combinations
 - Coordinates animations with the screen
-- ~396 lines of complex logic
+- 395 lines of complex logic
 - Multiple rule combinations
 - Recursive combo logic
 - State management across multiple cards
@@ -60,66 +64,166 @@ Phase 3 migrates the core game logic from ActionScript 3 to Kotlin, including th
 - `comboRule(tile:Tile, enqueue:Array, bounce:uint, COLOR:String, tileComboted:Array):Array`
 - `animate(tile:Tile, color:String):void`
 
-**Kotlin Implementation Strategy**:
+**⚠️ What `applyRules` actually does** (read this before writing the Kotlin version).
+The AS3 signature `applyRules(tile, color, checking):uint` is misleading — the
+function does two unrelated jobs depending on `checking`:
+
+```actionscript
+public function applyRules(tile:Tile, color:String, checking:Boolean = false):uint {
+    tile.color = color;
+
+    // 1. ALWAYS: compute the tile's effective edge powers from the card,
+    //    applying rule-based transforms in this exact order.
+
+    // Fallen Ace: an A (10) on the PLACED card becomes 0.
+    // NOTE: this is NOT the canonical "1 beats A" rule. This implementation
+    // simply makes Aces the weakest edge. Preserve it or fix it — but decide
+    // deliberately, and write a test that pins the chosen behaviour.
+    if (_RULES.FALLEN_ACE) {
+        tile.topPow = (tile.card.topPow == 10) ? 0 : tile.card.topPow;
+        // ... same for right/bottom/left
+    } else {
+        tile.topPow = tile.card.topPow; // ... etc
+    }
+
+    // Ascension / Descension: += card.modifier, clamped to 0..10 by tools.madmax
+    if (_RULES.TYPE_RULE == RULE_ASCENSION || _RULES.TYPE_RULE == RULE_DESCENSION) {
+        tile.topPow = tools.madmax(int(tile.topPow) + tile.card.modifier); // ... etc
+    }
+
+    // Elemental: +1 if card type matches tile element, -1 if tile has a
+    // non-"none" element and the types differ, else 0. Then clamped.
+    if (_RULES.TYPE_RULE == RULE_ELEMENTAL) {
+        if (tile.card.data.type == tile.element) tile.card.modifier = 1;
+        else if (tile.element !== "none" && tile.card.type !== tile.element) tile.card.modifier = -1;
+        else tile.card.modifier = 0;
+        tile.topPow = tools.madmax(int(tile.topPow) + tile.card.modifier); // ... etc
+    }
+
+    // 2. THEN branch on `checking`:
+    if (checking) {
+        // AI evaluation only: return HOW MANY cards would flip. No side effects.
+        return (SAME || SAME_WALL || PLUS)
+            ? countDistinctTilesFlipped(specialRule(tile, color))
+            : basicRule(tile, color).length;
+    } else {
+        // Real move: play sound, run the animation pipeline, return 0.
+        SoundManager.playSound('se_ttriad.scd_1', true);
+        animate(tile, color);
+        return 0;
+    }
+}
+```
+
+Three consequences the previous plan missed:
+- The `uint` return is an **AI heuristic score**, not a flip count for the real
+  move. In the `checking = false` path it is always `0`.
+- The power transforms are applied **unconditionally**, before the branch, and they
+  **mutate the tile**. Modelling this immutably means returning a new `Tile` with
+  effective powers, which is why `Tile` carries `topPow`…`leftPow` separately from
+  `card.topPow` (see [13-DATA-MODELS.md](./13-DATA-MODELS.md)).
+- `animate()` — not `applyRules` — owns the actual flipping and the combo cascade.
+  Rules evaluation and animation are entangled in the source; the Kotlin port must
+  separate them, and that separation is the real work of Task 3.1.
+
+**Kotlin Implementation Strategy** — split the two responsibilities:
+
 ```kotlin
-class TTOCore {
-    private val rules = TripleTriadRules()
-    
-    // Main entry point
-    fun applyRules(
-        tile: Tile,
-        color: CardColor,
-        checking: Boolean = false
-    ): List<Tile> {
-        val result = mutableListOf<Tile>()
-        
-        // Basic rule: flip adjacent cards with lower power
-        result.addAll(basicRule(tile, color))
-        
-        // Special rules
-        if (rules.same) {
-            result.addAll(sameRule(tile, color))
-        }
-        if (rules.plus) {
-            result.addAll(plusRule(tile, color))
-        }
-        if (rules.combo && !checking) {
-            result.addAll(comboRule(tile, result, 0u, color, mutableListOf()))
-        }
-        
-        return result.distinct()
-    }
-    
-    private fun basicRule(tile: Tile, color: CardColor): List<Tile> {
-        val result = mutableListOf<Tile>()
-        val card = tile.card ?: return result
-        
-        // Check all adjacent tiles
-        for (adjacent in tile.getAdjacentTiles()) {
-            if (canFlip(tile, adjacent, color)) {
-                result.add(adjacent)
+class TTOCore(private val rules: GameRules) {
+
+    /** Pure: the tile's effective edge powers after all power-transforming rules. */
+    fun effectivePowers(card: Card, element: Element): EdgePowers {
+        var p = EdgePowers(card.topPow, card.rightPow, card.bottomPow, card.leftPow)
+
+        if (rules.fallenAce) p = p.map { if (it == 10u) 0u else it }
+
+        val modifier: Int = when (rules.typeRule) {
+            TypeRule.ASCENSION, TypeRule.DESCENSION -> card.ascensionModifier
+            TypeRule.ELEMENTAL -> when {
+                card.type?.name?.lowercase() == element.name.lowercase() -> 1
+                element != Element.NONE -> -1
+                else -> 0
             }
+            TypeRule.DEFAULT_TYPE -> 0
         }
-        
-        return result
+        if (modifier != 0) p = p.map { madmax(it.toInt() + modifier) }
+        return p
     }
+
+    /** Pure: which tiles this placement captures. Board is not mutated. */
+    fun capturedTiles(board: Board, tileId: Int, color: CardColor): List<Capture> {
+        val source = board[tileId]
+        val basic = board.neighbours(tileId)
+            .filter { (dir, target) -> canFlip(source, target, dir, color, rules) }
+            .map { (dir, target) -> Capture(target.id, axis = dir.flipAxis()) }
+
+        // SAME / PLUS pair detection uses the cards' PRINTED digits
+        // (`neighbour.card.bottomPow - placed.card.topPow`), while the plain
+        // capture check inside the same function uses the MODIFIED tile powers
+        // (`neighbour.bottomPow < tile.topPow`). That asymmetry is deliberate in
+        // the source but flagged by the original author:
+        //     "need to verify with card digit (without modifiers) instead of tile
+        //      power values"   — TTOCore.as:215
+        // Decide which semantics to keep and pin it with a test. Do not "tidy" it
+        // into consistency by accident — it changes which cards flip.
+        //
+        // Note also that same/plus candidates are collected for ALL occupied
+        // neighbours regardless of owner (a pair may include your own card), but
+        // only opponent-owned cards are actually flipped.
+        val special = if (rules.same || rules.sameWall || rules.plus)
+            specialRule(board, tileId, color) else emptyList()
+
+        // Combo cascades ONLY from SAME / PLUS / SAME_WALL captures — never from a
+        // basic capture. In the source, comboRule() is invoked exclusively from
+        // inside specialRule(), attached to each capture as a `waveEffect` array of
+        // successive shock waves (TTOCore.as:274-297).
+        val combo = if (special.isNotEmpty())
+            comboRule(board, special, color) else emptyList()
+
+        return (basic + special + combo).distinctBy { it.tileId }
+    }
+
+    /** AI heuristic: the AS3 `applyRules(..., checking = true)` return value. */
+    fun scoreMove(board: Board, tileId: Int, color: CardColor): Int =
+        capturedTiles(board, tileId, color).size
     
-    private fun canFlip(source: Tile, target: Tile, color: CardColor): Boolean {
-        val sourceCard = source.card ?: return false
-        val targetCard = target.card ?: return false
-        
-        // Must be opponent's card
+    // ⚠️ The version of this function previously published here was WRONG.
+    // It tested all four edge comparisons against a single neighbour and returned
+    // true if ANY matched — so a card to the RIGHT could be captured because the
+    // source's TOP beat its BOTTOM. Every capture must compare exactly ONE pair of
+    // facing edges, determined by which direction the neighbour actually lies in.
+    private fun canFlip(
+        source: Tile,
+        target: Tile,
+        direction: Direction,   // direction FROM source TO target — not optional
+        color: CardColor,
+        rules: GameRules
+    ): Boolean {
+        source.card ?: return false
+        target.card ?: return false
+
+        // Only opponent-owned cards can be captured.
         if (target.color != color.opponent()) return false
-        
-        // Check all adjacent sides
-        val directions = listOf(
-            Direction.TOP to { s: Tile, t: Tile -> s.topPow > t.bottomPow },
-            Direction.RIGHT to { s: Tile, t: Tile -> s.rightPow > t.leftPow },
-            Direction.BOTTOM to { s: Tile, t: Tile -> s.bottomPow > t.topPow },
-            Direction.LEFT to { s: Tile, t: Tile -> s.leftPow > t.rightPow }
-        )
-        
-        return directions.any { (_, comparator) -> comparator(source, target) }
+
+        // Exactly one pair of facing edges.
+        val attack = when (direction) {
+            Direction.TOP    -> source.topPow
+            Direction.RIGHT  -> source.rightPow
+            Direction.BOTTOM -> source.bottomPow
+            Direction.LEFT   -> source.leftPow
+        } ?: return false
+
+        val defence = when (direction) {
+            Direction.TOP    -> target.bottomPow
+            Direction.RIGHT  -> target.leftPow
+            Direction.BOTTOM -> target.topPow
+            Direction.LEFT   -> target.rightPow
+        } ?: return false
+
+        // Reverse is the ONLY rule that alters this comparison in the AS3 source.
+        // Fallen Ace, Ascension/Descension and Elemental are applied earlier, as
+        // power *transforms* at placement time — see applyRules() below.
+        return if (rules.reverse) attack < defence else attack > defence
     }
     
     // Special rules implementation
@@ -157,7 +261,7 @@ class TTOCore {
 - Rule combinations (roulette function)
 - Rule type definitions
 - Two modes: FF14 and FF8 with different rule sets
-- ~116 lines
+- 115 lines
 
 **Rule Constants to Migrate**:
 ```actionscript
@@ -276,28 +380,32 @@ enum class GamePhase {
 }
 
 // Turn state
+//
+// ⚠️ The previous version used `(currentTurn + 1) % timeline.size` over a
+// 2-element timeline. With size 2 that oscillates 0,1,0,1 forever, so the match
+// could never end and `currentTurn` never counted turns. In the AS3 source the
+// timeline is a 10-element array of alternating colours produced by the coin
+// flip, and `turn` is a MONOTONIC index into it; `endGame()` fires at turn == 10.
+// See the TurnState note in 13-DATA-MODELS.md for the full mechanism.
 @Serializable
 data class TurnState(
-    val currentTurn: Int = 0,
-    val currentPlayer: CardColor = CardColor.BLUE,
-    val timeline: List<CardColor> = listOf(CardColor.BLUE, CardColor.RED),
-    val cardsPlaced: Int = 0,
-    val isOpponentTurn: Boolean = false
+    val turnIndex: Int = 0,
+    val timeline: List<CardColor> = emptyList(),   // 9 entries, 0-based
+    val cardsPlaced: Int = 0
 ) {
-    fun nextTurn(): TurnState {
-        val nextIndex = (currentTurn + 1) % timeline.size
-        return copy(
-            currentTurn = nextIndex,
-            currentPlayer = timeline[nextIndex],
-            cardsPlaced = cardsPlaced + 1
-        )
-    }
+    val currentPlayer: CardColor? get() = timeline.getOrNull(turnIndex)
+    val isComplete: Boolean get() = turnIndex >= timeline.size
+
+    fun nextTurn(): TurnState =
+        copy(turnIndex = turnIndex + 1, cardsPlaced = cardsPlaced + 1)
 }
 
 // Complete game state
 @Serializable
 data class GameState(
-    val id: String = UUID.randomUUID().toString(),
+    // NOT UUID.randomUUID() — that is JVM-only and unavailable in commonMain.
+    // Inject an IdGenerator, or use kotlin.uuid.Uuid. See 13-DATA-MODELS.md.
+    val id: String,
     val mode: GameMode = GameMode.FF14,
     val rules: GameRules = GameRules.roulette(GameMode.FF14),
     val phase: GamePhase = GamePhase.DECK_SELECTION,
@@ -314,7 +422,9 @@ data class GameState(
     ),
     val isGameOver: Boolean = false,
     val winner: CardColor? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    // NOT System.currentTimeMillis() — JVM-only. Inject a Clock, or use
+    // kotlinx-datetime: Clock.System.now().toEpochMilliseconds()
+    val timestamp: Long
 ) {
     fun isValidMove(card: Card, tile: Tile): Boolean {
         // Check if move is valid
@@ -411,7 +521,7 @@ class GameViewModel(
 - Manages game flow through phases
 - Handles card placement and rules
 - Manages turn system
-- ~448 lines
+- 447 lines
 - Complex game flow with setTimeout for phases
 
 **Game Flow to Implement**:
@@ -436,34 +546,36 @@ class GameFlowManager(
     fun startGame() {
         flowJob?.cancel()
         flowJob = scope.launch {
-            // Deck selection phase
+            // ⚠️ The previous version of this function used `when { ... }` blocks to
+            // run the rule-announcement phases. A subject-less `when` executes only
+            // the FIRST matching branch, so with e.g. both Reverse and Swap active
+            // only the Reverse phase would ever run — silently skipping the Swap
+            // phase, which actually exchanges cards between the players' hands and
+            // is therefore game-affecting, not merely cosmetic.
+            //
+            // These phases are INDEPENDENT and sequential. Use separate `if`s.
             deckSelectionPhase()
-            
-            // Rule-specific phases
-            when {
-                viewModel.state.value.rules.openRule != OpenRule.DEFAULT_OPEN -> {
-                    openPhase()
-                }
-                viewModel.state.value.rules.order != OrderRule.DEFAULT_ORDER -> {
-                    orderPhase()
-                }
-            }
-            
-            when {
-                viewModel.state.value.rules.reverse -> reversePhase()
-                viewModel.state.value.rules.fallenAce -> fallenAcePhase()
-                viewModel.state.value.rules.swap -> swapPhase()
-            }
-            
-            // Start main game
+
+            val rules = viewModel.state.value.rules
+
+            if (rules.openRule != OpenRule.DEFAULT_OPEN) openPhase()
+            if (rules.order != OrderRule.DEFAULT_ORDER) orderPhase()
+            if (rules.reverse) reversePhase()
+            if (rules.fallenAce) fallenAcePhase()
+            if (rules.swap) swapPhase()
+
+            // Coin flip decides the turn order and builds the timeline.
+            pileOuFacePhase()
+
             letsGetStarted()
-            
-            // Main game loop
-            while (!viewModel.state.value.isGameOver) {
+
+            // Main game loop. The end condition is the turn counter reaching the
+            // end of the timeline (9 placements) — NOT a "board full" check.
+            // See the TurnState note in 13-DATA-MODELS.md.
+            while (!viewModel.state.value.turn.isComplete) {
                 awaitTurn()
             }
-            
-            // End game
+
             endGame()
         }
     }
@@ -677,7 +789,7 @@ class TTOCoreEdgeCaseTest : BaseTest() {
 ## 🎯 Next Phase: Phase 4 - UI Layer
 
 **Phase 4 Focus** (Weeks 13-20):
-- Migrate all 28 screens
+- Migrate 22 screens + 9 embedded components
 - Create Compose components for all UI elements
 - Implement animations
 - Theme system

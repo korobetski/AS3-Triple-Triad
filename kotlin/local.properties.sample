@@ -1,0 +1,9 @@
+# Copy to local.properties. Required by the Android Gradle Plugin.
+#
+# Windows: both the drive colon and the backslashes must be escaped, otherwise
+# `lintDebug` fails with PropertyEscape. Use a single LF at end of line.
+#   sdk.dir=C\:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
+#
+# macOS / Linux:
+#   sdk.dir=/Users/<you>/Library/Android/sdk
+sdk.dir=

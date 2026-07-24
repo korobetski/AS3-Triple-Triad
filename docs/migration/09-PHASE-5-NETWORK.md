@@ -13,17 +13,50 @@
 
 ## 🎯 Phase Overview
 
+### 🔴 Read this before estimating the phase
+
+**This phase is not a migration.** `net/Socket.as` declares 29 `Socket_On_*`
+handlers, but `dataHandler()` — the only inbound entry point — dispatches to
+exactly **two** of them (`pong`, `clients`). The remaining 27 have a single
+reference each: their own declaration. They are orphaned remnants of an abandoned
+XML→JSON protocol refactor.
+
+**Multiplayer does not work in the AS3 source.** No card synchronisation, no match
+start, no swap, no elements, no trade. There is nothing to reach parity with.
+
+Two further blockers:
+1. **Transport incompatibility.** `flash.net.XMLSocket` is a raw TCP socket. Ktor
+   WebSocket cannot connect to it — no HTTP upgrade, no frame protocol. Either the
+   server gains a WebSocket endpoint or a TCP↔WebSocket proxy is introduced. Both
+   are **backend work**, contradicting the "server remains as-is" scope in
+   [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md).
+2. **Unknown server availability.** The production endpoint is commented out in
+   `PVPScreen.as:315` (`triple-triad-online.com:2468`); the live code points at
+   `localhost:3000`. Confirm a server exists before planning against it.
+
+**Recommended re-scope**: drop PvP from v1 (removes 3 weeks, loses no working
+functionality) and treat multiplayer as a post-launch greenfield feature with its
+own design, client **and server** budget — realistically 8-12 weeks, not 3.
+
+If PvP is retained, read the rest of this document as a **design proposal for new
+work**, not a port. See **TR-007** in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md).
+
+---
+
 ### Purpose
-Migrate network communication from AS3 XMLSocket to modern WebSocket implementation, preserving all server communication functionality.
+Replace the AS3 XMLSocket transport with a WebSocket implementation and **specify**
+the game protocol, since the existing one is incomplete and largely unreachable.
 
 ### Key Objectives
-1. Migrate Socket.as (650 lines, XMLSocket based)
-2. Reverse-engineer server protocol
-3. Implement Ktor WebSocket client
-4. Handle all message types (20+)
-5. Connection management (ping/pong, reconnection)
-6. Integrate with game state
-7. Test network communication
+1. Port the *working* parts of `Socket.as` — connect, ping/pong, user list (~120 of
+   its 649 lines are live)
+2. **Specify** the server protocol (the dead handlers are design input, not a spec)
+3. Coordinate the required server-side changes
+4. Implement Ktor WebSocket client
+5. Design and implement the ~15 game message types that were never wired up
+6. Connection management (ping/pong, reconnection)
+7. Integrate with game state
+8. Test network communication
 
 ---
 
@@ -48,10 +81,14 @@ Migrate network communication from AS3 XMLSocket to modern WebSocket implementat
 - XMLSocket protocol (old Flash technology)
 - Many message types to handle (20+)
 - Connection state management
-- Ping/pong for keepalive (1000ms interval)
-- Room-based system (main_room)
+- Ping/pong for keepalive (1000 ms - `Socket.as:31 pingDelay`)
+- Room-based system; default room value is `'Gold Saucer'` (`Socket.as:30`)
 
-**Message Types Identified**:
+**Message Types Identified** - WARNING: only `pong` and `clients` are actually
+dispatched today; the rest are declared but unreachable (see the warning at the top
+of this document). The full set of 29 declared handlers is listed in
+[02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md) section 8; the
+subset below is what a v2 protocol would need:
 - `pong` - Ping response
 - `clients` - User list update
 - `new_game` - New game created
@@ -73,9 +110,11 @@ Migrate network communication from AS3 XMLSocket to modern WebSocket implementat
 # Server Protocol Specification
 
 ## Connection
-- Protocol: WebSocket (replaces XMLSocket)
-- Port: Same as original (likely 1935 or 8080)
-- Format: JSON (replaces XML)
+- Protocol: WebSocket (replaces raw-TCP XMLSocket) - REQUIRES SERVER CHANGES
+- Port: 3000 in the AS3 dev config; 2468 for the commented-out production host.
+  (An earlier revision guessed "1935 or 8080" - neither appears in the source.)
+- Format: JSON. Note the AS3 client already sends JSON for most outbound messages
+  and parses JSON inbound; the XML paths are the dead ones.
 
 ## Message Format
 All messages are JSON objects with a "type" field:
@@ -161,7 +200,7 @@ class SocketManager(
     private val client: HttpClient,
     private val configuration: SocketConfiguration
 ) {
-    private var webSocket: WebSocketSession? = null
+    private var session: DefaultClientWebSocketSession? = null
     private var pingJob: Job? = null
     private var reconnectJob: Job? = null
     
@@ -187,19 +226,24 @@ class SocketManager(
         _connectionState.value = ConnectionState.Connecting
         
         try {
-            webSocket = client.webSocket(
-                host = configuration.host,
-                port = configuration.port,
-                path = configuration.path
-            ) {
-                // Configure WebSocket
-                this.room = room
+            // `client.webSocket(...) { }` returns Unit and tears the session down
+            // when the block exits — it cannot be assigned to a field, and there is
+            // no `room` property on the session. Use webSocketSession() instead.
+            session = client.webSocketSession {
+                url {
+                    protocol = if (configuration.useSSL) URLProtocol.WSS else URLProtocol.WS
+                    host = configuration.host
+                    port = configuration.port
+                    path(configuration.path)
+                }
             }
-            
+
+            send(SocketMessage.Connect(room))   // room is a message, not a session field
+
             _connectionState.value = ConnectionState.Connected(room)
             startPing()
             startMessageHandler()
-            
+
         } catch (e: Exception) {
             _connectionState.value = ConnectionState.Error(e)
             scheduleReconnect()
@@ -208,17 +252,18 @@ class SocketManager(
     
     suspend fun send(message: SocketMessage) {
         try {
-            webSocket?.send(Frame.Text(Json.encodeToString(message)))
+            session?.send(Frame.Text(Json.encodeToString(message)))
         } catch (e: Exception) {
             _connectionState.value = ConnectionState.Error(e)
         }
     }
     
-    fun close() {
-        pingJob?.cancel()
-        reconnectJob?.cancel()
-        webSocket?.close()
-        webSocket = null
+    // WebSocketSession.close() is a suspend function, so this must suspend too.
+    suspend fun close() {
+        pingJob?.cancelAndJoin()
+        reconnectJob?.cancelAndJoin()
+        session?.close()
+        session = null
         _connectionState.value = ConnectionState.Disconnected
     }
     
@@ -239,7 +284,7 @@ class SocketManager(
     
     private fun startMessageHandler() {
         CoroutineScope(Dispatchers.IO).launch {
-            webSocket?.incoming?.consumeAsFlow()?.collect { frame ->
+            session?.incoming?.consumeAsFlow()?.collect { frame ->
                 when (frame) {
                     is Frame.Text -> {
                         val message = Json.decodeFromString<SocketMessage>(frame.readText())
@@ -346,13 +391,17 @@ sealed class SocketMessage {
     @Serializable data class Error(val error: String) : SocketMessage()
 }
 
+// WARNING: these were declared `@JvmInline value class` with 2-3 constructor
+// parameters. A `value class` may have EXACTLY ONE parameter, and `@JvmInline`
+// is a JVM-only annotation with no place in commonMain. Plain data classes:
 @Serializable
-@JvmInline
-value class User(val username: String, val status: String)
+data class User(val username: String, val status: String)
 
 @Serializable
-@JvmInline
-value class GameInfo(val id: String, val creator: String, val rules: GameRules)
+data class GameInfo(val id: String, val creator: String, val rules: GameRules)
+
+@Serializable
+data class GameStartInfo(val id: String, val players: List<User>, val rules: GameRules)
 ```
 
 **Connection State**:
@@ -479,11 +528,16 @@ private fun handleError(error: String) {
 ```kotlin
 @Serializable
 data class SocketConfiguration(
+    // AS3 dev target was PVPScreen.as:315 -> {ip:"localhost", port:"3000"};
+    // the commented-out production target was triple-triad-online.com:2468.
+    // 8080 was a guess in an earlier revision and matches nothing in the source.
     val host: String = "localhost",
-    val port: Int = 8080,
+    val port: Int = 3000,
     val path: String = "/socket",
-    val defaultRoom: String = "main_room",
-    val pingInterval: Long = 1000,
+    // Socket.as:30 -> main_room = 'Gold Saucer'. "main_room" is the VARIABLE
+    // name, not the room name - an earlier revision used it as the value.
+    val defaultRoom: String = "Gold Saucer",
+    val pingInterval: Long = 1000,   // Socket.as:31 pingDelay
     val connectionTimeout: Long = 5000,
     val maxReconnectAttempts: Int = 5,
     val reconnectDelay: Long = 3000,
@@ -503,11 +557,21 @@ enum class ConnectionType {
     NONE, WIFI, CELLULAR, ETHERNET, UNKNOWN
 }
 
-// Android implementation
-expect class AndroidNetworkMonitor() : NetworkMonitor
+// WARNING: the previous version wrote:
+//     expect class AndroidNetworkMonitor() : NetworkMonitor
+//     actual class IosNetworkMonitor()   : NetworkMonitor
+// That is not how expect/actual works: an `actual` must have the SAME name as its
+// `expect`, and platform-prefixed names defeat the point. Declare one expected
+// factory in commonMain and provide platform actuals:
 
-// iOS implementation
-actual class IosNetworkMonitor() : NetworkMonitor
+// commonMain
+expect fun createNetworkMonitor(): NetworkMonitor
+
+// androidMain - needs a Context, so inject it (e.g. via Koin)
+actual fun createNetworkMonitor(): NetworkMonitor = AndroidNetworkMonitor(appContext)
+
+// iosMain - backed by NWPathMonitor
+actual fun createNetworkMonitor(): NetworkMonitor = IosNetworkMonitor()
 ```
 
 **Acceptance Criteria**:
@@ -606,8 +670,10 @@ fun PVPMatchScreen(
 // SocketManagerTest.kt
 class SocketManagerTest : BaseTest() {
     private lateinit var socketManager: SocketManager
-    private val mockClient = mockkClass<HttpClient>()
-    private val mockWebSocket = mockkClass<WebSocketSession>()
+    // MockK is JVM-only - these tests can only live in jvmTest/androidUnitTest,
+    // not commonTest. Also the helper is `mockk<T>()`; `mockkClass` takes a KClass.
+    private val mockClient = mockk<HttpClient>()
+    private val mockWebSocket = mockk<DefaultClientWebSocketSession>()
     
     @BeforeTest
     fun setup() {
@@ -642,7 +708,9 @@ class SocketManagerTest : BaseTest() {
         socketManager.connect()
         delay(100)
         
-        states shouldContain ConnectionState.Error
+        // `ConnectionState.Error` is a data class, not an object - you cannot
+        // compare a value to the class itself. Match on the type instead:
+        states.any { it is ConnectionState.Error } shouldBe true
         // Reconnect should be attempted
     }
     
@@ -663,10 +731,13 @@ class MockWebSocket : WebSocketSession {
     override val closeReason: Throwable? get() = null
     override val customAttributes: Attributes get() = Attributes()
     override val extensions: List<WebSocketExtension<*>> get() = emptyList()
-    override val incoming: ReceiveChannel<Frame> = Channel.Factory.receiveChannel {}
-    override val isActive: Boolean get() = true
+    // `Channel.Factory.receiveChannel {}` / `sendChannel {}` do not exist.
+    // Use a real Channel and expose it as both ends.
+    private val frames = Channel<Frame>(Channel.UNLIMITED)
+    override val incoming: ReceiveChannel<Frame> get() = frames
+    override val outgoing: SendChannel<Frame> get() = frames
+    override val isActive: Boolean get() = !frames.isClosedForSend
     override val maxFrameSize: Long get() = Long.MAX_VALUE
-    override val outgoing: SendChannel<Frame> = Channel.Factory.sendChannel {}
     
     override suspend fun close(cause: Throwable?) {}
     override suspend fun flush() {}

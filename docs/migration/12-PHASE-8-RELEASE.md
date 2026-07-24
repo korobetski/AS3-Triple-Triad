@@ -13,6 +13,50 @@
 
 ## 🎯 Phase Overview
 
+### 🔴 BLOCKED: this phase cannot proceed as written
+
+Public distribution of this app would infringe Square Enix intellectual property.
+Triple Triad, Final Fantasy VIII and Final Fantasy XIV are Square Enix trademarks;
+all card art, character art, UI sprites and audio in `sources/assets/` and
+`sources/bin/assets/` are extracted from shipped Square Enix titles, and
+`application.xml` carries only a "(c) Moogle Works 2015" notice.
+
+Submitting to Google Play and the App Store - especially with `final fantasy` as a
+store keyword, as Task 8.3 below specifies - invites a DMCA takedown, developer
+account penalties and legal exposure, after the entire project budget has been spent.
+
+**Resolve BR-003 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md) before
+executing any task in this phase.** The practical path is a full reskin with
+original art, names and audio, which requires an artist and a sound designer -
+neither is staffed in the current plan, and the asset-replacement work is not in
+any estimate here.
+
+Everything below assumes that blocker has been cleared.
+
+---
+
+### 🔴 BLOCKED: this phase cannot proceed as written
+
+Public distribution of this app would infringe Square Enix intellectual property.
+Triple Triad, Final Fantasy VIII and Final Fantasy XIV are Square Enix trademarks;
+all card art, character art, UI sprites and audio in `sources/assets/` and
+`sources/bin/assets/` are extracted from shipped Square Enix titles, and
+`application.xml` carries only a "(c) Moogle Works 2015" notice.
+
+Submitting to Google Play and the App Store - especially with `final fantasy` as a
+store keyword, as Task 8.3 below specifies - invites a DMCA takedown, developer
+account penalties and legal exposure, after the entire project budget has been spent.
+
+**Resolve BR-003 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md) before
+executing any task in this phase.** The practical path is a full reskin with
+original art, names and audio, which requires an artist and a sound designer -
+neither is staffed in the current plan, and the asset-replacement work is not in
+any estimate here.
+
+Everything below assumes that blocker has been cleared.
+
+---
+
 ### Purpose
 Prepare and execute the release of Triple Triad Online for Android and iOS app stores, including beta testing, final preparation, and deployment.
 
@@ -59,8 +103,23 @@ android {
         versionName = "1.0.0-beta.1"
     }
     
+    signingConfigs {
+        // Referenced below as signingConfigs.getByName("beta"); it was never
+        // declared in the previous revision, so the build would fail.
+        create("beta") {
+            storeFile = file(providers.gradleProperty("betaStoreFile").get())
+            storePassword = providers.gradleProperty("betaStorePassword").get()
+            keyAlias = providers.gradleProperty("betaKeyAlias").get()
+            keyPassword = providers.gradleProperty("betaKeyPassword").get()
+        }
+    }
+
     buildTypes {
-        beta {
+        // Kotlin DSL requires create() for a custom build type - a bare
+        // `beta { }` block does not resolve.
+        create("beta") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -79,8 +138,28 @@ android {
 }
 ```
 
+> **Scope note**: Firebase App Distribution, Crashlytics, Analytics and
+> Performance Monitoring are used throughout this phase, but Firebase appears
+> nowhere in [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md), and
+> [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) lists analytics as
+> explicitly **out of scope** ("to be added post-migration"). Either add Firebase
+> to the technical stack and the budget, or use alternatives that need no SDK
+> (Play Internal Testing + TestFlight for distribution; Play Console / Xcode
+> Organizer for crash reports). Also note Crashlytics and Analytics collect user
+> data, which triggers Data Safety / App Privacy declarations not covered here.
+
+> **Scope note**: Firebase App Distribution, Crashlytics, Analytics and
+> Performance Monitoring are used throughout this phase, but Firebase appears
+> nowhere in [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md), and
+> [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) lists analytics as
+> explicitly **out of scope** ("to be added post-migration"). Either add Firebase
+> to the technical stack and the budget, or use alternatives that need no SDK
+> (Play Internal Testing + TestFlight for distribution; Play Console / Xcode
+> Organizer for crash reports). Also note Crashlytics and Analytics collect user
+> data, which triggers Data Safety / App Privacy declarations not covered here.
+
 **Beta Distribution**:
-- **Android**: Firebase App Distribution
+- **Android**: Firebase App Distribution, or Play Console internal testing, or Play Console internal testing
 - **iOS**: TestFlight
 - **Internal**: Direct APK/IPA distribution
 
@@ -96,7 +175,11 @@ android {
 
 **Beta Test Plan**:
 - **Testers**: 50-100 external beta testers
-- **Duration**: 5-7 days
+- **Duration**: 5-7 days -- NOTE this contradicts the task's stated 3-day
+  duration and the 1-week Week 31 slot. A 5-7 day beta plus triage does not fit;
+  either extend Phase 8 to 3 weeks or shorten the beta to 3 days and say so. -- NOTE this contradicts the task's stated 3-day
+  duration and the 1-week Week 31 slot. A 5-7 day beta plus triage does not fit;
+  either extend Phase 8 to 3 weeks or shorten the beta to 3 days and say so.
 - **Focus**: Full feature testing, edge cases, performance
 - **Feedback**: Structured feedback collection
 
@@ -106,7 +189,7 @@ android {
 3. **Performance**: Smooth on all devices
 4. **Usability**: Intuitive and easy to use
 5. **Compatibility**: Works on all supported devices
-6. **Localization**: Both languages work
+6. **Localization**: all 4 locales work (de_DE, en_US, fr_FR, ja_JA)
 
 **Beta Test Builds**:
 - Android: Universal APK and App Bundle
@@ -128,6 +211,16 @@ android {
 
 ### Week 32: Production Release
 
+> WARNING: Week 32 assigns 8.3 (2 d) + 8.4 (2 d) + 8.5 (1 d) + 8.6 (2 d) = 7 days
+> of work into a 5-day week, and Task 8.4 additionally waits 1-3 days for store
+> review. Store review is wall-clock time that cannot be compressed. Phase 8
+> needs 3 weeks, or submission must move into Week 31.
+
+> WARNING: Week 32 assigns 8.3 (2 d) + 8.4 (2 d) + 8.5 (1 d) + 8.6 (2 d) = 7 days
+> of work into a 5-day week, and Task 8.4 additionally waits 1-3 days for store
+> review. Store review is wall-clock time that cannot be compressed. Phase 8
+> needs 3 weeks, or submission must move into Week 31.
+
 #### Task 8.3: App Store Preparation
 **Owner**: DevOps + Marketing | **Duration**: 2 days | **Priority**: CRITICAL
 
@@ -137,7 +230,10 @@ android {
   - Short description: <80 characters
   - Full description: <4000 characters
   - Category: Games / Card
-  - Tags: card, game, triple, triad, final fantasy
+  - Tags: card, game, strategy, tactics  -- do NOT use "final fantasy",
+    "triple triad" or any Square Enix mark unless a licence has been granted
+    (see BR-003). Using them is both a trademark issue and grounds for store
+    rejection under the impersonation/IP policies.
   - Feature graphic: 1024x500
   - Icon: 512x512
   - Screenshots: 6-8 images
@@ -273,7 +369,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ./gradlew androidApp:bundleRelease
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: app-release.aab
           path: androidApp/build/outputs/bundle/release/*.aab
@@ -282,9 +378,17 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - run: ./gradlew iosApp:build
-      - run: xcodebuild -exportArchive
-      - uses: actions/upload-artifact@v3
+      # `iosApp` is an Xcode project, not a Gradle module - `./gradlew iosApp:build`
+      # does not exist. Build the shared framework with Gradle, then use xcodebuild.
+      - run: ./gradlew :shared:linkReleaseFrameworkIosArm64
+      - run: |
+          xcodebuild -workspace iosApp/iosApp.xcworkspace \
+                     -scheme iosApp -configuration Release \
+                     -archivePath build/iosApp.xcarchive archive
+          xcodebuild -exportArchive -archivePath build/iosApp.xcarchive \
+                     -exportOptionsPlist iosApp/ExportOptions.plist \
+                     -exportPath build
+      - uses: actions/upload-artifact@v4
         with:
           name: app-release.ipa
           path: iosApp/build/*.ipa
@@ -293,7 +397,7 @@ jobs:
     needs: [build-android, build-ios]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
       - run: ./scripts/deploy-release.sh
 ```
 
