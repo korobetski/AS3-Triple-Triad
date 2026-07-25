@@ -391,11 +391,20 @@ outstanding. See [docs/analysis/](../analysis/README.md).
 **Owner**: DevOps
 **Duration**: 2 days
 **Priority**: HIGH
-**Status**: ⚠️ WRITTEN BUT NEVER EXECUTED —
-[`.github/workflows/build.yml`](../../.github/workflows/build.yml) exists, its YAML
-parses, and all **8 Gradle task paths it invokes were verified to exist** with
-`--dry-run`. Nothing has been pushed, so **no job has ever run.** Do not treat this
-as a working pipeline until a push turns it green.
+**Status**: ⚠️ RUN ONCE, FAILED, FIRST DEFECT FIXED —
+[`.github/workflows/build.yml`](../../.github/workflows/build.yml) exists and all **8
+Gradle task paths it invokes were verified to exist** with `--dry-run`. The first push
+failed at the first step of every job with `./gradlew: Permission denied` (exit 126):
+`kotlin/gradlew` was committed from Windows, where `core.filemode` is `false`, so it was
+recorded `100644` rather than `100755`. Fixed in the index with
+`git update-index --chmod=+x`; see
+[git-workflow.md § File modes on Windows](../development/git-workflow.md#file-modes-on-windows).
+
+Because the failure preceded Gradle starting, **nothing downstream has been exercised on
+CI**. Do not treat this as a working pipeline until a push turns it green. Remaining
+risks, in likelihood order, are listed in
+[kotlin/README.md § Known issues](../../kotlin/README.md#known-issues) — the notable one
+is whether the 8 Compose UI tests survive a headless Linux runner.
 
 > **Corrections against the draft that used to live in this document.** The YAML
 > below was aspirational and would have failed on every run:

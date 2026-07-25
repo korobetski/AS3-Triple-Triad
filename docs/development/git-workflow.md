@@ -76,6 +76,28 @@ Do not commit:
   [`dependency-matrix.md`](../analysis/dependency-matrix.md), which are checked-in
   generator output; regenerate rather than edit them
 
+### File modes on Windows
+
+This project is developed on Windows, where `git config core.filemode` is `false`. Git
+therefore never notices the executable bit, and a script committed from Windows lands in
+the index as `100644` — **not executable**. On a Linux CI runner that fails immediately:
+
+```
+./gradlew: Permission denied
+Error: Process completed with exit code 126.
+```
+
+That is exactly how the first CI run failed. The fix is to set the mode in the index
+explicitly, then commit:
+
+```bash
+git update-index --chmod=+x kotlin/gradlew
+```
+
+Check with `git ls-files -s <path>`: it must read `100755`. Any new shell script, hook or
+wrapper added from Windows needs the same treatment. `gradlew.bat` correctly stays
+`100644` — it is only ever run on Windows.
+
 ## 4. Pull requests
 
 | Requirement | Rule |

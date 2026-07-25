@@ -339,10 +339,36 @@ not rotate anything: it runs a four-leg `scaleX` yoyo (1 → 0 → 1.2 → 0 →
 pinch. A `rotationY` flip reads better on a high-DPI screen, but if pixel-parity with the
 original is a requirement this has to be rewritten. Documented on `FlippableCard`.
 
-**CI has never run.** [`../.github/workflows/build.yml`](../.github/workflows/build.yml)
-is written and its YAML parses, and every one of the eight Gradle task paths it invokes
-was verified to exist with `--dry-run`. But nothing has been pushed, so no job has ever
-executed — in particular the `ios-framework` job on a macOS runner is entirely unproven.
+**CI is not green yet.** [`../.github/workflows/build.yml`](../.github/workflows/build.yml)
+has now run once and failed at the first step of every job:
+
+```
+./gradlew: Permission denied      (exit code 126)
+```
+
+`kotlin/gradlew` was committed from Windows, where `core.filemode` is `false`, so it
+landed in the git index as `100644` instead of `100755`. Fixed with
+`git update-index --chmod=+x kotlin/gradlew`; see
+[git-workflow.md § File modes on Windows](../docs/development/git-workflow.md#file-modes-on-windows).
+
+Because that failure hit before Gradle ever started, **nothing downstream has been
+exercised on CI.** The next most likely failure, in order:
+
+1. **The Compose UI tests on a headless Linux runner.** `:shared:build` runs the 8
+   `desktopTest` cases, and `runComposeUiTest` needs Skiko to get a rendering surface.
+   This works on many projects' Linux CI, but it is untested here and cannot be tested
+   from a Windows host. If it fails, run that job under `xvfb-run`. Test results upload
+   on `always()`, so the failure will be diagnosable.
+2. **`compileSdk 36` on the runner image.** `android-actions/setup-android@v3` accepts
+   the licenses so AGP can download it, but this has not been observed.
+3. **The `ios-framework` job.** Entirely unproven, and it would be the project's first
+   real Apple compilation.
+
+Note that the missing Android SDK is *not* a risk for the `quality`, `desktop` and
+`ios-framework` jobs, which have no `setup-android` step: AGP 8.x resolves the SDK
+location at task execution, not at configuration, so those jobs configure `:shared`
+fine without one. That was verified by moving `local.properties` aside and running
+`ktlintCheck --dry-run` and `:desktopApp:build --dry-run` with `ANDROID_HOME` unset.
 
 ### iOS caveat
 
