@@ -31,6 +31,23 @@ This directory contains the complete migration plan for moving **Triple Triad On
 16. **[16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md) - Risk analysis and mitigation**
 17. **[17-TESTING-GUIDE.md](./17-TESTING-GUIDE.md) - Testing framework and examples**
 
+### Phase 0 outputs (produced, not planned)
+
+Unlike the documents above, these describe work that has been done. They are the place
+to look when the plan and reality disagree — reality is in here.
+
+- **[../analysis/](../analysis/README.md)** — analysis of the existing AS3 codebase
+  (Task 1.3): dependency matrix, event catalog, API mapping, network protocol,
+  performance baseline. Start with the
+  [headline findings](../analysis/README.md#headline-findings).
+- **[../development/](../development/README.md)** — coding standards, architecture,
+  git workflow, testing strategy, performance guidelines (Task 1.6). Enforced in the
+  build, not advisory.
+- **[../../kotlin/README.md](../../kotlin/README.md)** — the Proof of Concept and its
+  verified results.
+- **[../../.github/workflows/build.yml](../../.github/workflows/build.yml)** — CI
+  (Task 1.5). Written; never executed.
+
 ---
 
 ## 🎯 Quick Start
@@ -58,19 +75,33 @@ budget or feasibility, and none is an engineering problem.
 | 2 | **Multiplayer is greenfield, not a migration.** 27 of the 29 `Socket_On_*` handlers in `net/Socket.as` are unreachable dead code; only connect / ping / user-list work. XMLSocket is also not wire-compatible with WebSocket, so server work is unavoidable — contradicting the "server remains as-is" scope. | TR-007 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md), §8 of [02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md) | Phase 5's 3-week estimate is unfounded (realistically 8-12 weeks incl. server). Recommended: drop PvP from v1. |
 | 3 | **Budget was arithmetically inconsistent.** The published €232,500-€297,500 understated its own staffing assumption (8-9 FTE × 7-9 months at €8-10k/month) by ~130%. Corrected to **€533,665-€671,165**. | [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) | Either fund ~€534k-€671k, or cut scope/team explicitly. Three costed options are set out in the executive summary. |
 
+Two further decisions have been added by the Phase 0 analysis. Neither is blocking in
+the same sense, but both change what the plan can promise:
+
+| # | Issue | Where | Impact |
+|---|-------|-------|--------|
+| 4 | **No AS3 performance baseline is obtainable.** Adobe AIR is end-of-life and the existing client cannot be run, let alone profiled. | [performance-baseline.md](../analysis/performance-baseline.md) §4 | "No worse than today" cannot be evidenced. Either fund an AIR environment now, or set absolute targets and stop claiming parity. |
+| 5 | **Asset delivery is undecided.** The shipped `tto.apk` is a 9.67 MB downloader containing **no card artwork**; the real runtime payload is ~40 MB. | [performance-baseline.md](../analysis/performance-baseline.md) §1 | The plan's "< 20 MB" figure silently assumes download-on-demand. Ship everything (~45 MB), keep downloading, or re-encode — pick one. |
+
 On the PoC: the first attempt (`poc/`) was reported COMPLETE and "technology stack
 validated" but had never been compiled and had 12 build-blocking defects. It has
-been **deleted and rewritten** as [../../kotlin/](../../kotlin/README.md), which
-does build — Android debug + release APKs, a JVM desktop host, 5 model tests and
-3 Compose UI tests that actually exercise the flip. See
+been **deleted and rewritten** as [../../kotlin/](../../kotlin/README.md), which does
+build — Android debug + release APKs, a JVM desktop host, and **21 tests / 47
+executions with 0 failures**, verified on a physical Pixel 6a. It loads all **263
+cards** from a JSON resource through the Compose resource bundle. See
 [kotlin/README.md § Verified build results](../../kotlin/README.md#verified-build-results).
 
 That validates the *toolchain* (Kotlin 2.2.20 / Compose Multiplatform 1.9.3 /
-AGP 8.13.2 / Gradle 8.14.3) and single-source Compose UI on Android. It does
-**not** validate the highest-risk areas, which remain untouched: card artwork
-sliced from Starling texture atlases, the 3×3 board with drag-and-drop, the rules
-engine, networking, iOS (never compiled — Kotlin/Native cannot target Apple from a
-Windows host), and performance on real devices.
+kotlinx.serialization 1.9.0 / AGP 8.13.2 / Gradle 8.14.3), single-source Compose UI on
+Android and JVM, and structured-data loading through Compose resources. It does **not**
+validate the highest-risk areas, which remain untouched: card artwork sliced from
+Starling texture atlases, the 3×3 board with drag-and-drop, the rules engine,
+networking, iOS (never compiled — Kotlin/Native cannot target Apple from a Windows
+host), frame timing, or any of Ktor / SQLDelight / Koin / Media3.
+
+⚠️ **The IP exposure got worse, not better.** `cards.json` now ships the names and stats
+of all 263 cards. The PoC can no longer be described as free of Square Enix material —
+see its [licensing note](../../kotlin/README.md#licensing-note).
 
 ---
 
@@ -78,7 +109,7 @@ Windows host), and performance on real devices.
 
 | Phase | Status | Start Date | End Date | Owner |
 |-------|--------|------------|----------|-------|
-| Phase 0: Preparation | ⚠️ IN PROGRESS - PoC builds; scope of PoC is narrow (see above) | - | - | - |
+| Phase 0: Preparation | ⚠️ IN PROGRESS — 4 of 6 tasks delivered; iOS, training and CI execution outstanding. See [04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md) | - | - | - |
 | Phase 1: Infrastructure | ⏳ NOT STARTED | - | - | - |
 | Phase 2: Data Layer | ⏳ NOT STARTED | - | - | - |
 | Phase 3: Core Logic | ⏳ NOT STARTED | - | - | - |
@@ -88,9 +119,27 @@ Windows host), and performance on real devices.
 | Phase 7: Testing | ⏳ NOT STARTED | - | - | - |
 | Phase 8: Release | ⏳ NOT STARTED | - | - | - |
 
-**Overall Status**: ⚠️ **PLANNING REVISED — NOT READY TO START.** The plan is
-documented, but the three blocking issues above must be resolved first, and the PoC
-must actually build before the technology choice can be called validated.
+**Overall Status**: ⚠️ **PHASE 0 UNDER WAY — NOT READY FOR PHASE 1.**
+
+The technical groundwork is real: the PoC builds and runs on a physical device, the
+source analysis exists, the standards are enforced in the build, and CI is written.
+What is missing is not code:
+
+| Blocker | Kind |
+|---------|------|
+| Square Enix IP (#1) unresolved — and exposure increased | decision, legal |
+| Multiplayer scope (#2) undecided | decision, scope |
+| Budget not re-baselined (#3) | decision, funding |
+| Performance-comparison policy (#4) undecided | decision |
+| Asset-delivery strategy (#5) undecided | decision |
+| iOS has never been compiled | needs a Mac, or the macOS CI job |
+| No team assembled, so no training | staffing |
+| CI has never executed | needs a push |
+
+Five of eight are decisions for the sponsor and tech lead, not engineering work. The
+technology choice can now be called validated **for the base UI stack and data
+loading**; it cannot be called validated for texture atlases, the board, the rules
+engine, networking, iOS, or any library outside that base set.
 
 ---
 
@@ -170,7 +219,7 @@ of work for one owner in a 5-day week) and need re-levelling.
 
 If €232,500 is a hard ceiling it buys roughly **23 FTE-months** (e.g. 3 FTE for
 7.5 months), not 8-9 FTE. See the three costed scope options in
-[01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md#if-2325000-is-a-hard-ceiling).
+[01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md#if-232500-is-a-hard-ceiling).
 
 **Not included in any figure above**: the asset-replacement work required by
 blocking issue #1 (original card art for 263 cards, UI, fonts and audio), and the
@@ -189,6 +238,16 @@ server-side work required by blocking issue #2.
 ---
 
 *Generated for AI agent consumption and human reference*
-*Last updated: 2026-07-24 — documents reviewed against the AS3 source; factual
-errors, arithmetic inconsistencies and non-compiling code samples corrected. See
-the correction notices in individual documents.*
+
+*Last updated: 2026-07-25 — Phase 0 execution. Added
+[docs/analysis/](../analysis/README.md) (Task 1.3, 5 documents + a generator),
+[docs/development/](../development/README.md) (Task 1.6, 5 documents + enforced ktlint
+and detekt configs), and [CI](../../.github/workflows/build.yml) (Task 1.5). The PoC
+closed requirement 2 — 263 cards loaded from JSON through Compose resources — and three
+card-geometry errors in it were found and fixed against the AS3 source. Two new
+non-engineering decisions were surfaced (#4 performance-comparison policy, #5 asset
+delivery).*
+
+*Previously, 2026-07-24 — documents reviewed against the AS3 source; factual errors,
+arithmetic inconsistencies and non-compiling code samples corrected. See the correction
+notices in individual documents.*

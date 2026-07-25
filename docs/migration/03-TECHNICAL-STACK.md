@@ -60,18 +60,34 @@ The migration from **ActionScript 3 / Adobe AIR** to **Kotlin Multiplatform** wi
 > | Kotlin | 1.9.24 | 2.0.21 | **2.2.20** |
 > | Compose MP | 1.6.11 | 1.6.11 | **1.9.3** |
 > | Compose compiler | `composeOptions` ext. 1.5.14 | `kotlin.plugin.compose` 2.0.21 | **`kotlin.plugin.compose` 2.2.20** |
+> | Compose resources | — | — | **`compose.components.resources` 1.9.3** |
+> | kotlinx.serialization | — | — | **1.9.0** (plugin tracks Kotlin) |
 > | AGP | 8.4.2 | 8.5.2 | **8.13.2** |
 > | Gradle | 8.7 | 8.9 | **8.14.3** |
 > | JDK | 17 | 17 | **17** |
-> | compileSdk | — | — | **36** |
-> | Status | reasoned only | reasoned only | **built: Android debug+release APK, JVM desktop, 8 tests green** |
+> | compileSdk / minSdk | — | — | **36 / 24** |
+> | ktlint plugin | — | — | **`org.jlleitschuh.gradle.ktlint` 12.1.2** |
+> | detekt | — | — | **1.23.8** |
+> | Status | reasoned only | reasoned only | **built: Android debug+release APK, JVM desktop, 47 test executions green, static analysis clean at `maxIssues = 0`, run on a physical Pixel 6a** |
 >
 > Sets A and B are internally consistent on paper but were never built; the whole
 > point of the Set C column is that it was. See
 > [`kotlin/gradle/libs.versions.toml`](../../kotlin/gradle/libs.versions.toml) and
 > [kotlin/README.md § Verified build results](../../kotlin/README.md#verified-build-results).
-> Caveat: Set C is verified for the Compose UI stack only — Ktor,
-> kotlinx.serialization, SQLDelight, Koin and Media3 have not been added to it yet.
+>
+> **What Set C now covers**, beyond the base Compose UI stack: `kotlinx.serialization`
+> for JSON, and `compose.components.resources` for loading a file out of
+> `commonMain/composeResources` — which is also the mechanism the 263 card *images* will
+> need, so this is not an incidental addition. Both are exercised end-to-end by tests
+> that read the shipped 263-card catalog, on desktop, androidDebug and androidRelease.
+>
+> **What Set C still does not cover.** Do not assume these work with the versions above
+> until someone has compiled them: **Ktor**, **SQLDelight**, **Koin**, **Media3**, and
+> **Kover** (needed for coverage, since JaCoCo does not cover Kotlin/Native). Nor does
+> Set C cover **any Apple target**: the iOS compilations are declared but have never run,
+> because Kotlin/Native cannot target Apple platforms from the Windows host used so far.
+> Verifying the remaining libraries is Phase 1 work — see
+> [04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md).
 
 ---
 

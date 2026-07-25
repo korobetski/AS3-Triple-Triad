@@ -1,0 +1,61 @@
+# detekt overrides for this project. `buildUponDefaultConfig = true` is set in
+# build.gradle.kts, so this file only records where we deliberately differ from the
+# defaults — everything not mentioned keeps detekt's own setting.
+#
+# Each override says why. An override without a reason is a rule someone silenced
+# because it was inconvenient, and that is exactly what a code-quality gate is meant
+# to prevent.
+
+build:
+  # Any finding fails the build. A warning threshold that nobody watches is the same
+  # as no gate at all.
+  maxIssues: 0
+
+complexity:
+  LongParameterList:
+    # `Card` has 11 constructor parameters because the AS3 record it mirrors has 11
+    # fields. Data classes and Composables both legitimately take many arguments.
+    ignoreAnnotated: ['Composable', 'Serializable']
+    ignoreDataClasses: true
+  LongMethod:
+    # Composable functions are declarative trees; splitting one at 60 lines to satisfy
+    # a counter usually makes the layout harder to read, not easier.
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    thresholdInFiles: 20
+    thresholdInClasses: 20
+
+naming:
+  FunctionNaming:
+    # PascalCase Composables, as everywhere in the Compose ecosystem.
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    # `val CardWidth = 88.dp` — Compose convention for design tokens is PascalCase, not
+    # SCREAMING_SNAKE_CASE.
+    constantPattern: '[A-Za-z][_A-Za-z0-9]*'
+
+style:
+  MagicNumber:
+    # The whole point of the UI layer here is to reproduce literal coordinates read out
+    # of the AS3 source. Every one of them is commented with its origin; extracting
+    # them into named constants would only move the number one line up.
+    ignoreAnnotated: ['Composable']
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreNamedArgument: true
+  MaxLineLength:
+    # Kept in step with .editorconfig so ktlint and detekt cannot disagree.
+    maxLineLength: 100
+  UnusedPrivateMember:
+    # Composable previews and platform entry points look unused to detekt.
+    ignoreAnnotated: ['Composable', 'Preview']
+  ForbiddenComment:
+    # A TODO with an owner and a reason is useful documentation during a migration; the
+    # default rule bans the word outright.
+    active: false
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: true
+  SwallowedException:
+    active: true

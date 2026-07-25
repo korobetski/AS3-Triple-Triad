@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -29,6 +30,10 @@ kotlin {
             api(compose.foundation)
             api(compose.material3)
             api(compose.ui)
+            // Card data is read through Compose resources, which is also the
+            // mechanism the real migration needs for the 263 card images.
+            api(compose.components.resources)
+            api(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -40,6 +45,14 @@ kotlin {
             implementation(compose.uiTest)
         }
     }
+}
+
+// Pinned explicitly: the default package is derived from the Android namespace, so
+// without this the generated `Res` class would silently move if the namespace ever
+// changed.
+compose.resources {
+    packageOfResClass = "tripletriad.shared.generated.resources"
+    generateResClass = auto
 }
 
 android {

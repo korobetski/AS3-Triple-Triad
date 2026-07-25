@@ -1,0 +1,45 @@
+# Formatting rules for the Kotlin Multiplatform project.
+#
+# ktlint reads this file, and so does IntelliJ / Android Studio, so a developer's IDE
+# and the `ktlintCheck` Gradle task agree without a second configuration file.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{kt,kts}]
+max_line_length = 100
+ktlint_code_style = intellij_idea
+
+# @Composable functions are PascalCase by convention across the entire Compose
+# ecosystem, which the naming rules would otherwise flag on every screen.
+ktlint_function_naming_ignore_when_annotated_with = Composable
+ktlint_property_naming_ignore_when_annotated_with = Composable
+
+# Off deliberately: `Modifier.padding(top = 30.dp)` and friends read better on one line
+# than exploded one-argument-per-line, and the rule fires constantly in Compose code.
+ktlint_standard_function-signature = disabled
+
+# On deliberately: explicit imports only. Wildcards make it hard to see which
+# `Card` a file means, and this migration has an AS3 `Card`, a model `Card` and a
+# Compose `CardFace` in play at once.
+ktlint_standard_no-wildcard-imports = enabled
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+# Markdown uses trailing double-space for hard line breaks.
+trim_trailing_whitespace = false
+
+[*.py]
+indent_size = 4
+max_line_length = 88
+
+[gradlew.bat]
+end_of_line = crlf

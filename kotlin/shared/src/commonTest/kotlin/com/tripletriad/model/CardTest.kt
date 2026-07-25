@@ -7,14 +7,17 @@ import kotlin.test.assertNotEquals
 
 class CardTest {
 
+    /** `cards.as` FF8_DATAS[1]: `{name:"STR_FF8_CARD_1", power:[1,4,1,5], rarity:1}`. */
     private val geezard = Card(
         id = 1,
+        collection = "ff8_",
+        nameKey = "STR_FF8_CARD_1",
         name = "Geezard",
-        level = 1,
         top = 1,
         right = 4,
         bottom = 1,
         left = 5,
+        rarity = 1,
     )
 
     @Test
@@ -47,10 +50,11 @@ class CardTest {
     }
 
     @Test
-    fun powersOutsideOneToTenAreRejected() {
+    fun invalidFieldsAreRejected() {
         assertFailsWith<IllegalArgumentException> { geezard.copy(top = 0) }
         assertFailsWith<IllegalArgumentException> { geezard.copy(right = 11) }
         assertFailsWith<IllegalArgumentException> { geezard.copy(id = 0) }
-        assertFailsWith<IllegalArgumentException> { geezard.copy(level = 0) }
+        assertFailsWith<IllegalArgumentException> { geezard.copy(rarity = 0) }
+        assertFailsWith<IllegalArgumentException> { geezard.copy(rarity = 6) }
     }
 }

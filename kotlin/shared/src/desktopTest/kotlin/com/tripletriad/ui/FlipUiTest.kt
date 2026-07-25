@@ -1,7 +1,6 @@
 package com.tripletriad.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -18,8 +17,9 @@ class FlipUiTest {
     @Test
     fun cardIsDisplayedOwnedByBlue() = runComposeUiTest {
         setContent { App() }
+        awaitCatalog()
 
-        onNodeWithTag(CardTestTag).assertExists()
+        onNodeWithTag(CARD_TEST_TAG).assertExists()
         assertVisible("Geezard", "card name is not rendered")
         assertVisible("owner: blue", "card did not start owned by blue")
     }
@@ -27,9 +27,10 @@ class FlipUiTest {
     @Test
     fun tappingTheCardFlipsItAndHandsItToTheOtherSide() = runComposeUiTest {
         setContent { App() }
+        awaitCatalog()
 
-        onNodeWithTag(CardTestTag).performClick()
-        waitUntil(timeoutMillis = 10_000) { isVisible("owner: red") }
+        onNodeWithTag(CARD_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible("owner: red") }
 
         assertVisible("flips: 1", "flip counter did not advance")
     }
@@ -37,22 +38,14 @@ class FlipUiTest {
     @Test
     fun flippingTwiceReturnsTheCardToBlue() = runComposeUiTest {
         setContent { App() }
+        awaitCatalog()
 
-        onNodeWithTag(CardTestTag).performClick()
-        waitUntil(timeoutMillis = 10_000) { isVisible("owner: red") }
+        onNodeWithTag(CARD_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible("owner: red") }
 
-        onNodeWithTag(CardTestTag).performClick()
-        waitUntil(timeoutMillis = 10_000) { isVisible("owner: blue") }
+        onNodeWithTag(CARD_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isVisible("owner: blue") }
 
         assertVisible("flips: 2", "second flip was not counted")
     }
-}
-
-@OptIn(ExperimentalTestApi::class)
-private fun androidx.compose.ui.test.ComposeUiTest.isVisible(text: String): Boolean =
-    onAllNodes(hasText(text, substring = true)).fetchSemanticsNodes().isNotEmpty()
-
-@OptIn(ExperimentalTestApi::class)
-private fun androidx.compose.ui.test.ComposeUiTest.assertVisible(text: String, message: String) {
-    check(isVisible(text)) { "$message (no node containing \"$text\")" }
 }
