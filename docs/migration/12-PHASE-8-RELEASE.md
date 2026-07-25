@@ -4,56 +4,67 @@
 
 - **Phase**: 8 - Release
 - **Duration**: 2 weeks (Weeks 31-32)
-- **Status**: NOT STARTED
-- **Version**: 1.0
-- **Last Updated**: 2026-07-21
+- **Status**: ⛔ **VOID AS WRITTEN** — re-scoped 2026-07-25; no store release
+- **Version**: 1.1
+- **Last Updated**: 2026-07-25
 - **Prerequisites**: Phases 1-7
 
 ---
 
 ## 🎯 Phase Overview
 
-### 🔴 BLOCKED: this phase cannot proceed as written
+### 🔴 Re-scoped by decision, 2026-07-25: there is no store release
 
-Public distribution of this app would infringe Square Enix intellectual property.
-Triple Triad, Final Fantasy VIII and Final Fantasy XIV are Square Enix trademarks;
-all card art, character art, UI sprites and audio in `sources/assets/` and
-`sources/bin/assets/` are extracted from shipped Square Enix titles, and
-`application.xml` carries only a "(c) Moogle Works 2015" notice.
+**This phase as written is void.** Every task below assumes a public launch on Google Play
+and the App Store — store listings, keywords, screenshots, staged rollout, review response,
+marketing. None of that will happen.
 
-Submitting to Google Play and the App Store - especially with `final fantasy` as a
-store keyword, as Task 8.3 below specifies - invites a DMCA takedown, developer
-account penalties and legal exposure, after the entire project budget has been spent.
+The project owner accepted the Square Enix IP risk on the explicit condition of **no wide
+distribution, no marketing and no commercialisation**
+([04-PHASE-0-PREPARATION.md § Decisions taken](./04-PHASE-0-PREPARATION.md#-decisions-taken-2026-07-25)).
+Submitting to a store would break that condition, not merely stretch it: a store listing is
+what makes the app both findable and takedown-able. The underlying facts are unchanged — the
+card art, character art, UI sprites and audio in `sources/assets/` and `sources/bin/assets/`
+are extracted from shipped Square Enix titles, `cards.json` ships 263 Square Enix card names
+and statistics, and `application.xml` carries only a "(c) Moogle Works 2015" notice.
 
-**Resolve BR-003 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md) before
-executing any task in this phase.** The practical path is a full reskin with
-original art, names and audio, which requires an artist and a sound designer -
-neither is staffed in the current plan, and the asset-replacement work is not in
-any estimate here.
+### What replaces this phase
 
-Everything below assumes that blocker has been cleared.
+**Distribution**: sideloaded APK. Android only for now — see § iOS below.
 
----
+**Updates**: the app checks the GitHub Releases API for its repository at startup, compares
+the published tag against its own `versionName`, and offers to download and install the newer
+APK. Chosen over a Google Play closed track precisely because nothing is submitted to or
+indexed by a store.
 
-### 🔴 BLOCKED: this phase cannot proceed as written
+What that actually requires, none of which exists yet:
 
-Public distribution of this app would infringe Square Enix intellectual property.
-Triple Triad, Final Fantasy VIII and Final Fantasy XIV are Square Enix trademarks;
-all card art, character art, UI sprites and audio in `sources/assets/` and
-`sources/bin/assets/` are extracted from shipped Square Enix titles, and
-`application.xml` carries only a "(c) Moogle Works 2015" notice.
+| Item | Note |
+|---|---|
+| A signing key and a stable signature | Android refuses to update an APK signed with a different key. Generate once, back up off-repo, **never commit it** — see the `.p12` already in this repository, below |
+| `versionCode` / `versionName` management | `versionCode` must increase monotonically. Currently hard-coded in `androidApp/build.gradle.kts` |
+| A release workflow | Build a signed APK, create a GitHub Release, attach the artifact. The signing key goes in GitHub Secrets |
+| `REQUEST_INSTALL_PACKAGES` permission | Required to trigger an install from inside the app. Users must also allow installs from unknown sources once |
+| An update checker | One HTTPS call to `/repos/{owner}/{repo}/releases/latest`, a version comparison, a download and a `PackageInstaller` session. Needs a no-network and a rate-limited path — the GitHub API allows 60 unauthenticated requests per hour per IP |
+| A decision on repository visibility | A **private** repository's Releases API needs a token, which cannot ship in the client. If the repository is public the API is open; if private, updates need a different host |
 
-Submitting to Google Play and the App Store - especially with `final fantasy` as a
-store keyword, as Task 8.3 below specifies - invites a DMCA takedown, developer
-account penalties and legal exposure, after the entire project budget has been spent.
+That last row is the one to settle before building anything: it decides whether the update
+mechanism is a single unauthenticated GET or a whole distribution problem.
 
-**Resolve BR-003 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md) before
-executing any task in this phase.** The practical path is a full reskin with
-original art, names and audio, which requires an artist and a sound designer -
-neither is staffed in the current plan, and the asset-replacement work is not in
-any estimate here.
+### ⚠️ A signing certificate is already committed
 
-Everything below assumes that blocker has been cleared.
+`sources/air/TripleTriadOnlineReborn.p12` is tracked in git. It is the **AIR** signing key,
+now irrelevant to builds since AIR is abandoned — but a `.p12` holds a private key, and this
+one has been in a repository. Before generating an Android key, read
+[git-workflow.md § A signing certificate is committed to this repository](../development/git-workflow.md#-a-signing-certificate-is-committed-to-this-repository)
+so the new one does not go the same way.
+
+### iOS
+
+Out of scope for now by decision: Android only. The shared framework still compiles and tests
+on the `macos-latest` CI runner, so the Apple target is kept alive at no cost — but there is no
+`.xcodeproj`, no simulator run, and no App Store path. Any task below mentioning TestFlight,
+App Store Connect or an IPA is void.
 
 ---
 
@@ -148,18 +159,8 @@ android {
 > Organizer for crash reports). Also note Crashlytics and Analytics collect user
 > data, which triggers Data Safety / App Privacy declarations not covered here.
 
-> **Scope note**: Firebase App Distribution, Crashlytics, Analytics and
-> Performance Monitoring are used throughout this phase, but Firebase appears
-> nowhere in [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md), and
-> [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) lists analytics as
-> explicitly **out of scope** ("to be added post-migration"). Either add Firebase
-> to the technical stack and the budget, or use alternatives that need no SDK
-> (Play Internal Testing + TestFlight for distribution; Play Console / Xcode
-> Organizer for crash reports). Also note Crashlytics and Analytics collect user
-> data, which triggers Data Safety / App Privacy declarations not covered here.
-
 **Beta Distribution**:
-- **Android**: Firebase App Distribution, or Play Console internal testing, or Play Console internal testing
+- **Android**: Firebase App Distribution, or Play Console internal testing
 - **iOS**: TestFlight
 - **Internal**: Direct APK/IPA distribution
 

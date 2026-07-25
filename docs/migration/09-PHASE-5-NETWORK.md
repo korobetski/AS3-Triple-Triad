@@ -4,9 +4,9 @@
 
 - **Phase**: 5 - Network Layer
 - **Duration**: 3 weeks (Weeks 21-23)
-- **Status**: NOT STARTED
-- **Version**: 1.0
-- **Last Updated**: 2026-07-21
+- **Status**: NOT STARTED — **re-scoped by decision, 2026-07-25**
+- **Version**: 1.1
+- **Last Updated**: 2026-07-25
 - **Prerequisites**: Phases 1-4
 
 ---
@@ -40,6 +40,28 @@ own design, client **and server** budget — realistically 8-12 weeks, not 3.
 
 If PvP is retained, read the rest of this document as a **design proposal for new
 work**, not a port. See **TR-007** in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md).
+
+### ✅ Decision, 2026-07-25: the socket server is abandoned
+
+TR-007 is resolved. **The original socket architecture is dropped entirely** — no XMLSocket,
+no TCP↔WebSocket proxy, no `triple-triad-online.com:2468`, no backend work to keep an
+existing server alive. Multiplayer, if built, is a new design.
+
+Everything below this line that describes Ktor WebSockets talking to the legacy server is
+therefore **obsolete**, not merely optimistic. Keep it only as a record of what the AS3
+client attempted.
+
+**Transport is undecided.** Bluetooth is under consideration. The constraint to weigh before
+committing: Kotlin Multiplatform has **no common Bluetooth API**, and peer-to-peer needs one
+device to act as peripheral/advertiser, which the cross-platform BLE libraries do not
+support. That makes Bluetooth the *most* platform-specific option available — roughly two
+independent native implementations — rather than the simplest. This is a design discussion
+still to be had, not a decision.
+
+The two facts above that survive the re-scope: **multiplayer never worked in the AS3
+source** (no card synchronisation, no match start, no swap, no trade), so there is nothing to
+reach parity with; and the phase is greenfield, so its cost bears no relation to the 3 weeks
+budgeted here.
 
 ---
 

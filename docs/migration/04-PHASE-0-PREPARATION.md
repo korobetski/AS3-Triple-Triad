@@ -4,22 +4,103 @@
 
 - **Phase**: 0 - Preparation
 - **Duration**: 2 weeks
-- **Status**: ⚠️ **IN PROGRESS** — 4 of 6 tasks delivered or mostly delivered; 2 blocked
-  on having a team. **Not signed off**: the approvals below are unresolved and three of
-  them are blocking.
-- **Version**: 1.2
+- **Status**: ⚠️ **NEARLY COMPLETE** — 5 of 6 tasks delivered or mostly delivered, and
+  **all five blocking decisions resolved on 2026-07-25** (see
+  [§ Decisions taken](#-decisions-taken-2026-07-25)). Task 1.4 (training) is void: there is
+  no team, and there will not be one — this is a single-developer project.
+- **Version**: 1.4
 - **Last Updated**: 2026-07-25
 
 > **What is actually done, in one paragraph.** The PoC in [`kotlin/`](../../kotlin/README.md)
 > builds and runs on a physical Android device, loads all 263 cards from a JSON resource,
-> and passes 47 test executions with 0 failures — but has never been compiled for iOS.
-> All five analysis documents exist in [`docs/analysis/`](../analysis/README.md), all five
+> and passes 47 test executions with 0 failures — but has never been compiled for iOS from
+> this Windows host, and no iOS app has ever been run.
+> Seven analysis documents exist in [`docs/analysis/`](../analysis/README.md) — including a
+> [game-rules specification](../analysis/game-rules.md) with a 35-case test matrix and
+> [data-flow diagrams](../analysis/data-flow.md) — plus five
 > standards documents in [`docs/development/`](../development/README.md), and ktlint +
-> detekt are enforced in the build at `maxIssues = 0`. CI is written and its Gradle tasks
-> verified, but no job has ever run. Team training has not started because there is no
-> team. **Nothing here is a substitute for the blocking approvals** — the Square Enix IP
-> question, the multiplayer scope decision and the budget re-baseline are all still open,
-> and two new decisions have been added (performance-comparison policy, asset delivery).
+> detekt are enforced in the build at `maxIssues = 0`. CI is green on all five jobs,
+> including the project's first successful Apple compilation — the shared framework links
+> and its tests run on `macos-latest`, though no iOS *app* exists. Team training has not
+> started because there is no
+> team and none is planned. **The five blocking decisions are now resolved** — IP risk
+> accepted, the original socket protocol abandoned, budget void, absolute performance
+> targets, assets embedded in the APK. One question replaced them: how updates reach
+> installed devices.
+
+---
+
+## ✅ Decisions taken (2026-07-25)
+
+The five outstanding approvals were all resolved by the project owner. Recorded here because
+they do more than unblock Phase 0 — they change what this project *is*, and several
+documents written under the old framing are now wrong rather than merely incomplete.
+
+**The project is a single-developer, AI-assisted personal project.** Not a funded team
+migration. Its stated purpose is to build a first Kotlin mobile application. Every figure in
+this documentation set that assumes a team — cost, FTE allocation, week-by-week schedule,
+role assignments — is an artefact of the original framing.
+
+| Decision | Resolution | Consequence |
+|---|---|---|
+| **Square Enix IP (BR-003)** | Risk **accepted** | No wide distribution, no marketing, no commercialisation. The 263 card names and stats stay in the repository |
+| **Multiplayer (TR-007)** | Original socket server **abandoned** | Phase 5 is a new design, not a port. Bluetooth under consideration; transport undecided |
+| **Budget** | **Void** | No salaries, no paid licences. Cost and timeline estimates carry no meaning |
+| **Performance policy** | **Absolute targets** | AIR is abandoned outright; no baseline will be produced and no parity claim made |
+| **Asset delivery** | **Embedded in the APK** | No runtime asset download. App *update* delivery decided separately — see below |
+
+### What these decisions remove from the plan
+
+- **Phase 5 shrinks and changes kind.** The 29 socket handlers, the XMLSocket framing and
+  the server protocol are no longer migration targets. What remains is a design question.
+- **Phase 8 (release) is re-scoped, not deleted.** No store listing, no staged rollout, no
+  AAB, no review response, no marketing. But sideloaded updates still need a signing key,
+  monotonic versioning and a release workflow — less work than a store launch, not zero.
+- **The AIR project is dead, not deprecated.** `sources/air/` is a reference for reading
+  behaviour out of, not something to keep runnable. This is what makes the
+  no-performance-baseline problem moot rather than unresolved.
+- **The `< 20 MB` app-size criterion is void.** Assets ship in the APK, so the package will
+  be roughly 45 MB plus the binary, by design. The criterion needs deleting, not restating.
+
+### What they do not change
+
+The technical facts behind the IP decision are unaffected by accepting the risk, and the
+documentation keeps stating them: `cards.json` contains 263 Square Enix card names and
+statistics. Accepting a risk is not the same as the risk being absent — the practical
+consequence is that publishing to an app store would make the project both findable and
+takedown-able, which is precisely what the decision rules out. The AS3 repository having
+gone unchallenged is an absence of enforcement, not a permission.
+
+Separately, and unrelated to any of the above: a code-signing private key
+(`sources/air/TripleTriadOnlineReborn.p12`) is committed to this repository. That remains a
+live issue independent of the AIR client being abandoned — see
+[git-workflow.md](../development/git-workflow.md#-a-signing-certificate-is-committed-to-this-repository).
+
+### Two further decisions, same day
+
+| Decision | Resolution | Consequence |
+|---|---|---|
+| **iOS scope** | **Android only for now** | The Apple targets stay declared — the `ios-framework` CI job compiles and tests the shared framework on `macos-latest` at no cost, which keeps `commonMain` honest about platform assumptions. But no iOS app will be built, and "no `.xcodeproj`" stops being a gap. It also frees the multiplayer design to use Android-only APIs |
+| **Update delivery** | **GitHub Releases + in-app check** | The app queries the Releases API at startup, compares the published tag to its own `versionName`, and offers to download and install the newer APK. Chosen over a Play closed track because nothing is submitted to or indexed by a store |
+
+The update decision creates real work that did not exist before, all of it in Phase 8: a
+signing key with a stable signature (Android refuses cross-key updates), monotonic
+`versionCode` management, a release workflow putting a signed APK on a GitHub Release, the
+`REQUEST_INSTALL_PACKAGES` permission, and the checker itself. Enumerated in
+[12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md).
+
+**One question it raises that is worth settling early:** a *private* repository's Releases API
+requires a token, and a token cannot ship inside the client. If this repository stays private,
+the update mechanism needs a different host entirely. If it goes public, it is a single
+unauthenticated GET. That choice interacts with the IP decision — a public repository is more
+findable — and it is the difference between an afternoon's work and a distribution problem.
+
+### Still open
+
+- **Multiplayer transport.** Deferred by agreement: to be designed together rather than
+  decided now. Bluetooth is a candidate; § 09 records why it is the *most* platform-specific
+  option rather than the simplest.
+- **Repository visibility**, per the note above.
 
 ---
 
@@ -43,17 +124,17 @@ Phase 0 establishes the foundation for the entire migration project. This phase 
 | Week | Tasks | Owner | Status |
 |------|-------|-------|--------|
 | Week 1 | Environment setup, PoC development, Analysis completion | Tech Lead + DevOps | ⚠️ IN PROGRESS |
-| Week 2 | Team training, CI/CD setup, Documentation review | Tech Lead + Team | ⚠️ PARTIAL — CI written and standards documented; training blocked on staffing |
+| Week 2 | Team training, CI/CD setup, Documentation review | Tech Lead + Team | ⚠️ PARTIAL — CI green and standards documented; training void (no team) |
 
 ### Task status at a glance
 
 | Task | Status |
 |------|--------|
 | 1.1 Development environment | ⚠️ PARTIAL — local builds work; no shared environments or artifact repository |
-| 1.2 Proof of Concept | ⚠️ 5 of 6 requirements — **iOS never compiled** |
-| 1.3 Source code analysis | ⚠️ MOSTLY — 5 of 5 documents; game-rules spec and data-flow diagrams outstanding |
-| 1.4 Team training | ⏳ NOT STARTED — no team |
-| 1.5 CI/CD pipeline | ⚠️ WRITTEN, NEVER RUN |
+| 1.2 Proof of Concept | ⚠️ 5 of 6 requirements — **no iOS app**; the shared framework does compile for Apple on CI |
+| 1.3 Source code analysis | ✅ DELIVERED — 7 of 7 documents, 8 of 8 sub-tasks; unreviewed |
+| 1.4 Team training | ⛔ VOID — single-developer project, no team planned |
+| 1.5 CI/CD pipeline | ✅ GREEN — all five jobs pass |
 | 1.6 Standards and guidelines | ✅ DELIVERED and enforced |
 
 ---
@@ -78,7 +159,7 @@ shared exists.
 - [ ] Configure repository structure (branches, protection rules) — branch *conventions*
       are documented in [git-workflow.md](../development/git-workflow.md); **no protection
       rules exist** on this repository
-- [x] Set up GitHub Actions for CI/CD (basic pipeline) — written; see Task 1.5. Never run
+- [x] Set up GitHub Actions for CI/CD (basic pipeline) — green on all five jobs; see Task 1.5
 - [ ] Configure development IDEs — `.editorconfig` is committed and the IDE reads it, so
       formatting is consistent out of the box. But there is **no IDE configuration guide**,
       and there is a trap that needs one: **Android Studio must open `kotlin/`**, and AGP
@@ -94,7 +175,7 @@ shared exists.
 **Deliverables**:
 - [ ] Configured GitHub repository with proper branch structure — conventions documented,
       enforcement absent
-- [x] Working CI/CD pipeline (build, test) — written and its tasks verified; **unproven**
+- [x] Working CI/CD pipeline (build, test) — five jobs, all green
 - [x] Development environment documentation —
       [kotlin/README.md § Prerequisites](../../kotlin/README.md#prerequisites), including
       the Windows `local.properties` escaping trap that cost half a day
@@ -105,7 +186,7 @@ shared exists.
       assembleRelease` succeeds, 264 tasks
 - [ ] All *developers* can clone and build the project — untested; one machine, one OS
       (Windows 11). Nobody has tried this on macOS or Linux
-- [ ] CI pipeline runs successfully on push — never pushed
+- [x] CI pipeline runs successfully on push — all five jobs green
 - [ ] Branch protection rules are configured — no
 - [x] Development environment guide is available — for the build; not for the IDE
 
@@ -241,8 +322,11 @@ PoC Scope:
 **Owner**: Tech Lead
 **Duration**: 2 days
 **Priority**: HIGH
-**Status**: ⚠️ MOSTLY DELIVERED — 5 of 5 documents written, 2 of 8 sub-tasks
-outstanding. See [docs/analysis/](../analysis/README.md).
+**Status**: ✅ DELIVERED — **7 of 7 documents, 8 of 8 sub-tasks**. The last two were the
+[game-rules specification](../analysis/game-rules.md) and the
+[data-flow diagrams](../analysis/data-flow.md). One acceptance criterion remains unmet and
+cannot be met by writing more: nobody has reviewed any of it. See
+[docs/analysis/](../analysis/README.md).
 
 **Description**: Finalize the analysis of the ActionScript 3 codebase, creating detailed documentation for migration.
 
@@ -260,14 +344,19 @@ outstanding. See [docs/analysis/](../analysis/README.md).
       marked ✅/🔶/⚠️/❌ by how much confidence each row carries
 - [x] Identify all external dependencies and their replacements — Starling (310
       imports), Feathers (244), Flash/AIR (148), Adobe corelib (14), as3crypto (2)
-- [ ] Document all game rules and their interactions — **NOT DONE.** The 20 rules in
+- [x] Document all game rules and their interactions —
+      **[game-rules.md](../analysis/game-rules.md)**, a specification of the rules *as
+      implemented*, with a 35-case test matrix and 9 recorded defects and hazards. The 20 rules in
       `datas/tripleTriadRules.as:9-30` and their combinatorial interaction through
       `TTOCore.applyRules`/`basicRule`/`specialRule`/`comboRule` are the correctness
       core of the game and are not yet specified. This is the highest-value remaining
       analysis task; see [testing-strategy.md](../development/testing-strategy.md) §2
-- [ ] Create data flow diagrams for critical components — **NOT DONE.** The coupling
-      tables in [dependency-matrix.md](../analysis/dependency-matrix.md) §2-§4 cover
-      static structure but not runtime flow
+- [x] Create data flow diagrams for critical components —
+      **[data-flow.md](../analysis/data-flow.md)**, four Mermaid diagrams covering boot and
+      asset loading, the pre-match rule chain, the turn loop with capture resolution inside it,
+      and profile persistence — plus a port-or-rewrite verdict per path. The coupling tables in
+      [dependency-matrix.md](../analysis/dependency-matrix.md) §2-§4 cover static structure;
+      this covers runtime flow
 - [x] Identify potential performance bottlenecks —
       [performance-baseline.md](../analysis/performance-baseline.md) and
       [performance-guidelines.md](../development/performance-guidelines.md) §5. The
@@ -289,6 +378,8 @@ outstanding. See [docs/analysis/](../analysis/README.md).
 5. **Performance Baseline** - Current AS3 performance metrics
 
 **Deliverables**:
+- [x] [`docs/analysis/game-rules.md`](../analysis/game-rules.md)
+- [x] [`docs/analysis/data-flow.md`](../analysis/data-flow.md)
 - [x] [`docs/analysis/dependency-matrix.md`](../analysis/dependency-matrix.md) (generated)
 - [x] [`docs/analysis/event-catalog.md`](../analysis/event-catalog.md)
 - [x] [`docs/analysis/api-mapping.md`](../analysis/api-mapping.md)
@@ -305,7 +396,7 @@ outstanding. See [docs/analysis/](../analysis/README.md).
 - [x] Network protocol is fully documented — including the finding that there is
       almost none
 - [ ] Analysis is reviewed and approved by team — **not done**; nobody has reviewed this
-- [ ] Game rules specified — **not done**, see sub-tasks above
+- [x] Game rules specified — [game-rules.md](../analysis/game-rules.md)
 
 **New findings that change scope** (all in
 [docs/analysis/README.md](../analysis/README.md#headline-findings)):
@@ -391,20 +482,28 @@ outstanding. See [docs/analysis/](../analysis/README.md).
 **Owner**: DevOps
 **Duration**: 2 days
 **Priority**: HIGH
-**Status**: ⚠️ RUN ONCE, FAILED, FIRST DEFECT FIXED —
-[`.github/workflows/build.yml`](../../.github/workflows/build.yml) exists and all **8
-Gradle task paths it invokes were verified to exist** with `--dry-run`. The first push
-failed at the first step of every job with `./gradlew: Permission denied` (exit 126):
-`kotlin/gradlew` was committed from Windows, where `core.filemode` is `false`, so it was
-recorded `100644` rather than `100755`. Fixed in the index with
-`git update-index --chmod=+x`; see
+**Status**: ✅ COMPLETE AND GREEN —
+[`.github/workflows/build.yml`](../../.github/workflows/build.yml) exists, all **8 Gradle
+task paths it invokes were verified to exist** with `--dry-run`, and **all five jobs pass**.
+
+It took two runs. The first failed at the first step of every job with
+`./gradlew: Permission denied` (exit 126): `kotlin/gradlew` was committed from Windows,
+where `core.filemode` is `false`, so it was recorded `100644` rather than `100755`. Fixed in
+the index with `git update-index --chmod=+x`; see
 [git-workflow.md § File modes on Windows](../development/git-workflow.md#file-modes-on-windows).
 
-Because the failure preceded Gradle starting, **nothing downstream has been exercised on
-CI**. Do not treat this as a working pipeline until a push turns it green. Remaining
-risks, in likelihood order, are listed in
-[kotlin/README.md § Known issues](../../kotlin/README.md#known-issues) — the notable one
-is whether the 8 Compose UI tests survive a headless Linux runner.
+Three risks flagged before the green run are now settled: the **8 Compose UI tests do pass
+headless** on `ubuntu-latest` without `xvfb-run` (this was the failure expected first),
+`compileSdk 36` resolves on the runner, and **`ios-framework` passed — the project's first
+successful Apple compilation.** Two caveats: the green is reported from the Actions UI, so
+the per-target test counts on CI have not been read back from the `shared-test-results`
+artifact; and `ios-framework` proves the framework links, not that an iOS app exists.
+
+The green run also warned that four actions declared `using: node20` and were being forced
+onto Node 24. All are now pinned to Node 24 majors, with `gradle/actions/setup-gradle` held
+at **v5 rather than v6 deliberately** — v6 moves caching into a proprietary component whose
+use implies accepting Gradle's Terms of Use. That is a licensing decision for the project
+owner; the rationale is recorded in the workflow header.
 
 > **Corrections against the draft that used to live in this document.** The YAML
 > below was aspirational and would have failed on every run:
@@ -417,9 +516,9 @@ is whether the 8 Compose UI tests survive a headless Linux runner.
 >   existed** until Task 1.6 added the first two. Kover still does not exist.
 >
 > The committed workflow is 5 jobs: `quality` (ktlint + detekt), `shared`, `android`,
-> `desktop`, and `ios-framework` on `macos-latest` — which would be the **first real
-> iOS compile**, since Kotlin/Native cannot target Apple from the Windows host used
-> so far. It deliberately builds the shared framework only, not an iOS app.
+> `desktop`, and `ios-framework` on `macos-latest` — which was the **first real iOS
+> compile**, since Kotlin/Native cannot target Apple from the Windows host used so far,
+> and it passed. It deliberately builds the shared framework only, not an iOS app.
 
 **Pipeline Stages**:
 
@@ -434,8 +533,9 @@ is whether the 8 Compose UI tests survive a headless Linux runner.
 - [x] Run unit tests (shared) — part of `:shared:build`; 47 executions
 - [ ] Run Android instrumented tests — none exist yet, and none are needed while the
       Compose UI tests run on the JVM desktop target in seconds
-- [ ] Run iOS tests — the job calls `:shared:iosSimulatorArm64Test`, which has
-      **never been executed**
+- [x] Run iOS tests — the `ios-framework` job runs `:shared:iosSimulatorArm64Test` on
+      `macos-latest` and it passes. This is the shared module's *common* tests executed on
+      an Apple target; there are no iOS-specific tests, and no UI test runs there
 - [ ] Code coverage reporting — **not done.** Needs Kover (JaCoCo does not cover
       Kotlin/Native); not in the build
 - [x] Static analysis (detekt, ktlint) — `quality` job; also wired into `check`, so
@@ -503,14 +603,20 @@ Notes for whoever runs it first:
       [git-workflow.md](../development/git-workflow.md)
 
 **Acceptance Criteria**:
-- [ ] All builds pass on CI — **unknown, never run.** They pass locally
-- [ ] Tests run successfully — locally yes (47 executions, 0 failures); on CI unknown
+- [x] All builds pass on CI — **all five jobs green**, including `ios-framework` on
+      `macos-latest`
+- [x] Tests run successfully — locally 47 executions, 0 failures; on CI the `shared` and
+      `ios-framework` jobs pass, which includes the common tests and the 8 headless Compose
+      UI tests. The per-target CI counts have not been read back from the
+      `shared-test-results` artifact
 - [x] Code quality checks pass — `./gradlew ktlintCheck detekt` is green at
-      `maxIssues = 0`
-- [ ] Artifacts are generated correctly — unverified
-- [ ] Pipeline runs in < 15 minutes — unmeasured. Locally a clean
-      `build assembleRelease` is ~2 min, so the ubuntu jobs should be comfortable; the
-      macOS job is the unknown
+      `maxIssues = 0`, locally and in the `quality` job
+- [x] Artifacts are generated correctly — the `android-apks` and `ios-framework` uploads are
+      unconditional steps, so a green job means they succeeded. **Inferred, not inspected**:
+      nobody has downloaded and opened them
+- [ ] Pipeline runs in < 15 minutes — **now measurable but not measured**; read the job
+      durations off the green run. Locally a clean `build assembleRelease` is ~2 min, so the
+      ubuntu jobs should be comfortable; the macOS job is the unknown
 
 ---
 
@@ -604,6 +710,8 @@ the *entire* body of some socket handlers — and none of that should be carried
 
 - [x] `docs/migration/04-PHASE-0-PREPARATION.md` (this document)
 - [x] [`docs/analysis/README.md`](../analysis/README.md) — index and headline findings
+- [x] [`docs/analysis/game-rules.md`](../analysis/game-rules.md) — rules specification, 35-case test matrix
+- [x] [`docs/analysis/data-flow.md`](../analysis/data-flow.md) — runtime flow, port-or-rewrite verdicts
 - [x] [`docs/analysis/dependency-matrix.md`](../analysis/dependency-matrix.md) (generated)
 - [x] [`docs/analysis/event-catalog.md`](../analysis/event-catalog.md)
 - [x] [`docs/analysis/api-mapping.md`](../analysis/api-mapping.md)
@@ -620,7 +728,7 @@ the *entire* body of some socket handlers — and none of that should be carried
       flipping card; no board, rules, network or artwork)
 - [x] [`.github/workflows/build.yml`](../../.github/workflows/build.yml)
 - [ ] Training materials — not started
-- [ ] Game-rules specification — not started, and the highest-value remaining analysis
+- [x] Game-rules specification — [game-rules.md](../analysis/game-rules.md); was the highest-value remaining analysis
 
 ---
 
@@ -629,13 +737,13 @@ the *entire* body of some socket handlers — and none of that should be carried
 ### Technical Completion
 - [ ] Development environment is fully configured — local builds work; no shared
       environments, artifact repository or IDE config guide
-- [ ] CI/CD pipeline is operational — **written, never executed**
+- [x] CI/CD pipeline is operational — all five jobs green; see Task 1.5
 - [ ] PoC validates all technology choices — validates the **base UI stack + data
       loading** on Android and JVM. Does not validate iOS, texture atlases,
       drag-and-drop, the rules engine, networking, or any of Ktor / SQLDelight / Koin /
       Media3
-- [ ] Source code analysis is complete and documented — 5 of 5 documents; game-rules
-      specification and data-flow diagrams outstanding
+- [x] Source code analysis is complete and documented — 7 of 7 documents, 8 of 8 sub-tasks.
+      **Unreviewed**, which is the separate criterion below
 - [x] All standards and guidelines are defined — and enforced in the build
 
 ### Team Readiness
@@ -652,24 +760,36 @@ the *entire* body of some socket handlers — and none of that should be carried
 - [x] All standards are documented
 
 ### Approvals
-- [ ] **BR-003 (Square Enix IP) resolved in writing** — blocking, see
-      [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md). ⚠️ Note this got *worse*, not
-      better: the PoC now ships `cards.json` with the names and stats of all 263 cards,
-      so it can no longer be described as free of Square Enix material. See the
-      [licensing note](../../kotlin/README.md#licensing-note)
-- [ ] **TR-007 (multiplayer scope) decided** — PvP in v1 or deferred. The analysis now
-      confirms the premise by count: 2 of 29 handlers reachable, and XMLSocket is not
+
+**All five decisions were taken by the project owner on 2026-07-25.** They are recorded
+here as decisions, not as recommendations, and they change the shape of the project: this is
+a single-developer personal project, not a funded team migration. See
+[§ Decisions taken](#-decisions-taken-2026-07-25) below for the full record and its
+consequences.
+
+- [x] **BR-003 (Square Enix IP) — risk accepted.** Not to be widely distributed, marketed
+      or commercialised. The AS3 predecessor has carried the same exposure publicly on
+      GitHub without incident. ⚠️ The technical facts are unchanged and worth keeping
+      visible: the PoC ships `cards.json` with the names and stats of all 263 cards, so it
+      cannot be described as free of Square Enix material. See the
+      [licensing note](../../kotlin/README.md#licensing-note) and
+      [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md)
+- [x] **TR-007 (multiplayer scope) — the original socket protocol is abandoned.** A new
+      architecture will be designed rather than migrated; Bluetooth is under consideration.
+      The premise is confirmed by count: 2 of 29 handlers reachable, and XMLSocket is not
       wire-compatible with WebSocket. See
-      [network-protocol.md](../analysis/network-protocol.md)
-- [ ] **Budget re-baselined** — the original €232.5k-€297.5k figure was
-      arithmetically inconsistent; see [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md)
-- [ ] **Performance-comparison policy decided** — new. No AS3 baseline is obtainable
-      (AIR is end-of-life), so "no worse than today" cannot be evidenced. Either fund an
-      AIR environment now or accept absolute targets instead. See
+      [network-protocol.md](../analysis/network-protocol.md) and
+      [09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md)
+- [x] **Budget — void, not re-baselined.** There is no budget: one developer, AI-assisted,
+      no salaries and no paid licences. Every cost, timeline and FTE figure in
+      [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) should be read as an artefact of
+      the original team-based framing and ignored
+- [x] **Performance-comparison policy — absolute targets.** The AIR version is abandoned
+      outright, so no AS3 baseline will be produced and no parity claim will be made. See
       [performance-baseline.md](../analysis/performance-baseline.md) §4
-- [ ] **Asset-delivery strategy decided** — new. Ship ~45 MB, download on demand as the
-      AIR client does today, or re-encode. The current 20 MB criterion assumes one of
-      these without saying which. See
+- [x] **Asset-delivery strategy — assets ship inside the APK.** No runtime asset download.
+      An application *update* mechanism is wanted separately, which is a distribution
+      question rather than an asset question and is still open. See
       [performance-guidelines.md](../development/performance-guidelines.md) §4
 - [ ] PoC actually builds and runs on Android and iOS — **Android: done** (`kotlin/`,
       APKs produced, 47 test executions green, verified on a physical Pixel 6a).
@@ -685,14 +805,14 @@ the *entire* body of some socket handlers — and none of that should be carried
 | Risk | Probability | Impact | Mitigation | Owner |
 |------|-------------|--------|------------|-------|
 | Compose MP not ready for production | Low | High | ✅ base UI stack + resource loading validated on Android and JVM. Everything else still open | Tech Lead |
-| **Unlicensed Square Enix IP blocks any public release** | **Very High** | **Critical** | **Resolve BR-003 before Phase 0 sign-off: reskin, licence, or do not release.** ⚠️ Exposure increased — the PoC now ships 263 card names and stats | **Project Sponsor + Legal** |
-| **Multiplayer is greenfield, not a migration** | **Very High** | **High** | **Re-scope Phase 5 or drop PvP from v1 (TR-007).** Confirmed by count: 2 of 29 handlers reachable | **Tech Lead** |
+| Unlicensed Square Enix IP blocks any public release | Very High | ~~Critical~~ **Accepted** | ✅ Decision taken 2026-07-25: **risk accepted**, no wide distribution, no marketing, no commercialisation. The exposure is unchanged (263 card names and stats ship in `cards.json`); what changed is that it no longer blocks | Project owner |
+| Multiplayer is greenfield, not a migration | Certain | Medium | ✅ Decision taken 2026-07-25: the original socket server is **abandoned**; Phase 5 becomes a new design. Transport still undecided | Project owner |
 | **Texture atlases have no Compose equivalent** | **High** | **High** | **Phase 1 spike with a performance acceptance criterion.** `utils/Assets.as` has the highest fan-in in the codebase (57 files) and the PoC loads no texture at all | Tech Lead |
-| **No AS3 performance baseline is obtainable** | **Certain** | **Medium** | AIR is end-of-life. Decide now: fund an AIR environment, or accept absolute targets and stop claiming parity | Tech Lead + Sponsor |
-| Team skill gaps | Medium | High | Comprehensive training, pair programming — not started, no team | Tech Lead |
+| No AS3 performance baseline is obtainable | Certain | Low | ✅ Decision taken 2026-07-25: **absolute targets**, AIR abandoned outright, no parity claim. Moot rather than unresolved | Project owner |
+| Team skill gaps | n/a | n/a | ⛔ Void — single developer, AI-assisted. Replaced by a real risk: **no second reader.** Nobody has reviewed any Phase 0 output, and the PoC history shows what unreviewed self-reported completion produces | Project owner |
 | PoC reveals technology issues | Medium | High | ✅ it did, and they were fixed: 3 geometry errors, a build-cache poisoning trap, and 6 naming violations found by enabling the linters | Tech Lead |
-| CI/CD setup complexity | Medium | Medium | Workflow written and its Gradle tasks verified; **the risk is now simply that it has never run** | DevOps |
-| iOS development environment issues | **High** | Medium | **Realised, not mitigated.** Kotlin/Native cannot target Apple from Windows, and no Xcode project exists. Needs a Mac, or the `ios-framework` CI job as a first step | DevOps |
+| CI/CD setup complexity | ~~Medium~~ **Closed** | Medium | ✅ all five jobs green. One defect (the `gradlew` executable bit) found and fixed; headless Compose UI tests and `compileSdk 36` on the runner both worked | DevOps |
+| iOS development environment issues | Medium | Medium | **Partly mitigated.** The `ios-framework` CI job compiles and tests `:shared` for `iosSimulatorArm64` on `macos-latest` and passes, so Apple compilation is proven. Still no `.xcodeproj` and no simulator run — that needs a Mac | DevOps |
 
 ---
 
@@ -711,7 +831,7 @@ After completing Phase 0, the team will proceed to **Phase 1: Infrastructure Set
 - All Phase 0 deliverables complete — ⚠️ not yet
 - Technology stack validated (PoC successful) — ⚠️ base stack only
 - Team trained and ready — ❌ no team
-- CI/CD pipeline operational — ⚠️ written, never run
+- CI/CD pipeline operational — ✅ all five jobs green
 
 **What Phase 1 should tackle first, based on what Phase 0 found.** In this order,
 because each one is a risk that the PoC did *not* retire:
@@ -754,8 +874,8 @@ This document is optimized for AI agent consumption. Key information is structur
 
 **Generated**: 2026-07-21
 **Last executed against**: 2026-07-25
-**Status**: ⚠️ IN PROGRESS — see the status note at the top. Four tasks delivered or
-mostly delivered, two blocked on staffing, and **five approvals outstanding of which
+**Status**: ⚠️ IN PROGRESS — see the status note at the top. Five tasks delivered or
+mostly delivered, one blocked on staffing, and **five approvals outstanding of which
 three are blocking**.
 **Review Required**: nobody has reviewed any of the Phase 0 output. Tech Lead approval
 is still required before Phase 1, and the completion criteria above should be read as a

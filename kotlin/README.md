@@ -339,8 +339,9 @@ not rotate anything: it runs a four-leg `scaleX` yoyo (1 → 0 → 1.2 → 0 →
 pinch. A `rotationY` flip reads better on a high-DPI screen, but if pixel-parity with the
 original is a requirement this has to be rewritten. Documented on `FlippableCard`.
 
-**CI is not green yet.** [`../.github/workflows/build.yml`](../.github/workflows/build.yml)
-has now run once and failed at the first step of every job:
+**CI is green, on the second attempt.**
+[`../.github/workflows/build.yml`](../.github/workflows/build.yml) failed on its first run at
+the first step of every job:
 
 ```
 ./gradlew: Permission denied      (exit code 126)
@@ -351,42 +352,59 @@ landed in the git index as `100644` instead of `100755`. Fixed with
 `git update-index --chmod=+x kotlin/gradlew`; see
 [git-workflow.md § File modes on Windows](../docs/development/git-workflow.md#file-modes-on-windows).
 
-Because that failure hit before Gradle ever started, **nothing downstream has been
-exercised on CI.** The next most likely failure, in order:
+All five jobs then passed. Three risks flagged before that run are now settled, and they
+were the interesting ones:
 
-1. **The Compose UI tests on a headless Linux runner.** `:shared:build` runs the 8
-   `desktopTest` cases, and `runComposeUiTest` needs Skiko to get a rendering surface.
-   This works on many projects' Linux CI, but it is untested here and cannot be tested
-   from a Windows host. If it fails, run that job under `xvfb-run`. Test results upload
-   on `always()`, so the failure will be diagnosable.
-2. **`compileSdk 36` on the runner image.** `android-actions/setup-android@v3` accepts
-   the licenses so AGP can download it, but this has not been observed.
-3. **The `ios-framework` job.** Entirely unproven, and it would be the project's first
-   real Apple compilation.
+- **The Compose UI tests run headless on Linux.** `runComposeUiTest` gets a rendering
+  surface on `ubuntu-latest` without `xvfb-run`. That was the failure I expected first and
+  it did not happen.
+- **`compileSdk 36` resolves on the runner** via `android-actions/setup-android`.
+- **`ios-framework` passed**, which makes it the project's first successful Apple
+  compilation — `linkDebugFrameworkIosSimulatorArm64` plus `iosSimulatorArm64Test` on
+  `macos-latest`. It has never been built from this Windows host and cannot be.
 
-Note that the missing Android SDK is *not* a risk for the `quality`, `desktop` and
-`ios-framework` jobs, which have no `setup-android` step: AGP 8.x resolves the SDK
-location at task execution, not at configuration, so those jobs configure `:shared`
-fine without one. That was verified by moving `local.properties` aside and running
-`ktlintCheck --dry-run` and `:desktopApp:build --dry-run` with `ANDROID_HOME` unset.
+Two caveats on that green. The result is reported from the Actions UI, not something
+measured here, so the per-target test counts on CI have not been read back — the
+`shared-test-results` artifact uploads on `always()` and is where that would be checked.
+And `ios-framework` proves the framework links and its common tests pass; there is still no
+`.xcodeproj`, so no iOS *app* has been built (see [iOS caveat](#ios-caveat)).
+
+The missing Android SDK is *not* a risk for the `quality`, `desktop` and `ios-framework`
+jobs, which have no `setup-android` step: AGP 8.x resolves the SDK location at task
+execution, not at configuration, so those jobs configure `:shared` fine without one. That
+was verified locally by moving `local.properties` aside and running `ktlintCheck --dry-run`
+and `:desktopApp:build --dry-run` with `ANDROID_HOME` unset, and then confirmed by those
+three jobs passing on CI.
+
+**Action versions are pinned to Node 24 majors.** The first green run warned that
+`actions/checkout@v4`, `actions/setup-java@v4`, `actions/upload-artifact@v4` and
+`android-actions/setup-android@v3` declare `using: node20` and were being forced onto Node
+24. They are now `v6`, `v5`, `v6` and `v4` respectively. `gradle/actions/setup-gradle` is
+pinned to **v5, deliberately not v6**: v5 is the oldest major on Node 24, and v6 moves
+caching into a proprietary `gradle-actions-caching` component whose use implies accepting
+Gradle's Terms of Use. That is a licensing call for the project owner, not a maintenance
+bump, and the rationale is recorded in the workflow itself.
 
 ### iOS caveat
 
 The iOS targets (`iosX64`, `iosArm64`, `iosSimulatorArm64`) are declared and each produces
 a static `shared.framework` — `linkDebugFrameworkIosSimulatorArm64` and friends exist in
-the task graph. **They have not been built**, because Kotlin/Native cannot compile Apple
-targets on a Windows host; those compilations are skipped there, which is why
-`./gradlew build` still succeeds.
+the task graph. **They have never been built on this host**, because Kotlin/Native cannot
+compile Apple targets on Windows; those compilations are skipped there, which is why
+`./gradlew build` still succeeds locally. They *have* now been built on the
+`macos-latest` CI runner — see the `ios-framework` note below.
 
 `iosApp/iosApp/*.swift` contains the SwiftUI host, but **there is no `.xcodeproj` or
 `.xcworkspace`** — an Xcode project cannot be authored meaningfully off a Mac. To finish
 the iOS side, on macOS: create an iOS App target, add `iOSApp.swift`/`ContentView.swift`
 to it, and add a "Run Script" build phase calling
 `./gradlew :shared:embedAndSignAppleFrameworkForXcode`. Until someone has done that and
-run it, **iOS remains unvalidated** — do not report it otherwise.
+run it, **the iOS app remains unvalidated** — do not report it otherwise.
 
-The `ios-framework` CI job would be the first real iOS compile, since it runs on
-`macos-latest`. It builds and tests the shared framework only, deliberately not the app.
+The `ios-framework` CI job was the project's first real Apple compile, and it passed: the
+shared framework links for `iosSimulatorArm64` and its common tests run there. That closes
+the "does the shared code compile for Apple at all" question and leaves only the app shell
+— no simulator run, no UI, no `.xcodeproj`.
 
 ## What this PoC does and does not prove
 

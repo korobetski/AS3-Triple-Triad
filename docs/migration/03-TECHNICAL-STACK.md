@@ -83,9 +83,14 @@ The migration from **ActionScript 3 / Adobe AIR** to **Kotlin Multiplatform** wi
 >
 > **What Set C still does not cover.** Do not assume these work with the versions above
 > until someone has compiled them: **Ktor**, **SQLDelight**, **Koin**, **Media3**, and
-> **Kover** (needed for coverage, since JaCoCo does not cover Kotlin/Native). Nor does
-> Set C cover **any Apple target**: the iOS compilations are declared but have never run,
-> because Kotlin/Native cannot target Apple platforms from the Windows host used so far.
+> **Kover** (needed for coverage, since JaCoCo does not cover Kotlin/Native).
+>
+> Set C's Apple coverage is now **narrow but real**: the `ios-framework` CI job links
+> `shared.framework` for `iosSimulatorArm64` and runs its common tests on `macos-latest`,
+> and passes. So Compose Multiplatform, kotlinx.serialization and Compose resources compile
+> for an Apple target at these versions. What is still unproven there is everything above
+> the framework boundary — no `.xcodeproj`, no simulator run, no UI ever rendered on iOS.
+> Nothing Apple can be compiled from the Windows host used for local development.
 > Verifying the remaining libraries is Phase 1 work — see
 > [04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md).
 

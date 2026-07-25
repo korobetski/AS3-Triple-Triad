@@ -46,7 +46,7 @@ to look when the plan and reality disagree — reality is in here.
 - **[../../kotlin/README.md](../../kotlin/README.md)** — the Proof of Concept and its
   verified results.
 - **[../../.github/workflows/build.yml](../../.github/workflows/build.yml)** — CI
-  (Task 1.5). Written; never executed.
+  (Task 1.5). All five jobs green, on the second run.
 
 ---
 
@@ -71,7 +71,7 @@ budget or feasibility, and none is an engineering problem.
 
 | # | Issue | Where | Impact |
 |---|-------|-------|--------|
-| 1 | **Unlicensed Square Enix IP.** All card art, character art, UI sprites, audio and the "Triple Triad" / "Final Fantasy" names are Square Enix property. Phase 8 plans public store releases using `final fantasy` as a keyword. | BR-003 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md) | Guaranteed takedown; total loss of investment. Requires a full reskin (adds an unstaffed art + audio workstream), private distribution only, or cancellation. |
+| 1 | ✅ **Resolved 2026-07-25 — risk accepted.** All card art, character art, UI sprites, audio and the "Triple Triad" / "Final Fantasy" names remain Square Enix property, and `cards.json` ships 263 card names and statistics. The decision is to accept this on the condition of **no wide distribution, no marketing, no commercialisation** — which is why Phase 8's store release is now void. | BR-003 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md) | No longer blocking. The exposure is unchanged; what changed is that a store listing — the thing that makes it findable and takedown-able — is ruled out. |
 | 2 | **Multiplayer is greenfield, not a migration.** 27 of the 29 `Socket_On_*` handlers in `net/Socket.as` are unreachable dead code; only connect / ping / user-list work. XMLSocket is also not wire-compatible with WebSocket, so server work is unavoidable — contradicting the "server remains as-is" scope. | TR-007 in [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md), §8 of [02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md) | Phase 5's 3-week estimate is unfounded (realistically 8-12 weeks incl. server). Recommended: drop PvP from v1. |
 | 3 | **Budget was arithmetically inconsistent.** The published €232,500-€297,500 understated its own staffing assumption (8-9 FTE × 7-9 months at €8-10k/month) by ~130%. Corrected to **€533,665-€671,165**. | [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) | Either fund ~€534k-€671k, or cut scope/team explicitly. Three costed options are set out in the executive summary. |
 
@@ -96,12 +96,14 @@ kotlinx.serialization 1.9.0 / AGP 8.13.2 / Gradle 8.14.3), single-source Compose
 Android and JVM, and structured-data loading through Compose resources. It does **not**
 validate the highest-risk areas, which remain untouched: card artwork sliced from
 Starling texture atlases, the 3×3 board with drag-and-drop, the rules engine,
-networking, iOS (never compiled — Kotlin/Native cannot target Apple from a Windows
-host), frame timing, or any of Ktor / SQLDelight / Koin / Media3.
+networking, the iOS *app* (the shared framework compiles and tests on the macOS CI runner,
+but nothing has ever rendered on a simulator and iOS is out of scope for now), frame timing,
+or any of Ktor / SQLDelight / Koin / Media3.
 
-⚠️ **The IP exposure got worse, not better.** `cards.json` now ships the names and stats
-of all 263 cards. The PoC can no longer be described as free of Square Enix material —
-see its [licensing note](../../kotlin/README.md#licensing-note).
+⚠️ **The IP exposure is real and was accepted with open eyes.** `cards.json` ships the names
+and stats of all 263 cards, so the PoC cannot be described as free of Square Enix material —
+see its [licensing note](../../kotlin/README.md#licensing-note). The risk was accepted on
+2026-07-25 on the condition of no wide distribution; accepting it does not reduce it.
 
 ---
 
@@ -109,7 +111,7 @@ see its [licensing note](../../kotlin/README.md#licensing-note).
 
 | Phase | Status | Start Date | End Date | Owner |
 |-------|--------|------------|----------|-------|
-| Phase 0: Preparation | ⚠️ IN PROGRESS — 4 of 6 tasks delivered; iOS, training and CI execution outstanding. See [04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md) | - | - | - |
+| Phase 0: Preparation | ⚠️ NEARLY COMPLETE — 5 of 6 tasks delivered, CI green, all five blocking decisions resolved 2026-07-25. Training void (no team); iOS app needs a Mac. See [04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md) | - | - | - |
 | Phase 1: Infrastructure | ⏳ NOT STARTED | - | - | - |
 | Phase 2: Data Layer | ⏳ NOT STARTED | - | - | - |
 | Phase 3: Core Logic | ⏳ NOT STARTED | - | - | - |
@@ -117,29 +119,45 @@ see its [licensing note](../../kotlin/README.md#licensing-note).
 | Phase 5: Network | ⏳ NOT STARTED | - | - | - |
 | Phase 6: Animations | ⏳ NOT STARTED | - | - | - |
 | Phase 7: Testing | ⏳ NOT STARTED | - | - | - |
-| Phase 8: Release | ⏳ NOT STARTED | - | - | - |
+| Phase 8: Release | ⛔ VOID AS WRITTEN — re-scoped 2026-07-25, no store release. See [12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md) | - | - | - |
 
-**Overall Status**: ⚠️ **PHASE 0 UNDER WAY — NOT READY FOR PHASE 1.**
+**Overall Status**: ⚠️ **PHASE 0 NEARLY COMPLETE — the blocking decisions are resolved.**
 
 The technical groundwork is real: the PoC builds and runs on a physical device, the
-source analysis exists, the standards are enforced in the build, and CI is written.
-What is missing is not code:
+source analysis exists, the standards are enforced in the build, and CI is green on all
+five jobs — including the project's first successful Apple compilation.
 
-| Blocker | Kind |
-|---------|------|
-| Square Enix IP (#1) unresolved — and exposure increased | decision, legal |
-| Multiplayer scope (#2) undecided | decision, scope |
-| Budget not re-baselined (#3) | decision, funding |
-| Performance-comparison policy (#4) undecided | decision |
-| Asset-delivery strategy (#5) undecided | decision |
-| iOS has never been compiled | needs a Mac, or the macOS CI job |
-| No team assembled, so no training | staffing |
-| CI has never executed | needs a push |
+**All five blocking decisions were resolved on 2026-07-25** — see
+[04-PHASE-0-PREPARATION.md § Decisions taken](./04-PHASE-0-PREPARATION.md#-decisions-taken-2026-07-25).
+The project is now explicitly a **single-developer, AI-assisted personal project**: Square
+Enix IP risk accepted (no wide distribution, no marketing, no commercialisation), the
+original socket protocol abandoned, budget void, absolute performance targets, assets
+embedded in the APK. **Every cost, FTE, timeline and role figure in this documentation set
+is an artefact of the original team-based framing and should be ignored.**
 
-Five of eight are decisions for the sponsor and tech lead, not engineering work. The
-technology choice can now be called validated **for the base UI stack and data
-loading**; it cannot be called validated for texture atlases, the board, the rules
-engine, networking, iOS, or any library outside that base set.
+Two further decisions the same day: **Android only for now** — the Apple targets stay declared
+and CI keeps compiling the shared framework, but no iOS app will be built — and **updates via
+GitHub Releases with an in-app check** rather than a store track. Phase 8 is re-scoped
+accordingly, see [12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md).
+
+What remains:
+
+| Remaining gap | Kind |
+|---------------|------|
+| Repository visibility — public or private | decision; gates the update mechanism |
+| Multiplayer transport | design, deferred by agreement |
+| Nobody has reviewed any Phase 0 output | no second reader |
+
+The game rules are now specified — [game-rules.md](../analysis/game-rules.md), with a 35-case
+test matrix and 9 recorded defects and hazards. The technology choice can be called validated
+**for the base UI stack and data loading**; it cannot be called validated for texture atlases,
+the board, the rules engine, networking, or any library outside that base set.
+
+Team training (Task 1.4) is **void**, not pending: there is no team and none is planned. The
+risk it was mitigating has been replaced by a sharper one — **no second reader.** The PoC
+history in this repository shows exactly what unreviewed, self-reported completion produces:
+a first attempt declared COMPLETE and "technology stack validated" that had never been
+compiled and carried 12 build-blocking defects.
 
 ---
 
@@ -240,7 +258,7 @@ server-side work required by blocking issue #2.
 *Generated for AI agent consumption and human reference*
 
 *Last updated: 2026-07-25 — Phase 0 execution. Added
-[docs/analysis/](../analysis/README.md) (Task 1.3, 5 documents + a generator),
+[docs/analysis/](../analysis/README.md) (Task 1.3, 7 documents + a generator),
 [docs/development/](../development/README.md) (Task 1.6, 5 documents + enforced ktlint
 and detekt configs), and [CI](../../.github/workflows/build.yml) (Task 1.5). The PoC
 closed requirement 2 — 263 cards loaded from JSON through Compose resources — and three
