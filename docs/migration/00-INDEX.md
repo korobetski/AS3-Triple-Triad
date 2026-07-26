@@ -135,16 +135,17 @@ original socket protocol abandoned, budget void, absolute performance targets, a
 embedded in the APK. **Every cost, FTE, timeline and role figure in this documentation set
 is an artefact of the original team-based framing and should be ignored.**
 
-Two further decisions the same day: **Android only for now** — the Apple targets stay declared
-and CI keeps compiling the shared framework, but no iOS app will be built — and **updates via
-GitHub Releases with an in-app check** rather than a store track. Phase 8 is re-scoped
-accordingly, see [12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md).
+Three further decisions the same day: **Android only for now** — the Apple targets stay
+declared and CI keeps compiling the shared framework, but no iOS app will be built — **updates
+via GitHub Releases with an in-app check** rather than a store track, and **the repository is
+public**, which makes the update check a single unauthenticated GET and Actions runners free.
+Phase 8 is re-scoped accordingly, see [12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md).
 
 What remains:
 
 | Remaining gap | Kind |
 |---------------|------|
-| Repository visibility — public or private | decision; gates the update mechanism |
+| ⚠️ **A private key is publicly downloadable** — `sources/air/*.p12`, verified HTTP 200 | exposure; act before generating an Android key |
 | Multiplayer transport | design, deferred by agreement |
 | Nobody has reviewed any Phase 0 output | no second reader |
 

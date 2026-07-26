@@ -7,13 +7,19 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
-        <!-- The AS3 original is landscape/fullScreen (application.xml: aspectRatio
-             landscape, fullScreen true), so the PoC matches it. -->
+        <!-- The AS3 original was landscape-only (application.xml: aspectRatio landscape),
+             but the port lays the match out for both: hands either side of the board in
+             landscape, above and below it in portrait (see `matchLayout`). So no
+             `screenOrientation` lock — the sensor decides. `fullScreen true` still holds and
+             is done in code, in `MainActivity.goFullScreen`.
+
+             `configChanges` keeps the activity alive across a rotation, which matters because
+             the match is `remember`ed in the composition rather than saved: without it, turning
+             the phone would restart the match. -->
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|uiMode"
-            android:exported="true"
-            android:screenOrientation="landscape">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

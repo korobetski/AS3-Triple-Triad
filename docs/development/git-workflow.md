@@ -137,26 +137,40 @@ PRs but consider not making it a blocking check until the iOS app actually exist
 
 ## 7. Tags and releases
 
-`v<major>.<minor>.<patch>` on `master` only. No release workflow exists yet — signing keys
-and store credentials are Phase 8 concerns, and a release pipeline that cannot sign
-anything would be theatre. See
-[../migration/12-PHASE-8-RELEASE.md](../migration/12-PHASE-8-RELEASE.md).
+`v<major>.<minor>.<patch>` on `master` only. No release workflow exists yet, but it is now on
+the critical path rather than deferred: **updates are delivered through GitHub Releases** with
+an in-app version check, so a tag is what ships. That needs a signing key with a stable
+signature, a monotonic `versionCode`, and a workflow that attaches a signed APK to the release.
+See [../migration/12-PHASE-8-RELEASE.md](../migration/12-PHASE-8-RELEASE.md).
 
-### ⚠️ A signing certificate is committed to this repository
+Read the certificate note below before generating that key.
 
-`sources/air/TripleTriadOnlineReborn.p12` is tracked in git — confirmed with
-`git ls-files --error-unmatch sources/air/TripleTriadOnlineReborn.p12`. A `.p12` holds a
-**private key**. If that key is still valid, anyone with repository access can sign
-artifacts as this publisher, and rewriting history does not help once it has been cloned or
-if the repository has ever been public.
+### ⚠️ A private key is publicly downloadable
 
-Before building any release process:
+`sources/air/TripleTriadOnlineReborn.p12` is tracked in git, **and this repository is public**,
+so the file is served to anyone who asks:
 
-1. Establish whether the key is still in use.
-2. If it is, treat it as compromised: revoke and re-issue.
-3. Add `*.p12`, `*.jks`, `*.keystore` to `.gitignore` and keep new keys in CI secrets.
+```
+GET https://raw.githubusercontent.com/korobetski/AS3-Triple-Triad/master/sources/air/TripleTriadOnlineReborn.p12
+→ HTTP 200, 2434 bytes
+```
 
-This is out of scope for the migration itself but should not be discovered during Phase 8.
+Verified 2026-07-26. A `.p12` holds a **private key**. This is past tense, not a risk to
+prevent: the key has been publicly downloadable and deleting the file now changes nothing,
+because it may already be cached, cloned or indexed. Rewriting history does not help either.
+
+Treat it as compromised:
+
+1. Establish whether the key is still valid. It is the AIR signing key and AIR is abandoned,
+   so it probably signs nothing that matters — confirm rather than assume.
+2. If it was issued by a CA and is still valid, revoke it.
+3. **Do not reuse it, or its passphrase, for the Android signing key** that the update
+   mechanism now requires.
+4. Add `*.p12`, `*.pfx`, `*.jks`, `*.keystore` to `.gitignore` and keep new keys in GitHub
+   Secrets.
+
+This is out of scope for the migration itself, but it is the one item in this document worth
+acting on before writing any more code.
 
 ## 8. Related
 

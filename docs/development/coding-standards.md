@@ -85,9 +85,12 @@ internal val CardWidth = 88.dp
 ```
 
 Where the port deliberately differs from the original, say so and say why. See the KDoc on
-[`FlippableCard`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/ui/CardView.kt),
+[`BoardCard`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt),
 which records that the AS3 flip is a `scaleX` yoyo and the Kotlin one is a `rotationY`
-rotation, so nobody later mistakes it for a faithful port.
+rotation, so nobody later mistakes it for a faithful port. `CardFace` does the same for a
+subtler one: it scales by multiplying its geometry rather than by scaling its render layer,
+because the layer version reports a size it does not draw at and gets clipped by any parent
+that applies `alpha`.
 
 `ForbiddenComment` is switched **off** in detekt: a `TODO` naming an owner and a reason is
 useful during a migration. A bare `TODO` is not — write the reason.

@@ -6,6 +6,12 @@ name: Build and Test
 # The default branch of this repository is `master`. A workflow keyed on `main` would
 # never fire.
 #
+# Jobs are deliberately NOT gated behind `needs:`. Measured on run #3, the `needs: shared`
+# chain made the wall clock 12m23s (shared 4m33s then ios-framework 7m46s) when the longest
+# single job is 7m46s. None of these jobs consumes another's output — each runs its own Gradle
+# invocation — and this repository is public, so standard runners including macos-latest are
+# free. There are no minutes to conserve by failing fast.
+#
 # Action versions: every action here declares `using: node24`. The first CI run warned
 # that checkout/setup-java/upload-artifact v4 and setup-android v3 target Node 20 and were
 # being forced onto Node 24; these majors are the ones that target it natively.
@@ -86,7 +92,6 @@ jobs:
   android:
     name: Android APK
     runs-on: ubuntu-latest
-    needs: shared
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -105,7 +110,6 @@ jobs:
   desktop:
     name: Desktop JAR
     runs-on: ubuntu-latest
-    needs: shared
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -125,7 +129,6 @@ jobs:
   ios-framework:
     name: iOS framework (shared only)
     runs-on: macos-latest
-    needs: shared
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5

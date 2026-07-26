@@ -3,7 +3,7 @@
 Proof of concept for the migration described in
 [../docs/migration/00-INDEX.md](../docs/migration/00-INDEX.md).
 
-It does three things:
+It does four things:
 
 1. **Loads all 263 cards** from a JSON resource extracted out of the AS3 source
    (`tto/datas/cards.as`), through the Compose Multiplatform resource bundle.
@@ -11,8 +11,12 @@ It does three things:
    as `tto.display.CardDigits` positions them.
 3. **Flips it on tap**, handing it to the other side (blue ⇄ red) — the visual half of a
    capture — and steps through the catalog.
+4. **Implements the rules engine** — capture, Reverse, Fallen Ace, Same, Same Wall, Plus,
+   combo, the three type rules, turn order and scoring — as pure functions with no UI, tested
+   against the [specification's 35-case matrix](../docs/analysis/game-rules.md#16-test-matrix-for-the-port).
+   See [§ Rules engine](#rules-engine).
 
-Everything else (board, drag-and-drop, rules, AI, network, persistence, artwork) is
+Everything else (board UI, drag-and-drop, AI, network, persistence, artwork) is
 deliberately out of scope. See
 [§ What this PoC does and does not prove](#what-this-poc-does-and-does-not-prove).
 
@@ -39,14 +43,21 @@ kotlin/
 │       ├── commonMain/
 │       │   ├── kotlin/com/tripletriad/
 │       │   │   ├── model/Card.kt        Card, CardColor, CardType, powerLabel()
+│       │   │   ├── model/GameRules.kt   12 rule slots: 3 enums + 9 booleans
+│       │   │   ├── model/Board.kt       immutable 3×3 board, Side, PlacedCard
+│       │   │   ├── model/Power.kt       effective power, clamping, ascension tally
+│       │   │   ├── model/RulesEngine.kt capture resolution + combo, pure
+│       │   │   ├── model/Match.kt       turn order, scoring
 │       │   │   ├── data/CardRepository.kt  CardCatalog + parser + resource loader
 │       │   │   └── ui/
-│       │   │       ├── App.kt           root composable + card browser
-│       │   │       ├── CardView.kt      FlippableCard + CardFace + CardDigits
+│       │   │       ├── App.kt           root composable + catalog load
+│       │   │       ├── MatchScreen.kt   playable board, both hands, orientation layout
+│       │   │       ├── CardView.kt      CardFace + CardDigits, scalable
 │       │   │       └── CardColors.kt    colours and geometry lifted from the AS3 source
 │       │   └── composeResources/files/cards.json    263 cards, generated
-│       ├── commonTest/…         CardTest (5) + CardCatalogTest (8)
-│       ├── desktopTest/…        FlipUiTest (3) + CatalogUiTest (5) + shared helpers
+│       ├── commonTest/…         CardTest (5) + CardCatalogTest (8) + RulesEngineTest (37)
+│       │                        + MatchStateTest (27) = 77, run on every target
+│       ├── desktopTest/…        MatchUiTest (8) + MatchLayoutTest (6) + CardBundleTest (2)
 │       └── iosMain/…/MainViewController.kt
 ├── androidApp/                  Android host (ComponentActivity + setContent)
 ├── desktopApp/                  JVM host — lets you run the UI without an emulator
@@ -110,7 +121,7 @@ and detekt:
 ./gradlew build
 ```
 
-Fast test loop (all 21 tests, about 4 s warm):
+Fast test loop (all 58 tests, a few seconds warm):
 
 ```bash
 ./gradlew :shared:desktopTest
@@ -161,6 +172,61 @@ Two details the extractor has to get right:
 
 The script asserts both counts and spot-checks specific cards against the source, so it
 fails loudly rather than emitting a plausible-looking wrong catalog.
+
+## Rules engine
+
+The rules are implemented as **pure functions over immutable state** — no UI, no coroutines,
+no display objects. `RulesEngine.resolve(board, position, card, player, tally)` returns a
+[`Resolution`](shared/src/commonMain/kotlin/com/tripletriad/model/RulesEngine.kt): the
+resulting board plus every capture, each tagged with its kind and its combo wave.
+
+That shape is the point. The AS3 original keeps domain state *inside* Starling display
+objects — `Card.modifier` has no backing field, it is stored in a `TextField` and parsed back
+out — which is why its rules engine cannot be unit-tested and why its AI dry run corrupts the
+board it is evaluating. See
+[data-flow.md § 1.1](../docs/analysis/data-flow.md) and
+[§ 4.3](../docs/analysis/data-flow.md).
+
+| Type | What it holds |
+|---|---|
+| `GameRules` | the 12 rule slots — **3 enums and 9 booleans**, not 20 flags, so Ascension and Elemental are mutually exclusive by construction |
+| `Board` | immutable 3×3, positions 0..8 row-major; `place()` and `capture()` return new boards |
+| `effectivePower(…)` | printed power → Fallen Ace → type modifier → clamp, in that order |
+| `AscensionTally` | the board-wide per-type counter behind Ascension and Descension |
+| `RulesEngine` | capture resolution, precedence, and combo propagation |
+| `TurnOrder`, `score()` | 9 placements, 5 for the first player and 4 for the second; score counts unplayed cards |
+
+### Two power ranges, not one
+
+**Card powers are 1..10. Effective powers are 0..10.** The floor is zero because Fallen Ace
+produces 0 directly and Descension can drive a 1 down to 0. `Card` enforces `1..10` in its
+`init` block, which is right for card data and would be wrong for a tile — hence
+`MIN_EFFECTIVE_POWER` and `clampPower`, the AS3 `tools.madmax`.
+
+### Two deliberate departures from the source
+
+Both are recorded in [game-rules.md § 15](../docs/analysis/game-rules.md#15-defects-and-ambiguities)
+and both change the outcome of real games, so neither is silent. They live in
+`RulesEngineOptions`, and `RulesEngineOptions.FAITHFUL` reproduces the original including its
+defects — used by tests that pin both behaviours.
+
+1. **Same and Plus use effective powers** (§ 15.4). The AS3 computes them from *printed*
+   values while basic capture uses modified ones, so under Elemental or Ascension the two
+   disagree. FF14 uses the modified values, and the author's own comment at `TTOCore.as:215`
+   reads as uncertainty rather than a decision.
+2. **Same Wall fires with one neighbour** (§ 15.2). The AS3 gates it behind
+   `same.length > 1`, which makes the rule inoperative in exactly the board states it exists
+   for — a wall is meant to *be* the second match.
+
+The defaults are the corrected behaviour rather than the original because the AIR client is
+abandoned and unrunnable, so bit-for-bit fidelity is unverifiable anyway, while FF14 remains a
+reference anyone can check by playing it. Flip either option to reverse the choice.
+
+### What is not implemented
+
+Roulette rule generation, the pre-match phase chain (Random hand, Swap, the coin flip), Order
+and Chaos enforcement, Sudden Death, the AI, and the match state machine that sequences turns.
+The engine resolves *one placement*; nothing yet drives a whole match.
 
 ## Running on a real Android device
 
@@ -229,8 +295,8 @@ Run on Windows 11, JDK 17 (Temurin), Android SDK platform 36.1 / build-tools 36.
 | `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 10 351 KB |
 | `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 7 605 KB |
 | `./gradlew :desktopApp:build` | **BUILD SUCCESSFUL** — `desktopApp.jar` |
-| `./gradlew :shared:desktopTest` | **21 tests, 0 failures** |
-| `./gradlew build` (all targets) | **47 test executions, 0 failures** |
+| `./gradlew :shared:desktopTest` | **93 tests, 0 failures** |
+| `./gradlew :shared:build` (all targets) | **247 test executions, 0 failures** |
 | `./gradlew ktlintCheck detekt` | **BUILD SUCCESSFUL** — 0 findings, `maxIssues = 0` |
 | `./gradlew :shared:lint` | **0 errors**, warnings only ("a newer version is available") |
 | `./gradlew :desktopApp:run` | window opens, titled "Triple Triad — KMP PoC", nothing on stderr |
@@ -248,13 +314,16 @@ Installed and launched on a **Pixel 6a, Android 17 (API 37), arm64-v8a**, 1080×
   `topResumedActivity=com.tripletriad.android/.MainActivity`.
 - Nothing from `AndroidRuntime` or `FATAL` in logcat; the only app line is
   `ProfileInstaller: Installing profile for com.tripletriad.android`.
-- Rendered in landscape as declared in the manifest.
-- Screenshot confirms the catalog loaded — *"catalog: 263 cards (ff14 153 / ff8 110)"* —
-  and that card #1 is `ff8_Geezard 1/4/1/5` with the digits placed left 5, top 1,
-  bottom 1, right 4.
-- The flip works under real touch as well as under `adb shell input tap`; "next card"
-  advances to `#2 ff8_Funguar 5/1/1/3` and resets the owner to blue.
-- A power of 10 renders as `A` (checked on `#92 ff8_Odin 8/10/3/5`).
+- **Both orientations verified by screenshot.** Landscape (2400×1080): red hand left in a
+  2×3 block, board centred, blue hand right, every card at the authored 88×118 with no
+  overlap and nothing clipped. Portrait (1080×2400): red hand a strip across the top, board
+  centred, blue hand across the bottom. Rotating a running match keeps it (`configChanges`).
+- **The status bar, the navigation buttons and the clock/battery/signal row are hidden** —
+  `MainActivity.goFullScreen`. Recoverable with an edge swipe.
+- Placement, capture and the flip all work under real touch and under `adb shell input tap`.
+  A match played out to nine placements ended `blue 5 — 5 red` / `draw`, with four cards
+  showing their captured colour and red's unplayed card still counting for red.
+- A power of 10 renders as `A` (visible on `Laguna 9/5/3/A`).
 
 Measured on that device, **debug build** (no R8, no baseline profile — pessimistic):
 
@@ -289,23 +358,47 @@ commonTest — runs on desktop, androidDebug and androidRelease
     unknownFieldsDoNotBreakParsing
     invalidDataIsRejectedAtConstruction
 
-desktopTest — real Compose tree on the JVM
-  com.tripletriad.ui.FlipUiTest           3 tests
-  com.tripletriad.ui.CatalogUiTest        5 tests
+desktopTest — real Compose tree on the JVM, plus the JVM-only bundle read
+  com.tripletriad.ui.MatchUiTest          8 tests
+  com.tripletriad.ui.MatchLayoutTest      6 tests
+  com.tripletriad.data.CardBundleTest     2 tests
 ```
 
-21 distinct tests; 47 executions across the three targets, 0 failures.
+`RulesEngineTest` is the
+[§ 16 test matrix](../docs/analysis/game-rules.md#16-test-matrix-for-the-port) from the rules
+specification, case for case: basic capture and Reverse, Fallen Ace and its interactions,
+Same / Plus / Same Wall, combo propagation, the three type rules, turn order and scoring.
 
-`CatalogUiTest` reads the shipped `cards.json` out of the actual resource bundle, so it
+93 distinct tests; **247 executions** — the 77 in `commonTest` run once per target (desktop,
+androidDebug, androidRelease) and the 16 in `desktopTest` once — 0 failures.
+
+**The suite is not vacuous.** Mutating `RulesEngine.beats` from `defence < attack` to
+`defence <= attack` — the single most plausible way to get capture wrong — makes
+`equalPowersNeverCapture` fail, and only that test. Reverting restores green. Ties are the
+case a plausible-looking port gets wrong, because `reverse` looks like a negation and is not:
+both comparisons are strict, so equal powers hold under both.
+
+`CardBundleTest` reads the shipped `cards.json` out of the actual resource bundle, so it
 fails if the resource is dropped from packaging, if the generated `Res` accessor moves, or
 if the JSON schema drifts from the model. The parser is tested separately and purely in
 `commonTest`.
 
-`FlipUiTest` clicks the card by test tag and waits for the on-screen owner label to
-change, so a broken flip fails the build rather than passing silently. **That was checked
-by mutation rather than assumed** — changing the half-way threshold in `CardView.kt` from
-`value >= 90f` to `value >= 9000f` (so the owner never switches) makes exactly the two
-flip tests fail; the change was then reverted.
+`MatchUiTest` drives the real `App()` — pick a card, pick a cell, nine times over — and
+asserts invariants rather than a particular board: the turn passes, an illegal placement is
+swallowed rather than thrown, the score always totals 10, a finished match announces a result.
+Every one of its tests also covers resource packaging, because `App()` shows nothing but
+"loading cards…" until the bundle is parsed, so they all hang at `awaitCatalog()` if it is
+missing.
+
+`MatchLayoutTest` covers `matchLayout`, which is a pure function of a measured width and
+height precisely so it *can* be covered. Its load-bearing test is
+`theArrangementAlwaysFitsInTheSpaceItWasGiven`: across nine viewports, the footprint of two
+hand areas plus the board must not exceed the bounds. Three earlier revisions of this screen
+estimated the space instead of measuring it and each one over-subscribed its column on some
+device — which is not a visible error, because `Modifier.size` silently coerces into the
+constraints it is given, so children collapse to zero height while continuing to draw at full
+size. The symptom is cards drawn on top of each other; the test is the thing that would have
+caught it.
 
 ## Known issues
 
@@ -337,7 +430,25 @@ at all; the name is baked into the artwork).
 not rotate anything: it runs a four-leg `scaleX` yoyo (1 → 0 → 1.2 → 0 → 1, 0.1 s per leg,
 `EASE_IN` in and `EASE_OUT` out), swapping to the card back and changing colour at each
 pinch. A `rotationY` flip reads better on a high-DPI screen, but if pixel-parity with the
-original is a requirement this has to be rewritten. Documented on `FlippableCard`.
+original is a requirement this has to be rewritten. Documented on `BoardCard`.
+
+**A card is scaled by multiplying its geometry, not by scaling its render layer.** The first
+implementation measured `CardFace` at its authored 88×118 (`requiredSize`) and shrank it with
+`graphicsLayer { scaleX = scale }`. That reports a small size while drawing a large one, so
+anything that promotes the composable to an offscreen layer clips it — and the dimmed hand does
+exactly that, because `alpha < 1` forces one. The symptom was the waiting side's cards rendering
+as slivers while the active side's looked correct. Multiplying every dp and sp by `scale` keeps
+drawn bounds and reported bounds equal, which is the only version of this that composes safely.
+Noted on `CardFace`.
+
+**Portrait support is a deliberate departure.** `application.xml` declares
+`<aspectRatio>landscape</aspectRatio>` and the AS3 build is desktop-only, so the original has
+exactly one arrangement. A phone does not, so `matchLayout` picks between two: hands either side
+of the board in landscape (the FFXIV arrangement — opponent left, player right), above and below
+it in portrait. The `screenOrientation` lock is therefore gone from the manifest. Board tiles get
+their own scale, always ≥ the hand scale, because a portrait hand is five cards across where the
+board is three and would otherwise leave a third of the screen empty; FFXIV draws the board
+larger than the hands too.
 
 **CI is green, on the second attempt.**
 [`../.github/workflows/build.yml`](../.github/workflows/build.yml) failed on its first run at
@@ -458,7 +569,7 @@ line-for-line.
 | power 10 renders as `A` | `CardDigits` picks `cdA`; there is no `cd10` in `digits.xml` |
 | rarity row at (1, 1) relative to the face | `{rarity}stars` texture at (9, 6) in sprite space — `Card.as:176-178` |
 | type marker at x = 72 relative to the face | `type-{type}` texture at (80, 3) in sprite space — `Card.as:181-183` |
-| landscape, no action bar | `application.xml`: `aspectRatio landscape`, `fullScreen true` |
+| no action bar, no system bars | `application.xml`: `fullScreen true` |
 | 400 ms flip | four 0.1 s legs — `Card.as:232-290` (but see Known issues) |
 
 An earlier revision of this PoC had three geometry errors, all now fixed: the card was

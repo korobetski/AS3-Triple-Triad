@@ -71,10 +71,31 @@ consequence is that publishing to an app store would make the project both finda
 takedown-able, which is precisely what the decision rules out. The AS3 repository having
 gone unchallenged is an absence of enforcement, not a permission.
 
-Separately, and unrelated to any of the above: a code-signing private key
-(`sources/air/TripleTriadOnlineReborn.p12`) is committed to this repository. That remains a
-live issue independent of the AIR client being abandoned — see
-[git-workflow.md](../development/git-workflow.md#-a-signing-certificate-is-committed-to-this-repository).
+### ⚠️ A private key is publicly downloadable, right now
+
+This is not a hypothetical and it is not softened by any decision above.
+`sources/air/TripleTriadOnlineReborn.p12` is committed, the repository is public, and the file
+is served:
+
+```
+GET https://raw.githubusercontent.com/korobetski/AS3-Triple-Triad/master/sources/air/TripleTriadOnlineReborn.p12
+→ HTTP 200, 2434 bytes
+```
+
+A `.p12` holds a **private key**. Anyone can fetch it. Deleting the file now does not undo
+that — it has been publicly served and may be cached, cloned or indexed. Treat it as
+compromised rather than as a mistake to tidy up:
+
+1. **Establish whether the key is still valid.** It is the AIR signing key and AIR is
+   abandoned, so it likely signs nothing that matters — confirm that rather than assume it.
+2. **If it was issued by a CA and is still valid, revoke it.**
+3. **Do not reuse it, or its passphrase, for the Android signing key** that Phase 8 now needs.
+4. Add `*.p12`, `*.pfx`, `*.jks`, `*.keystore` to `.gitignore` and keep the new key in GitHub
+   Secrets, never in the tree.
+
+The IP decision explicitly accepted a known risk. This is a different thing: an exposure
+nobody chose. See
+[git-workflow.md](../development/git-workflow.md#-a-private-key-is-publicly-downloadable).
 
 ### Two further decisions, same day
 
@@ -89,18 +110,25 @@ signing key with a stable signature (Android refuses cross-key updates), monoton
 `REQUEST_INSTALL_PACKAGES` permission, and the checker itself. Enumerated in
 [12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md).
 
-**One question it raises that is worth settling early:** a *private* repository's Releases API
-requires a token, and a token cannot ship inside the client. If this repository stays private,
-the update mechanism needs a different host entirely. If it goes public, it is a single
-unauthenticated GET. That choice interacts with the IP decision — a public repository is more
-findable — and it is the difference between an afternoon's work and a distribution problem.
+**Repository visibility: public.** Decided 2026-07-25, and in fact already the case —
+`https://api.github.com/repos/korobetski/AS3-Triple-Triad` reports `"visibility": "public"`.
+That settles the update mechanism the easy way: the Releases API needs **no token**, so the
+checker is a single unauthenticated `GET /repos/korobetski/AS3-Triple-Triad/releases/latest`.
+Budget for the unauthenticated rate limit — 60 requests per hour per IP — which one call at
+startup will never approach, but a retry loop would.
+
+It also means GitHub Actions runs on **free standard runners**, including `macos-latest`. The
+minute-conservation argument for gating jobs behind `needs:` does not apply here (see § Task
+1.5).
 
 ### Still open
 
 - **Multiplayer transport.** Deferred by agreement: to be designed together rather than
-  decided now. Bluetooth is a candidate; § 09 records why it is the *most* platform-specific
-  option rather than the simplest.
-- **Repository visibility**, per the note above.
+  decided now. Bluetooth is a candidate;
+  [09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md) records why it is the *most*
+  platform-specific option rather than the simplest.
+
+That is the only open decision left. Repository visibility was the last of the others.
 
 ---
 
@@ -294,7 +322,7 @@ PoC Scope:
   Phase 1 risk. See [api-mapping.md](../analysis/api-mapping.md) §7.
 - ✅ Flip animation works — but it is a **deliberate substitution**, not a port: the
   original is a four-leg `scaleX` yoyo, this is a `rotationY` rotation. Recorded on
-  `FlippableCard`. If pixel-parity is required, this must be rewritten.
+  `BoardCard`. If pixel-parity is required, this must be rewritten.
 - ✅ Touch input is responsive
 - ❌ Performance metrics meet minimum requirements — cold start (658/752 ms) and
   memory (72.4 MB PSS) measured; **frame timing not measured**
@@ -408,7 +436,7 @@ cannot be met by writing more: nobody has reviewed any of it. See
 | `flash.net.XMLSocket` is **not wire-compatible** with WebSocket | Server work is unavoidable; contradicts the "server remains as-is" scope |
 | `net/TTONet.as` is dead code in the *default* package | Idle-detection and network-change handling were never wired up; do not budget for preserving them |
 | `theme/BaseTTOTheme.as` is 2,290 lines (13% of the codebase) that largely **disappears** | The one place the migration is smaller than the original |
-| A **signing certificate (`.p12`) is committed** to this repository | Out of scope for the migration but should not surface during Phase 8 — see [git-workflow.md](../development/git-workflow.md#-a-signing-certificate-is-committed-to-this-repository) |
+| ⚠️ A **private key (`.p12`) is publicly downloadable** — verified `HTTP 200` on a public repository | Not a migration concern but the most urgent item in this document. Treat as compromised; act before generating the Android signing key — see [git-workflow.md](../development/git-workflow.md#-a-private-key-is-publicly-downloadable) |
 
 ---
 
@@ -499,6 +527,15 @@ successful Apple compilation.** Two caveats: the green is reported from the Acti
 the per-target test counts on CI have not been read back from the `shared-test-results`
 artifact; and `ios-framework` proves the framework links, not that an iOS app exists.
 
+**The critical path is `shared` → `ios-framework`, and it is self-inflicted.** Those two jobs
+account for 4m33s + 7m46s ≈ the full 12m23s, because `android`, `desktop` and `ios-framework`
+all declare `needs: shared`. None of them needs its *output* — each runs its own Gradle
+invocation. The gate existed to avoid burning macOS minutes on a build that would fail anyway,
+but this repository is **public**, so standard runners including `macos-latest` are free and
+there are no minutes to conserve. Removing the three `needs:` lets every job start at once and
+should bring wall clock down to the longest single job, **≈7m46s**. That change is applied;
+the figure is a prediction until the next push confirms it.
+
 The green run also warned that four actions declared `using: node20` and were being forced
 onto Node 24. All are now pinned to Node 24 majors, with `gradle/actions/setup-gradle` held
 at **v5 rather than v6 deliberately** — v6 moves caching into a proprietary component whose
@@ -546,7 +583,7 @@ owner; the rationale is recorded in the workflow header.
 - [x] Linting (Android) — `lintDebug`, part of `:shared:build`
 - [ ] Security scanning — **not done.** Note the finding that a `.p12` signing
       certificate is committed to this repository; a secret scanner would have caught
-      it. See [git-workflow.md](../development/git-workflow.md#-a-signing-certificate-is-committed-to-this-repository)
+      it. See [git-workflow.md](../development/git-workflow.md#-a-private-key-is-publicly-downloadable)
 - [ ] Dependency vulnerability check — **not done**
 
 **Pipeline Configuration**:
@@ -614,9 +651,10 @@ Notes for whoever runs it first:
 - [x] Artifacts are generated correctly — the `android-apks` and `ios-framework` uploads are
       unconditional steps, so a green job means they succeeded. **Inferred, not inspected**:
       nobody has downloaded and opened them
-- [ ] Pipeline runs in < 15 minutes — **now measurable but not measured**; read the job
-      durations off the green run. Locally a clean `build assembleRelease` is ~2 min, so the
-      ubuntu jobs should be comfortable; the macOS job is the unknown
+- [x] Pipeline runs in < 15 minutes — **measured: 12m23s wall clock** on run #3, read from
+      `/actions/runs/30151167874/jobs`. Per job: `ktlint + detekt` 1m49s, `Desktop JAR` 2m18s,
+      `Android APK` 4m08s, `Shared module` 4m33s, `iOS framework` **7m46s**. Passes, but not
+      comfortably — and the margin is structural, see below
 
 ---
 

@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 /**
  * Parser-level tests. These use inline JSON rather than the shipped resource so they
  * run on every target without a resource loader; the real `cards.json` is exercised
- * end-to-end by `desktopTest/CatalogUiTest`.
+ * end-to-end by `desktopTest/CardBundleTest`.
  */
 class CardCatalogTest {
 

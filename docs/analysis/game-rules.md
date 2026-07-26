@@ -11,7 +11,7 @@ layout, animation — is cosmetic by comparison: a wrong pixel is visible, a wro
 not. The rules engine is also the one part of the migration that can be ported with full test
 coverage before any UI exists.
 
-**Read § 15 before porting.** Nine defects, hazards and ambiguities are recorded there. Several are
+**Read § 15 before porting.** Nine defects, hazards and resolved questions are recorded there. Several are
 places where the AS3 behaviour differs from the published Triple Triad rules, so "port it
 faithfully" and "port it correctly" are not the same instruction and you have to choose per
 item.
@@ -353,8 +353,9 @@ Modifier computation (`TTOCore.as:47-56`):
 spellings across `:48` and `:49` are cosmetic, not a bug.
 
 **Untyped cards take −1 on any elemental tile.** A card with `type == null` fails the first test
-and passes the second, so it is penalised. Whether that matches the intended ruleset is a
-question, not a defect — see § 15.5.
+and passes the second, so it is penalised. **This is intended** — an element-less card is
+levelled down on an elemental tile exactly like a card of the wrong element; only a match gains
++1. Confirmed 2026-07-26, see § 15.5.
 
 The eight elements here are the FF8 element set. They share the `type` field with the four FF14
 tribes (`beast`, `garlean`, `primals`, `scions`), which is why the Kotlin `CardType` enum has 12
@@ -595,10 +596,15 @@ In FF14 the modified values are used. The author's comment at `:215` reads like 
 rather than a decision. **This changes outcomes in real games** — it is not cosmetic. Pick a
 side, write it down, and test it.
 
-### 15.5 Untyped cards are penalised by Elemental — **verify against the ruleset**
+### 15.5 Untyped cards are penalised by Elemental — ~~verify~~ **confirmed correct, reproduce**
 
-`card.type == null` on an elemental tile yields −1 (§ 9). Confirm against the intended FF8
-behaviour before porting; the code is unambiguous, the intent is not.
+`card.type == null` on an elemental tile yields −1 (§ 9). This was listed as an open question
+because the code was unambiguous while the intent was not. **Resolved 2026-07-26 by the project
+owner: it is correct.** A card with no element is levelled down on an elemental tile, same as a
+card of the wrong element. Only a matching element gains +1.
+
+So `TTOCore.as:47-56` is right as written and the port reproduces it. No decision needed and
+nothing to switch.
 
 ### 15.6 `tools.rand` is non-uniform — **fix**
 
@@ -635,6 +641,33 @@ rules. Then the question cannot arise.
 
 Both comparisons are strict (§ 7). This is correct Triple Triad behaviour and is called out only
 because the obvious refactor breaks it.
+
+---
+
+## 15b. Implementation status
+
+**The engine described here is implemented**, in
+[`kotlin/shared/src/commonMain/kotlin/com/tripletriad/model/`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/model/)
+— `GameRules`, `Board`, `Power`, `RulesEngine`, `Match` — with the § 16 matrix as
+[`RulesEngineTest`](../../kotlin/shared/src/commonTest/kotlin/com/tripletriad/model/RulesEngineTest.kt).
+158 test executions across desktop, androidDebug and androidRelease, 0 failures.
+
+How each § 15 item was resolved:
+
+| Item | Resolution in the port |
+|---|---|
+| 15.1 Sudden Death dispatch | Not implemented yet — belongs to the match state machine |
+| 15.2 Same Wall one-neighbour gate | **Fixed** by default; `RulesEngineOptions.FAITHFUL` restores the AS3 behaviour |
+| 15.3 Combo wave grouping | **Rewritten** as breadth-first propagation with an explicit visited set and wave index |
+| 15.4 Same/Plus power basis | **Fixed** by default (effective powers); switchable via `RulesEngineOptions.specialPowerBasis`, and both behaviours are pinned by a test |
+| 15.5 Untyped cards under Elemental | **Reproduced** (−1) — confirmed correct by the project owner, not a compromise |
+| 15.6 Non-uniform `tools.rand` | Not applicable yet — no randomness in the engine; use `Random.nextInt(size)` when roulette lands |
+| 15.7 Random deck duplicates | Not implemented yet — pre-match phase |
+| 15.8 Three modifier write paths | **Cannot arise**: effective power is one pure function |
+| 15.9 Strict comparisons both ways | **Reproduced**, and it is the case the mutation test proves is covered |
+
+Not implemented: roulette generation, the pre-match phase chain, Order/Chaos enforcement,
+Sudden Death, the AI, and the match state machine. The engine resolves one placement.
 
 ---
 

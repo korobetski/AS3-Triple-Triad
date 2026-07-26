@@ -43,12 +43,16 @@ comment. Until then, `model/` already has this property — keep it.
 - Match state lives in a ViewModel-equivalent (`StateFlow`), not in the composable tree.
 - `remember` is for state that is genuinely local and can be discarded with the widget.
 
-The PoC's [`FlippableCard`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/ui/CardView.kt)
-owns its flip animation with `remember(card.id)` — correct, because the animation is
-presentation-only and re-keying on the card id is exactly the reset semantics wanted.
-Ownership of *who owns the card* belongs in the match state, not there. When the real board
-arrives, that split has to be respected: the flip is a view concern, the capture is a
-domain event.
+The PoC's [`BoardCard`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt)
+owns its flip animation with `remember` and re-triggers it from a `LaunchedEffect` keyed on the
+card's owner — correct, because the animation is presentation-only. *Who* owns the card is
+`MatchState`'s business: the flip is a view concern, the capture is a domain event, and
+`MatchScreen` never decides one. It holds a single `var state` and calls
+`state.play(card, position)`.
+
+The screen's own arrangement follows the same split. `matchLayout` is a pure function of a
+measured width and height returning a data class, not logic buried in a composable — which is
+what makes it testable without a screen (`MatchLayoutTest`).
 
 **Anti-pattern to avoid.** `Game.PROFILE_DATAS` is read from 34 files. Global mutable state
 read from a third of the codebase makes every function's behaviour depend on invisible

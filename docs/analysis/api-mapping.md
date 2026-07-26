@@ -71,7 +71,7 @@ has no translation; it becomes a state change.
 
 | AS3 | Uses | Kotlin / Compose | | Notes |
 |---|--:|---|:-:|---|
-| `Starling.juggler.tween(obj, 0.4, {...})` | — | `Animatable` + `animateTo` | ✅ | verified: `FlippableCard` in the PoC |
+| `Starling.juggler.tween(obj, 0.4, {...})` | — | `Animatable` + `animateTo` | ✅ | verified: `BoardCard` in the PoC |
 | `starling.animation.Transitions.EASE_IN` | 17 | `FastOutLinearInEasing` | 🔶 | Starling's easing curves are not identical to Compose's; a visual diff pass is needed |
 | `Transitions.EASE_OUT` | | `LinearOutSlowInEasing` | 🔶 | |
 | `starling.animation.Tween` | 1 | `animate*AsState` | ✅ | |

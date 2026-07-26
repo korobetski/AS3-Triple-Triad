@@ -12,11 +12,14 @@ Measured, not projected. `./gradlew build` in `kotlin/`:
 |---|---|--:|---|
 | `commonTest` | `CardTest` | 5 | desktop, androidDebug, androidRelease |
 | `commonTest` | `CardCatalogTest` | 8 | desktop, androidDebug, androidRelease |
-| `desktopTest` | `FlipUiTest` | 3 | desktop |
-| `desktopTest` | `CatalogUiTest` | 5 | desktop |
-| | **total** | **21 distinct / 47 executions** | 0 failures |
+| `commonTest` | `RulesEngineTest` | 37 | desktop, androidDebug, androidRelease |
+| `commonTest` | `MatchStateTest` | 27 | desktop, androidDebug, androidRelease |
+| `desktopTest` | `MatchUiTest` | 8 | desktop |
+| `desktopTest` | `MatchLayoutTest` | 6 | desktop |
+| `desktopTest` | `CardBundleTest` | 2 | desktop |
+| | **total** | **93 distinct / 247 executions** | 0 failures |
 
-`commonTest` runs on every target, which is the point of putting it there — the same 13
+`commonTest` runs on every target, which is the point of putting it there — the same 77
 tests execute three times. They would also run on iOS via
 `:shared:iosSimulatorArm64Test`, which the CI workflow invokes but which has **never been
 executed**, because Kotlin/Native cannot target Apple platforms from a Windows host.
@@ -65,7 +68,7 @@ run both against the same cases.
 | platform | instrumented / manual | only what cannot run on the JVM |
 
 **`commonTest` by default.** Put a test in a platform source set only if it needs that
-platform. The 13 common tests here run three times for free; the same tests in
+platform. The 77 common tests here run three times for free; the same tests in
 `desktopTest` would run once.
 
 **Desktop is the fast host for Compose UI tests.** `runComposeUiTest` on the JVM needs no
@@ -74,31 +77,53 @@ for genuinely platform-specific behaviour.
 
 ## 4. Compose UI tests: assert behaviour, and check the test can fail
 
-Two rules learned from the PoC.
+Three rules learned from the PoC.
 
 ### Test through the real tree
 
-[`CatalogUiTest`](../../kotlin/shared/src/desktopTest/kotlin/com/tripletriad/ui/CatalogUiTest.kt)
-reads `cards.json` out of the actual Compose resource bundle and asserts
-`catalog: 263 cards`. It therefore fails if the resource is dropped from packaging, if the
-generated `Res` accessor moves, or if the JSON schema drifts from the model — none of which
-a mocked loader would catch. The *parser* is tested separately and purely in `commonTest`.
+[`MatchUiTest`](../../kotlin/shared/src/desktopTest/kotlin/com/tripletriad/ui/MatchUiTest.kt)
+drives the real `App()`, which reads `cards.json` out of the actual Compose resource bundle. It
+therefore fails if the resource is dropped from packaging, if the generated `Res` accessor moves,
+or if the JSON schema drifts from the model — none of which a mocked loader would catch. The
+*parser* is tested purely in `commonTest`; the *bundle's contents* in
+[`CardBundleTest`](../../kotlin/shared/src/desktopTest/kotlin/com/tripletriad/data/CardBundleTest.kt).
+
+That last split is worth naming. The bundle's card counts used to be asserted through the UI,
+off a debug line the app printed above the board. When the line was removed the assertion had
+nowhere to live — a sign it had been attached to the wrong thing all along. Nothing about "the
+resource is packaged and parses" needs a composition.
+
+### Extract what can be tested without a screen
+
+[`matchLayout`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt) is a
+pure function from a measured width and height to an arrangement, and
+[`MatchLayoutTest`](../../kotlin/shared/src/desktopTest/kotlin/com/tripletriad/ui/MatchLayoutTest.kt)
+checks across nine viewports that the arrangement fits inside the bounds it was given.
+
+It was extracted *because* the alternative had already failed three times: each earlier revision
+estimated the leftover space as a screen size minus a constant, and each was wrong on some
+device. Compose does not complain when a column is over-subscribed — `Modifier.size` coerces into
+the constraints it is given, so children collapse to zero height while still drawing at full
+size. The only symptom is cards drawn on top of each other, which no assertion in the tree was
+looking for. **When a layout bug can only be seen in a screenshot, extract the arithmetic.**
 
 ### Verify the test is not vacuous
 
 A UI test that passes for the wrong reason is worse than none. During the PoC, the flip
-assertion was validated by mutation: changing `value >= 90f` to `value >= 9000f` in
-`CardView.kt` made exactly the two flip tests fail ("8 tests completed, 2 failed"), and
-reverting made them pass again.
+assertion was validated by mutation: changing `value >= 90f` to `value >= 9000f` made exactly
+the flip tests fail, and reverting made them pass again. The same was done for the rules engine:
+mutating `RulesEngine.beats` from `defence < attack` to `defence <= attack` fails
+`equalPowersNeverCapture` and nothing else.
 
 **Do this at least once per non-trivial UI test.** If breaking the feature does not break
 the test, the test is decoration.
 
 ### Known gap: no layout assertions
 
-The current UI tests assert text content and state changes, not geometry. A regression that
-moved the digit badge would not be caught. Since the whole point of `CardColors.kt` is
-reproducing exact AS3 coordinates, add layout assertions when the board arrives:
+`MatchLayoutTest` covers the *arrangement* — which hand goes where, at what scale, and that it
+fits. It does not cover *card-internal* geometry: a regression that moved the digit badge inside
+the face would still pass. Since the whole point of `CardColors.kt` is reproducing exact AS3
+coordinates, that gap wants closing:
 
 ```kotlin
 onNodeWithTag(DIGITS_TEST_TAG).assertLeftPositionInRootIsEqualTo(expectedX)
@@ -125,7 +150,7 @@ tests of getters.
 ```bash
 cd kotlin
 ./gradlew build                      # everything, including ktlint + detekt
-./gradlew :shared:desktopTest        # fast loop: all 21 tests, ~4 s warm
+./gradlew :shared:desktopTest        # fast loop: all 93 tests, ~10 s warm
 ./gradlew :shared:allTests           # every target the host can build
 ./gradlew :androidApp:installDebug   # then drive it by hand on a device
 ```

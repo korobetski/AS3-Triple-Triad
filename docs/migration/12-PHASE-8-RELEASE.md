@@ -46,18 +46,20 @@ What that actually requires, none of which exists yet:
 | A release workflow | Build a signed APK, create a GitHub Release, attach the artifact. The signing key goes in GitHub Secrets |
 | `REQUEST_INSTALL_PACKAGES` permission | Required to trigger an install from inside the app. Users must also allow installs from unknown sources once |
 | An update checker | One HTTPS call to `/repos/{owner}/{repo}/releases/latest`, a version comparison, a download and a `PackageInstaller` session. Needs a no-network and a rate-limited path — the GitHub API allows 60 unauthenticated requests per hour per IP |
-| A decision on repository visibility | A **private** repository's Releases API needs a token, which cannot ship in the client. If the repository is public the API is open; if private, updates need a different host |
+| ~~Repository visibility~~ | ✅ Settled: **public**. The Releases API needs no token, so the checker is one unauthenticated `GET /repos/korobetski/AS3-Triple-Triad/releases/latest`. Unauthenticated rate limit is 60/hour/IP — irrelevant for one call at startup, fatal for a retry loop |
 
-That last row is the one to settle before building anything: it decides whether the update
-mechanism is a single unauthenticated GET or a whole distribution problem.
+A public repository also means **GitHub Actions standard runners are free**, `macos-latest`
+included, which is why the CI jobs no longer gate each other behind `needs:`.
 
-### ⚠️ A signing certificate is already committed
+### ⚠️ A private key is publicly downloadable
 
-`sources/air/TripleTriadOnlineReborn.p12` is tracked in git. It is the **AIR** signing key,
-now irrelevant to builds since AIR is abandoned — but a `.p12` holds a private key, and this
-one has been in a repository. Before generating an Android key, read
-[git-workflow.md § A signing certificate is committed to this repository](../development/git-workflow.md#-a-signing-certificate-is-committed-to-this-repository)
-so the new one does not go the same way.
+`sources/air/TripleTriadOnlineReborn.p12` is tracked in git and the repository is public, so
+the file is served — `HTTP 200`, 2434 bytes, verified 2026-07-26. It is the **AIR** signing
+key, irrelevant to builds now that AIR is abandoned, but a `.p12` holds a private key and this
+one has been public. Deleting it does not undo the exposure.
+
+**Do this before generating the Android signing key**, not after:
+[git-workflow.md § A private key is publicly downloadable](../development/git-workflow.md#-a-private-key-is-publicly-downloadable).
 
 ### iOS
 

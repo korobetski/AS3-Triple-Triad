@@ -1,11 +1,7 @@
 package com.tripletriad.ui
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -15,124 +11,55 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.times
 import com.tripletriad.model.Card
-import com.tripletriad.model.CardColor
 import com.tripletriad.model.powerLabel
-import kotlinx.coroutines.launch
-
-/** Duration of a capture flip. The AS3 yoyo is 4 x 0.1 s legs; see [FlippableCard]. */
-private const val FLIP_DURATION_MS = 400
 
 /**
- * A card that flips and comes back owned by the other side — the visual half of a
- * Triple Triad capture.
- *
- * The rotation uses [Animatable] rather than `rememberInfiniteTransition`: this is a
- * one-shot animation whose *completion* matters (the owner switch has to land exactly
- * at the halfway point, and the caller has to be told when the flip is over).
- *
- * **This is not the original animation.** `Card.flip()` does not rotate anything: it
- * runs a four-leg `scaleX` yoyo (1 -> 0 -> 1.2 -> 0 -> 1, 0.1 s per leg, `EASE_IN` on
- * the way in and `EASE_OUT` on the way out), swapping to the card back and changing
- * the colour at each pinch. A `rotationY` flip is the modern equivalent and reads
- * better on a high-DPI screen, but it is a deliberate substitution, not a port. If
- * pixel-parity with the original is a requirement, this has to be rewritten.
- */
-@Composable
-fun FlippableCard(
-    card: Card,
-    modifier: Modifier = Modifier,
-    onOwnerChanged: (CardColor) -> Unit = {},
-) {
-    val rotation = remember { Animatable(0f) }
-    var owner by remember(card.id) { mutableStateOf(card.owner) }
-    var flipping by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    Box(
-        modifier = modifier
-            .size(CardSpriteWidth, CardSpriteHeight)
-            .graphicsLayer {
-                // Assigning the state to the layer property of the same name would be a
-                // no-op self-assignment; read the Animatable explicitly.
-                rotationY = rotation.value
-                cameraDistance = 12f * density
-            }
-            .clickable(enabled = !flipping) {
-                scope.launch {
-                    flipping = true
-                    rotation.snapTo(0f)
-                    var switched = false
-                    rotation.animateTo(
-                        targetValue = 180f,
-                        animationSpec = tween(FLIP_DURATION_MS, easing = FastOutSlowInEasing),
-                    ) {
-                        // Swap the owner at the point where the card is edge-on, so the
-                        // colour change is never visible mid-turn.
-                        if (!switched && value >= 90f) {
-                            switched = true
-                            owner = owner.opposite()
-                            onOwnerChanged(owner)
-                        }
-                    }
-                    // At 180 deg with the face mirrored the card is pixel-identical to 0 deg,
-                    // so resetting here is invisible and keeps the next flip starting from 0.
-                    rotation.snapTo(0f)
-                    flipping = false
-                }
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        CardFace(
-            card = card.copy(owner = owner),
-            modifier = Modifier.graphicsLayer {
-                // Past 90 deg we are looking at the back of the layer: un-mirror the content.
-                scaleX = if (rotation.value > 90f) -1f else 1f
-            },
-        )
-    }
-}
-
-/**
- * The static face of a card.
+ * The static face of a card, at [scale] times its authored size.
  *
  * Everything is placed by absolute offset in the AS3 sprite's coordinate space, so the
  * numbers below can be checked line-for-line against `Card.as` — see the table in
- * [CardWidth]'s file. The face itself is the 88x118 colour quad; the surrounding
- * 104x128 sprite bounds are [FlippableCard]'s concern.
+ * `CardColors.kt`. The face itself is the 88x118 colour quad; the surrounding 104x128
+ * sprite bounds are not modelled.
+ *
+ * ### Why every dimension is multiplied rather than the layer scaled
+ *
+ * The obvious way to shrink this is to measure it at full size and scale the render layer
+ * (`requiredSize` + `graphicsLayer { scaleX = scale }`). That was the first implementation
+ * and it was wrong: the composable then *reports* a small size while *drawing* a large one,
+ * so anything that puts it in an offscreen layer clips it. In particular the dimmed hand
+ * applies `alpha`, which forces exactly such a layer — so the waiting side's cards rendered
+ * as slivers while the active side's, drawn straight into the parent, looked fine. Multiplying
+ * the geometry keeps drawn bounds and reported bounds identical, which is the only version of
+ * this that composes safely.
  */
 @Composable
-internal fun CardFace(card: Card, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(6.dp)
+internal fun CardFace(card: Card, scale: Float = 1f, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(FaceCorner * scale)
     Box(
         modifier = modifier
-            .size(CardWidth, CardHeight)
+            .size(CardWidth * scale, CardHeight * scale)
             .clip(shape)
             .background(card.owner.background)
-            .border(2.dp, card.owner.edge, shape),
+            .border(FaceBorder * scale, card.owner.edge, shape),
     ) {
         // `Card.as:176-178` draws the `{rarity}stars` texture at (9, 6) in sprite space,
         // i.e. (1, 1) relative to the face. No such texture here, so: literal stars.
         Text(
             text = "★".repeat(card.rarity),
             color = Color(0xFFF2C14E),
-            fontSize = 8.sp,
-            modifier = Modifier.offset(x = 1.dp, y = 1.dp),
+            fontSize = StarsFontSize * scale,
+            modifier = Modifier.offset(x = 1.dp * scale, y = 1.dp * scale),
         )
 
         // `Card.as:181-183` draws `type-{type}` at (80, 3) in sprite space = (72, -2)
@@ -140,11 +67,11 @@ internal fun CardFace(card: Card, modifier: Modifier = Modifier) {
         // because the face is clipped and a negative offset would be invisible.
         card.type?.let { type ->
             Text(
-                text = type.name.take(2),
+                text = type.name.take(TYPE_LABEL_CHARS),
                 color = Color.White.copy(alpha = 0.85f),
-                fontSize = 8.sp,
+                fontSize = TypeFontSize * scale,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.offset(x = 72.dp, y = 0.dp),
+                modifier = Modifier.offset(x = TypeOffsetX * scale, y = 0.dp),
             )
         }
 
@@ -153,21 +80,26 @@ internal fun CardFace(card: Card, modifier: Modifier = Modifier) {
         Text(
             text = card.name,
             color = Color.White,
-            fontSize = 10.sp,
+            fontSize = NameFontSize * scale,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .padding(top = 30.dp, start = 3.dp, end = 3.dp),
+                .padding(
+                    top = NamePaddingTop * scale,
+                    start = NamePaddingSide * scale,
+                    end = NamePaddingSide * scale,
+                ),
         )
 
         // (28, 88) in sprite space is (20, 83) relative to the face.
         CardDigits(
             card = card,
+            scale = scale,
             modifier = Modifier.offset(
-                x = DigitsOriginX - CardFaceOffsetX,
-                y = DigitsOriginY - CardFaceOffsetY,
+                x = (DigitsOriginX - CardFaceOffsetX) * scale,
+                y = (DigitsOriginY - CardFaceOffsetY) * scale,
             ),
         )
     }
@@ -176,6 +108,22 @@ internal fun CardFace(card: Card, modifier: Modifier = Modifier) {
 /** Face origin inside the 104x128 sprite: `colorBackground.x/.y` — `Card.as:74-75`. */
 private val CardFaceOffsetX = 8.dp
 private val CardFaceOffsetY = 5.dp
+
+/*
+ * Not from the AS3 source: the original's frame and glyphs are textures, so a corner
+ * radius, a border width and four font sizes have to be invented for the PoC. Named
+ * rather than inlined only so they can all be scaled in one place.
+ */
+private val FaceCorner = 6.dp
+private val FaceBorder = 2.dp
+private val StarsFontSize = 8.sp
+private val TypeFontSize = 8.sp
+private val TypeOffsetX = 72.dp
+private val NameFontSize = 10.sp
+private val NamePaddingTop = 30.dp
+private val NamePaddingSide = 3.dp
+private val DigitFontSize = 13.sp
+private const val TYPE_LABEL_CHARS = 2
 
 /**
  * The four edge powers, laid out exactly as `tto.display.CardDigits`:
@@ -189,43 +137,47 @@ private val CardFaceOffsetY = 5.dp
  * own bounds are 44x30, wider than the plate.
  */
 @Composable
-private fun CardDigits(card: Card, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.size(DigitsClusterWidth, DigitsClusterHeight)) {
+private fun CardDigits(card: Card, scale: Float, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.size(DigitsClusterWidth * scale, DigitsClusterHeight * scale)) {
         Box(
             modifier = Modifier
-                .offset(x = DigitsPlateOffsetX, y = DigitsPlateOffsetY)
-                .size(DigitsPlateSize)
-                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(3.dp)),
+                .offset(x = DigitsPlateOffsetX * scale, y = DigitsPlateOffsetY * scale)
+                .size(DigitsPlateSize * scale)
+                .background(
+                    color = Color.Black.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(PlateCorner * scale),
+                ),
         )
-        Digit(card.top, x = 14.dp, y = 0.dp)
-        Digit(card.right, x = 26.dp, y = 6.dp)
-        Digit(card.bottom, x = 14.dp, y = 12.dp)
-        Digit(card.left, x = 2.dp, y = 6.dp)
+        Digit(card.top, x = 14.dp, y = 0.dp, scale = scale)
+        Digit(card.right, x = 26.dp, y = 6.dp, scale = scale)
+        Digit(card.bottom, x = 14.dp, y = 12.dp, scale = scale)
+        Digit(card.left, x = 2.dp, y = 6.dp, scale = scale)
     }
 }
 
 /** Cluster bounds: x spans 2..26+18 = 44, y spans 0..12+18 = 30. */
 private val DigitsClusterWidth = 44.dp
 private val DigitsClusterHeight = 30.dp
+private val PlateCorner = 3.dp
 
 /**
  * One power digit.
  *
- * [x] and [y] are the AS3 values unmodified — the top-left corner of an 18x18 texture.
- * The glyph is then centred inside that 18x18 box, which is what the digit textures
- * themselves do. An earlier revision subtracted 4 dp here to "centre" the text and
- * pushed the left digit to x = -2, off the plate.
+ * [x] and [y] are the AS3 values unmodified — the top-left corner of an 18x18 texture,
+ * scaled by [scale] like everything else. The glyph is then centred inside that box, which
+ * is what the digit textures themselves do. An earlier revision subtracted 4 dp here to
+ * "centre" the text and pushed the left digit to x = -2, off the plate.
  */
 @Composable
-private fun Digit(power: Int, x: Dp, y: Dp) {
+private fun Digit(power: Int, x: Dp, y: Dp, scale: Float) {
     Box(
-        modifier = Modifier.offset(x = x, y = y).size(DigitSize),
+        modifier = Modifier.offset(x = x * scale, y = y * scale).size(DigitSize * scale),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = powerLabel(power),
             color = Color.White,
-            fontSize = 13.sp,
+            fontSize = DigitFontSize * scale,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             modifier = Modifier.wrapContentSize(),
