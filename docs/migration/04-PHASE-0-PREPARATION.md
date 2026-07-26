@@ -294,9 +294,9 @@ PoC Scope:
       Compose resource bundle, covered by 5 end-to-end UI tests
 - [x] Touch handling works correctly — verified under real touch and `adb shell input tap`
 - [ ] App size is reasonable (< 20MB for PoC). **This criterion compares the wrong
-      things and must be restated.** MEASURED: `kotlin/` PoC is 10 351 KB debug /
-      7 605 KB release-unsigned (and `isMinifyEnabled = false`, so the release figure
-      is an un-shrunk upper bound). For comparison, the existing AS3 build
+      things and must be restated.** MEASURED: `kotlin/` PoC is 17 681 KB debug /
+      14 907 KB release-unsigned (and `isMinifyEnabled = false`, so the release figure
+      is an un-shrunk upper bound). 7.00 MB of that is the 263 card faces, now embedded. For comparison, the existing AS3 build
       `sources/air/tto.apk` is 9.67 MB — but **it contains no card artwork at all**;
       it is a downloader shell that fetches assets at runtime. The real runtime asset
       payload is ~40 MB (18 MB `cards/`, 8.3 MB `card_thumbs/`, 6.4 MB `npcs/`, plus

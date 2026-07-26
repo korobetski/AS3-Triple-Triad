@@ -1,7 +1,8 @@
 package com.tripletriad.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,6 +43,8 @@ import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.MatchOutcome
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.PlacedCard
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 /** Test tags for `shared/src/desktopTest`. */
@@ -267,7 +270,7 @@ private fun TileCell(
 ) {
     Box(
         modifier = modifier
-            .size(CardWidth * scale, CardHeight * scale)
+            .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
             .clip(TileShape)
             .background(EmptyTile)
             .border(1.dp, TileBorder, TileShape),
@@ -291,40 +294,50 @@ private fun TileCell(
  * A placed card that flips when its owner changes.
  *
  * Re-triggered by a [LaunchedEffect] on the owner rather than by a tap: on the board a flip is
- * something the rules *did*, not something the player asked for. The owner swap lands at 90° so
- * the colour change is never visible edge-on.
+ * something the rules *did*, not something the player asked for.
  *
- * Still a deliberate substitution, not a port: `Card.flip()` runs a four-leg `scaleX` yoyo
- * (1 → 0 → 1.2 → 0 → 1, 0.1 s per leg), not a rotation.
+ * **A port now, not a substitution.** `Card.flip()` (`Card.as:249-291`) chains four 0.1 s
+ * tweens — `flip` → `yoyo` → `unflip` → `yoyo2` — squashing `scaleY` to 0 and back twice while
+ * `scaleX` widens to 1.2 for the duration. The colour switches and the back appears at the first
+ * pinch; the new face returns at the second.
+ *
+ * An earlier revision used a `rotationY` half-turn instead, which **mirrored the card's contents
+ * between 90° and 180°** — every glyph on it drawn backwards for a fifth of a second. A squash
+ * cannot do that, because the scale never goes negative. The original's choice was the right one.
  */
 @Composable
 private fun BoardCard(placed: PlacedCard, scale: Float) {
-    val rotation = remember { Animatable(0f) }
+    val squashY = remember { Animatable(1f) }
+    val stretchX = remember { Animatable(1f) }
     var shown by remember { mutableStateOf(placed.owner) }
+    var showBack by remember { mutableStateOf(false) }
 
     LaunchedEffect(placed.owner) {
         if (shown == placed.owner) return@LaunchedEffect
-        var switched = false
-        rotation.snapTo(0f)
-        rotation.animateTo(
-            targetValue = HALF_TURN_DEGREES,
-            animationSpec = tween(FLIP_MS, easing = FastOutSlowInEasing),
-        ) {
-            if (!switched && value >= QUARTER_TURN_DEGREES) {
-                switched = true
-                shown = placed.owner
-            }
+        // `horizon = false` is the default and the only value the match screens pass, so the
+        // squash is vertical and the widening horizontal.
+        coroutineScope {
+            launch { stretchX.animateTo(FLIP_STRETCH, tween(FLIP_LEG_MS, easing = EaseIn)) }
+            squashY.animateTo(0f, tween(FLIP_LEG_MS, easing = EaseIn))
         }
-        shown = placed.owner
-        rotation.snapTo(0f)
+        shown = placed.owner // yoyo(): switchColor()
+        showBack = true // yoyo(): hide()
+        squashY.animateTo(FLIP_STRETCH, tween(FLIP_LEG_MS, easing = EaseOut))
+        squashY.animateTo(0f, tween(FLIP_LEG_MS, easing = EaseIn)) // unflip()
+        showBack = false // yoyo2(): show()
+        coroutineScope {
+            launch { stretchX.animateTo(1f, tween(FLIP_LEG_MS, easing = EaseOut)) }
+            squashY.animateTo(1f, tween(FLIP_LEG_MS, easing = EaseOut))
+        }
     }
 
     CardFace(
         card = placed.card.copy(owner = shown),
         scale = scale,
+        showBack = showBack,
         modifier = Modifier.graphicsLayer {
-            rotationY = rotation.value
-            cameraDistance = CAMERA_DISTANCE_FACTOR * density
+            scaleX = stretchX.value
+            scaleY = squashY.value
         },
     )
 }
@@ -362,8 +375,8 @@ private fun HandArea(
                         if (card == null) {
                             Spacer(
                                 Modifier.size(
-                                    CardWidth * layout.scale,
-                                    CardHeight * layout.scale,
+                                    CardSpriteWidth * layout.scale,
+                                    CardSpriteHeight * layout.scale,
                                 ),
                             )
                         } else {
@@ -409,7 +422,7 @@ private fun HandCard(
         if (isSelected) {
             Box(
                 modifier = Modifier
-                    .size(CardWidth * scale, CardHeight * scale)
+                    .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
                     .border(SelectionRingWidth, SelectionRing, TileShape),
             )
         }
@@ -456,8 +469,10 @@ internal data class MatchLayout(
     val boardScale: Float,
 ) {
     /** Fixed size of one hand area, empty slots included. */
-    val handWidth: Dp get() = (CardWidth * handColumns + HandGap * (handColumns + 1)) * scale
-    val handHeight: Dp get() = (CardHeight * handRows + HandGap * (handRows + 1)) * scale
+    val handWidth: Dp
+        get() = (CardSpriteWidth * handColumns + HandGap * (handColumns + 1)) * scale
+    val handHeight: Dp
+        get() = (CardSpriteHeight * handRows + HandGap * (handRows + 1)) * scale
 }
 
 /**
@@ -479,10 +494,10 @@ internal fun matchLayout(width: Dp, height: Dp): MatchLayout {
     val columns = if (landscape) LANDSCAPE_HAND_COLUMNS else HAND_SIZE
     val rows = (HAND_SIZE + columns - 1) / columns
 
-    val handWidth = CardWidth.value * columns + HandGap.value * (columns + 1)
-    val handHeight = CardHeight.value * rows + HandGap.value * (rows + 1)
-    val boardWidth = CardWidth.value * BOARD_WIDTH + TileGap.value * (BOARD_WIDTH + 1)
-    val boardHeight = CardHeight.value * BOARD_WIDTH + TileGap.value * (BOARD_WIDTH + 1)
+    val handWidth = CardSpriteWidth.value * columns + HandGap.value * (columns + 1)
+    val handHeight = CardSpriteHeight.value * rows + HandGap.value * (rows + 1)
+    val boardWidth = CardSpriteWidth.value * BOARD_WIDTH + TileGap.value * (BOARD_WIDTH + 1)
+    val boardHeight = CardSpriteHeight.value * BOARD_WIDTH + TileGap.value * (BOARD_WIDTH + 1)
 
     val neededWidth = if (landscape) handWidth * 2 + boardWidth else maxOf(handWidth, boardWidth)
     val neededHeight =
@@ -512,11 +527,21 @@ private const val MIN_CARD_SCALE = 0.22f
 private const val MAX_CARD_SCALE = 1f
 private const val ELEMENT_LABEL_CHARS = 3
 private const val INACTIVE_HAND_ALPHA = 0.45f
-private const val FLIP_MS = 400
-private const val HALF_TURN_DEGREES = 180f
-private const val QUARTER_TURN_DEGREES = 90f
-private const val CAMERA_DISTANCE_FACTOR = 12f
+
+/** `Starling.juggler.tween(this, 0.1, ...)`, four times over -- `Card.as:249-291`. */
+private const val FLIP_LEG_MS = 100
+
+/** `scaleX: 1.2` / `scaleY: 1.2` -- the overshoot each leg tweens to. */
+private const val FLIP_STRETCH = 1.2f
 private const val DEAL_SEED = 20260726
+
+/*
+ * `Transitions.EASE_IN` / `EASE_OUT`, per the mapping in
+ * [api-mapping.md](../../../../../../../docs/analysis/api-mapping.md). Starling's curves are
+ * not identical to Compose's; a visual diff pass is still owed.
+ */
+private val EaseIn = FastOutLinearInEasing
+private val EaseOut = LinearOutSlowInEasing
 
 private val TileGap = 4.dp
 private val TileShape = RoundedCornerShape(6.dp)

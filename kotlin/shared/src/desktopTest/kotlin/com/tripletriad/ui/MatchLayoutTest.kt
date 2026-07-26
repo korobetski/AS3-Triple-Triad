@@ -96,8 +96,8 @@ class MatchLayoutTest {
 
     /** What the arrangement actually occupies: two hand areas plus the board, on both axes. */
     private fun footprint(layout: MatchLayout): Pair<Dp, Dp> {
-        val boardWidth = (CardWidth * BOARD_SIDE + BoardGapTotal) * layout.boardScale
-        val boardHeight = (CardHeight * BOARD_SIDE + BoardGapTotal) * layout.boardScale
+        val boardWidth = (CardSpriteWidth * BOARD_SIDE + BoardGapTotal) * layout.boardScale
+        val boardHeight = (CardSpriteHeight * BOARD_SIDE + BoardGapTotal) * layout.boardScale
         return if (layout.landscape) {
             (layout.handWidth * 2 + boardWidth) to maxOf(layout.handHeight, boardHeight)
         } else {

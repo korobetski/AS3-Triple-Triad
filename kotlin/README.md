@@ -3,21 +3,25 @@
 Proof of concept for the migration described in
 [../docs/migration/00-INDEX.md](../docs/migration/00-INDEX.md).
 
-It does four things:
+It does five things:
 
 1. **Loads all 263 cards** from a JSON resource extracted out of the AS3 source
    (`tto/datas/cards.as`), through the Compose Multiplatform resource bundle.
-2. **Draws a card** at the real geometry, with the four edge powers positioned exactly
-   as `tto.display.CardDigits` positions them.
-3. **Flips it on tap**, handing it to the other side (blue ⇄ red) — the visual half of a
-   capture — and steps through the catalog.
+2. **Draws a card** at the real geometry from the real artwork, layer for layer as
+   `tto.display.Card` stacks them, with the four edge powers positioned exactly as
+   `tto.display.CardDigits` positions them.
+3. **Plays a match** — a 3×3 board and two hands, turn by turn, laid out either side of the
+   board in landscape and above and below it in portrait; a captured card flips with
+   `Card.flip()`'s own four-leg squash.
 4. **Implements the rules engine** — capture, Reverse, Fallen Ace, Same, Same Wall, Plus,
    combo, the three type rules, turn order and scoring — as pure functions with no UI, tested
    against the [specification's 35-case matrix](../docs/analysis/game-rules.md#16-test-matrix-for-the-port).
    See [§ Rules engine](#rules-engine).
+5. **Sequences the match as a state machine**, `MatchState -> MatchState`, replacing the
+   original's cascade of `setTimeout` callbacks.
 
-Everything else (board UI, drag-and-drop, AI, network, persistence, artwork) is
-deliberately out of scope. See
+Everything else (drag-and-drop, AI, network, persistence, the collection and deck-builder
+screens, sound) is deliberately out of scope. See
 [§ What this PoC does and does not prove](#what-this-poc-does-and-does-not-prove).
 
 This replaces the earlier `poc/` directory, which was reported as validating the
@@ -38,6 +42,7 @@ kotlin/
 ├── gradle/libs.versions.toml    single source of truth for versions
 ├── gradle/wrapper/              Gradle 8.14.3
 ├── tools/extract_cards.py       regenerates cards.json from the AS3 source
+├── tools/import_card_art.py     copies the card artwork into composeResources
 ├── shared/                      KMP module: model + data + Compose UI
 │   └── src/
 │       ├── commonMain/
@@ -50,14 +55,17 @@ kotlin/
 │       │   │   ├── model/Match.kt       turn order, scoring
 │       │   │   ├── data/CardRepository.kt  CardCatalog + parser + resource loader
 │       │   │   └── ui/
-│       │   │       ├── App.kt           root composable + catalog load
+│       │   │       ├── App.kt           root composable + catalog/art load
+│       │   │       ├── CardArt.kt       texture loading, face cache, digit atlas
 │       │   │       ├── MatchScreen.kt   playable board, both hands, orientation layout
 │       │   │       ├── CardView.kt      CardFace + CardDigits, scalable
 │       │   │       └── CardColors.kt    colours and geometry lifted from the AS3 source
-│       │   └── composeResources/files/cards.json    263 cards, generated
+│       │   └── composeResources/files/
+│       │       ├── cards.json    263 cards, generated
+│       │       └── art/          282 PNGs, 7.00 MB, imported
 │       ├── commonTest/…         CardTest (5) + CardCatalogTest (8) + RulesEngineTest (37)
 │       │                        + MatchStateTest (27) = 77, run on every target
-│       ├── desktopTest/…        MatchUiTest (8) + MatchLayoutTest (6) + CardBundleTest (2)
+│       ├── desktopTest/…        MatchUiTest (8) + MatchLayoutTest (6) + CardBundleTest (4)
 │       └── iosMain/…/MainViewController.kt
 ├── androidApp/                  Android host (ComponentActivity + setContent)
 ├── desktopApp/                  JVM host — lets you run the UI without an emulator
@@ -121,7 +129,7 @@ and detekt:
 ./gradlew build
 ```
 
-Fast test loop (all 58 tests, a few seconds warm):
+Fast test loop (all 95 tests, a few seconds warm):
 
 ```bash
 ./gradlew :shared:desktopTest
@@ -142,6 +150,12 @@ Regenerate the card catalog after any change to `tto/datas/cards.as`, from the
 
 ```bash
 python kotlin/tools/extract_cards.py kotlin/shared/src/commonMain/composeResources/files/cards.json
+```
+
+Re-import the artwork after any change to the catalog — it fails if a card has no picture:
+
+```bash
+python kotlin/tools/import_card_art.py
 ```
 
 ## Card data
@@ -172,6 +186,61 @@ Two details the extractor has to get right:
 
 The script asserts both counts and spot-checks specific cards against the source, so it
 fails loudly rather than emitting a plausible-looking wrong catalog.
+
+## Card artwork
+
+`shared/src/commonMain/composeResources/files/art/` is **imported**, not authored:
+[`tools/import_card_art.py`](tools/import_card_art.py) copies it byte-for-byte out of
+`sources/assets/` and renames each file to the AS3 texture id, so a card's picture is
+addressable as `files/art/{collection}{id}.png` — literally `Card.as:166`.
+
+| | Count | Size |
+|---|--:|--:|
+| card faces (`ff14_1` … `ff8_110`) | 263 | 7.00 MB |
+| card back, digit atlas, 5 rarity rows, 12 type icons | 19 | 85 KB |
+
+### Individual files, not the sprite sheets
+
+`sources/assets/cards/` ships two ShoeBox atlases, and the question of whether to use them is
+a measurement rather than a preference. Both encodings are 8-bit RGBA, so this compares like
+with like:
+
+| | Individual files | Sprite sheets |
+|---|--:|--:|
+| Download size, all 263 cards | 7.00 MB | ~4.9 MB (three 1024×2048 sheets) |
+| Resident bitmap, a match (≤ 19 cards) | ~1.0 MB | 24 MB |
+| Resident bitmap, all 263 decoded | 14 MB | 24 MB |
+| Cards actually covered by the shipped sheets | 263 / 263 | **190 / 263** |
+
+A sheet decodes whole or not at all: 1024 × 2048 × 4 bytes = 8 MB each, resident whether one
+card is on screen or all of them. Trading 2 MB of download for 24 MB of permanently resident
+memory is the wrong way round on a phone, and `ff14_cards.xml` stops at id 80 — a complete set
+would need repacking with a tool this repository does not contain. So: individual files, loaded
+on demand and cached (`CardArt`).
+
+`digits.png` is the one atlas kept, and not for size — it is 10 KB either way. It is the only
+source of the 28×28 `cdbg` plate, and its entries are the untrimmed 18×18 rectangles the
+geometry in `CardColors.kt` is built on; the loose `digits/1.png` files are trimmed to 15×12
+and would need their offsets re-derived. It is sliced into `BitmapPainter`s with source
+rectangles, so the sheet is decoded once and no glyph is ever copied out of it.
+
+### Layer order
+
+The card is the full **104×128 sprite**, not the 88×118 colour quad, because the artwork
+includes the frame. `CardFace` stacks `Card.as`'s display list in `addChild` order — colour
+quad, artwork, rarity row, type icon, digit cluster, and the back on top while flipping. The
+artwork has a **translucent centre**, and what shows through it is the owner's colour, which is
+how the original serves both sides from 263 images instead of 526. Verified on the device: the
+same picture reads blue in one hand and red in the other.
+
+Two exceptions, both marked in the code. The `cardSelected` glow (layer 0) is drawn at
+(−16, −4) — outside even the sprite bounds — so this port rings the card instead rather than
+grow every slot by 16 dp. The `_modifier` badge (layer 5) is the Ascension/Descension `±N`
+text, which no rule in this UI switches on yet.
+
+Not every card has a translucent centre: the FF8 five-star character cards ship a silver frame
+with an opaque illustration, so they read grey in both hands. That is the source artwork, not a
+layering fault — `ff8_102.png` (Laguna) shows it directly.
 
 ## Rules engine
 
@@ -292,17 +361,17 @@ Run on Windows 11, JDK 17 (Temurin), Android SDK platform 36.1 / build-tools 36.
 | Command | Result |
 |---------|--------|
 | `./gradlew clean` then `./gradlew build assembleRelease` | **BUILD SUCCESSFUL**, 264 tasks |
-| `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 10 351 KB |
-| `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 7 605 KB |
+| `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 17 686 KB |
+| `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 14 907 KB |
 | `./gradlew :desktopApp:build` | **BUILD SUCCESSFUL** — `desktopApp.jar` |
-| `./gradlew :shared:desktopTest` | **93 tests, 0 failures** |
-| `./gradlew :shared:build` (all targets) | **247 test executions, 0 failures** |
+| `./gradlew :shared:desktopTest` | **95 tests, 0 failures** |
+| `./gradlew :shared:build` (all targets) | **249 test executions, 0 failures** |
 | `./gradlew ktlintCheck detekt` | **BUILD SUCCESSFUL** — 0 findings, `maxIssues = 0` |
 | `./gradlew :shared:lint` | **0 errors**, warnings only ("a newer version is available") |
 | `./gradlew :desktopApp:run` | window opens, titled "Triple Triad — KMP PoC", nothing on stderr |
 | `./gradlew :androidApp:installDebug` + launch | **runs on a physical device** — see below |
 
-Release APK note: `isMinifyEnabled = false`, so 7 605 KB is an **un-shrunk upper bound**,
+Release APK note: `isMinifyEnabled = false`, so 14 907 KB is an **un-shrunk upper bound**,
 not what a shipped build would weigh.
 
 ### On a physical device
@@ -315,14 +384,19 @@ Installed and launched on a **Pixel 6a, Android 17 (API 37), arm64-v8a**, 1080×
 - Nothing from `AndroidRuntime` or `FATAL` in logcat; the only app line is
   `ProfileInstaller: Installing profile for com.tripletriad.android`.
 - **Both orientations verified by screenshot.** Landscape (2400×1080): red hand left in a
-  2×3 block, board centred, blue hand right, every card at the authored 88×118 with no
+  2×3 block, board centred, blue hand right, every card at the authored 104×128 with no
   overlap and nothing clipped. Portrait (1080×2400): red hand a strip across the top, board
   centred, blue hand across the bottom. Rotating a running match keeps it (`configChanges`).
 - **The status bar, the navigation buttons and the clock/battery/signal row are hidden** —
   `MainActivity.goFullScreen`. Recoverable with an edge swipe.
+- **The artwork renders and the layers stack correctly.** The colour quad shows through the
+  translucent centre — the same picture reads blue in one hand and red in the other; the rarity
+  row sits top-left, the type icon top-right, the digit badge over the artwork and not under it.
 - Placement, capture and the flip all work under real touch and under `adb shell input tap`.
   A match played out to nine placements ended `blue 5 — 5 red` / `draw`, with four cards
-  showing their captured colour and red's unplayed card still counting for red.
+  showing their captured colour and red's unplayed card still counting for red. A scripted
+  capture — a card with `left = A` played beside one with `right = 3` — moved the score from
+  `5 — 5` to `6 — 4` and left the flipped card's artwork, stars and digits upright.
 - A power of 10 renders as `A` (visible on `Laguna 9/5/3/A`).
 
 Measured on that device, **debug build** (no R8, no baseline profile — pessimistic):
@@ -361,7 +435,7 @@ commonTest — runs on desktop, androidDebug and androidRelease
 desktopTest — real Compose tree on the JVM, plus the JVM-only bundle read
   com.tripletriad.ui.MatchUiTest          8 tests
   com.tripletriad.ui.MatchLayoutTest      6 tests
-  com.tripletriad.data.CardBundleTest     2 tests
+  com.tripletriad.data.CardBundleTest     4 tests
 ```
 
 `RulesEngineTest` is the
@@ -369,8 +443,8 @@ desktopTest — real Compose tree on the JVM, plus the JVM-only bundle read
 specification, case for case: basic capture and Reverse, Fallen Ace and its interactions,
 Same / Plus / Same Wall, combo propagation, the three type rules, turn order and scoring.
 
-93 distinct tests; **247 executions** — the 77 in `commonTest` run once per target (desktop,
-androidDebug, androidRelease) and the 16 in `desktopTest` once — 0 failures.
+95 distinct tests; **249 executions** — the 77 in `commonTest` run once per target (desktop,
+androidDebug, androidRelease) and the 18 in `desktopTest` once — 0 failures.
 
 **The suite is not vacuous.** Mutating `RulesEngine.beats` from `defence < attack` to
 `defence <= attack` — the single most plausible way to get capture wrong — makes
@@ -408,29 +482,25 @@ therefore unverified — the flip looks smooth, which is not a measurement. The 
 fill this in are in
 [../docs/analysis/performance-baseline.md](../docs/analysis/performance-baseline.md) §2.
 
-**No layout assertions.** The UI tests assert text content and state changes, not
-geometry. Since the whole point of `CardColors.kt` is reproducing exact AS3 coordinates, a
-regression that moved the digit badge would pass CI.
+**No card-internal layout assertions.** `MatchLayoutTest` covers the *arrangement* — which
+hand goes where, at what scale, and that it fits. Nothing asserts where a layer sits *inside*
+a card, so a regression that moved the digit badge would pass CI. Since the whole point of
+`CardColors.kt` is reproducing exact AS3 coordinates,
 `assertLeftPositionInRootIsEqualTo` and friends would close the gap.
 
-**Digit glyph metrics are approximate.** The digit *positions* are the AS3 values exactly,
-but the original draws 18×18 bitmap textures whose glyphs sit inside their own padding,
-whereas this renders centred `Text` at 13 sp. The badge therefore reads slightly heavier
-than the original, and the left and right digits overhang the plate a little more. The
-overhang itself is faithful — `CardDigits.positions` really does place them at x = 2 and
-x = 26 over a 28-wide plate at x = 8.
+**Starling's easing curves are not Compose's.** `Transitions.EASE_IN` / `EASE_OUT` are
+mapped to `FastOutLinearInEasing` / `LinearOutSlowInEasing`, which are the closest
+equivalents and not the same functions. A visual diff pass against the original is still
+owed — see [../docs/analysis/api-mapping.md](../docs/analysis/api-mapping.md).
 
-**Three things on the card face are inventions, not ports.** They are marked as such in
-the code, and must go when real artwork arrives: the border colours (`BlueEdge`,
-`RedEdge` — the original's frame is part of the per-card artwork), the star row standing in
-for the `{rarity}stars` texture, and the card-name label (the original draws no name text
-at all; the name is baked into the artwork).
-
-**The flip animation is a substitution, not a port.** `Card.flip()` in the original does
-not rotate anything: it runs a four-leg `scaleX` yoyo (1 → 0 → 1.2 → 0 → 1, 0.1 s per leg,
-`EASE_IN` in and `EASE_OUT` out), swapping to the card back and changing colour at each
-pinch. A `rotationY` flip reads better on a high-DPI screen, but if pixel-parity with the
-original is a requirement this has to be rewritten. Documented on `BoardCard`.
+**The mid-flip frame was never photographed.** `adb shell screencap` PNG-encodes a
+1080×2400 frame in roughly 300 ms, so a 24-shot burst fired at the tap lands at most one
+frame inside a 400 ms animation, and both attempts landed after it had settled. What is
+verified is the settled result — the card changed hands, and its artwork, stars and digits
+are upright. That the *intermediate* frames cannot mirror is an argument rather than an
+observation: `scaleX` and `scaleY` only ever take values in [0, 1.2], so no axis is ever
+inverted. Catching the frame needs `screenrecord` plus a frame extractor, which is not
+installed here.
 
 **A card is scaled by multiplying its geometry, not by scaling its render layer.** The first
 implementation measured `CardFace` at its authored 88×118 (`requiredSize`) and shrank it with
@@ -570,7 +640,12 @@ line-for-line.
 | rarity row at (1, 1) relative to the face | `{rarity}stars` texture at (9, 6) in sprite space — `Card.as:176-178` |
 | type marker at x = 72 relative to the face | `type-{type}` texture at (80, 3) in sprite space — `Card.as:181-183` |
 | no action bar, no system bars | `application.xml`: `fullScreen true` |
-| 400 ms flip | four 0.1 s legs — `Card.as:232-290` (but see Known issues) |
+| 400 ms flip, four 0.1 s legs | `Card.as:249-291` — `flip`/`yoyo`/`unflip`/`yoyo2` |
+| `scaleY` 1→0→1.2→0→1, `scaleX` 1→1.2→1 | same, `horizon = false` |
+| rarity row at (9, 6), 29×28 | `Card.as:177-178`; size from `card_rarities` |
+| type icon at (80, 3), 20×20 | `Card.as:182-183`; size from `card_types` |
+| artwork 104×128 at (0, 0), over the colour quad | `Card.as:169-170` |
+| card back on top, shown while flipping | `Card.as:93-94` |
 
 An earlier revision of this PoC had three geometry errors, all now fixed: the card was
 modelled as a bare 88 × 118 sprite, the digit badge was 36 × 24 at the **top-left** of the

@@ -16,8 +16,8 @@ Measured, not projected. `./gradlew build` in `kotlin/`:
 | `commonTest` | `MatchStateTest` | 27 | desktop, androidDebug, androidRelease |
 | `desktopTest` | `MatchUiTest` | 8 | desktop |
 | `desktopTest` | `MatchLayoutTest` | 6 | desktop |
-| `desktopTest` | `CardBundleTest` | 2 | desktop |
-| | **total** | **93 distinct / 247 executions** | 0 failures |
+| `desktopTest` | `CardBundleTest` | 4 | desktop |
+| | **total** | **95 distinct / 249 executions** | 0 failures |
 
 `commonTest` runs on every target, which is the point of putting it there — the same 77
 tests execute three times. They would also run on iOS via
@@ -150,7 +150,7 @@ tests of getters.
 ```bash
 cd kotlin
 ./gradlew build                      # everything, including ktlint + detekt
-./gradlew :shared:desktopTest        # fast loop: all 93 tests, ~10 s warm
+./gradlew :shared:desktopTest        # fast loop: all 95 tests, ~10 s warm
 ./gradlew :shared:allTests           # every target the host can build
 ./gradlew :androidApp:installDebug   # then drive it by hand on a device
 ```

@@ -1,36 +1,45 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import com.tripletriad.model.Card
-import com.tripletriad.model.powerLabel
 
 /**
- * The static face of a card, at [scale] times its authored size.
+ * The face of a card, at [scale] times its authored size.
  *
- * Everything is placed by absolute offset in the AS3 sprite's coordinate space, so the
- * numbers below can be checked line-for-line against `Card.as` — see the table in
- * `CardColors.kt`. The face itself is the 88x118 colour quad; the surrounding 104x128
- * sprite bounds are not modelled.
+ * ### Layer order
+ *
+ * This is `Card.as`'s display list in `addChild` order, and the reason the layers are here
+ * rather than baked into one image: the artwork is a 104x128 frame with a **translucent
+ * centre**, and what shows through it is the owner's colour quad. One artwork therefore
+ * serves both sides, which is how the original gets away with 263 images and not 526.
+ *
+ * | # | Layer | Where | Source |
+ * |--:|---|---|---|
+ * | 0 | `cardSelected` glow | (-16, -4) | `Card.as:66-70` — **not ported**, see below |
+ * | 1 | owner colour quad 88x118 | (8, 5) | `Card.as:73-76` |
+ * | 2 | artwork 104x128 | (0, 0) | `Card.as:169-170` |
+ * | 3 | rarity row 29x28 | (9, 6) | `Card.as:176-178` |
+ * | 4 | type icon 20x20 | (80, 3) | `Card.as:181-183` |
+ * | 5 | `_modifier` text 32x32 | (36, 48) | `Card.as:81-85` — **not ported**, see below |
+ * | 6 | digit cluster 44x30 | (28, 88) | `Card.as:88-90` |
+ * | 7 | card back 104x128 | (0, 0) | `Card.as:93-94`, shown while flipping |
+ *
+ * Layer 0 is the selection glow; this port rings the card instead ([HandCard]), because the
+ * glow texture is drawn outside even the sprite bounds and would have to grow every slot.
+ * Layer 5 is the Ascension/Descension `±N` badge, which no rule in this UI switches on yet.
  *
  * ### Why every dimension is multiplied rather than the layer scaled
  *
@@ -44,86 +53,37 @@ import com.tripletriad.model.powerLabel
  * this that composes safely.
  */
 @Composable
-internal fun CardFace(card: Card, scale: Float = 1f, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(FaceCorner * scale)
-    Box(
-        modifier = modifier
-            .size(CardWidth * scale, CardHeight * scale)
-            .clip(shape)
-            .background(card.owner.background)
-            .border(FaceBorder * scale, card.owner.edge, shape),
-    ) {
-        // `Card.as:176-178` draws the `{rarity}stars` texture at (9, 6) in sprite space,
-        // i.e. (1, 1) relative to the face. No such texture here, so: literal stars.
-        Text(
-            text = "★".repeat(card.rarity),
-            color = Color(0xFFF2C14E),
-            fontSize = StarsFontSize * scale,
-            modifier = Modifier.offset(x = 1.dp * scale, y = 1.dp * scale),
-        )
+internal fun CardFace(
+    card: Card,
+    scale: Float = 1f,
+    showBack: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val art = LocalCardArt.current
+    val face = rememberCardFace(art, card)
 
-        // `Card.as:181-183` draws `type-{type}` at (80, 3) in sprite space = (72, -2)
-        // relative to the face, so the icon overhangs the top edge. Clamped to 0 here
-        // because the face is clipped and a negative offset would be invisible.
-        card.type?.let { type ->
-            Text(
-                text = type.name.take(TYPE_LABEL_CHARS),
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = TypeFontSize * scale,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.offset(x = TypeOffsetX * scale, y = 0.dp),
-            )
-        }
-
-        // The original draws no name text at all — the name is baked into the per-card
-        // artwork. This label is a PoC stand-in for the missing texture.
-        Text(
-            text = card.name,
-            color = Color.White,
-            fontSize = NameFontSize * scale,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
+    Box(modifier = modifier.size(CardSpriteWidth * scale, CardSpriteHeight * scale)) {
+        // Layer 1. A `Quad` in the original, so a fill here and not a texture.
+        Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(
-                    top = NamePaddingTop * scale,
-                    start = NamePaddingSide * scale,
-                    end = NamePaddingSide * scale,
-                ),
+                .offset(x = CardFaceOffsetX * scale, y = CardFaceOffsetY * scale)
+                .size(CardWidth * scale, CardHeight * scale)
+                .background(card.owner.background),
         )
-
-        // (28, 88) in sprite space is (20, 83) relative to the face.
+        Layer(face, x = 0.dp, y = 0.dp, width = CardSpriteWidth, height = CardSpriteHeight, scale)
+        Layer(art?.starsFor(card.rarity), RarityX, RarityY, RarityWidth, RarityHeight, scale)
+        card.type?.let { Layer(art?.typeIcon(it), TypeX, TypeY, TypeSize, TypeSize, scale) }
         CardDigits(
             card = card,
+            art = art,
             scale = scale,
-            modifier = Modifier.offset(
-                x = (DigitsOriginX - CardFaceOffsetX) * scale,
-                y = (DigitsOriginY - CardFaceOffsetY) * scale,
-            ),
+            modifier = Modifier.offset(x = DigitsOriginX * scale, y = DigitsOriginY * scale),
         )
+        if (showBack) {
+            Layer(art?.back, 0.dp, 0.dp, CardSpriteWidth, CardSpriteHeight, scale)
+        }
     }
 }
-
-/** Face origin inside the 104x128 sprite: `colorBackground.x/.y` — `Card.as:74-75`. */
-private val CardFaceOffsetX = 8.dp
-private val CardFaceOffsetY = 5.dp
-
-/*
- * Not from the AS3 source: the original's frame and glyphs are textures, so a corner
- * radius, a border width and four font sizes have to be invented for the PoC. Named
- * rather than inlined only so they can all be scaled in one place.
- */
-private val FaceCorner = 6.dp
-private val FaceBorder = 2.dp
-private val StarsFontSize = 8.sp
-private val TypeFontSize = 8.sp
-private val TypeOffsetX = 72.dp
-private val NameFontSize = 10.sp
-private val NamePaddingTop = 30.dp
-private val NamePaddingSide = 3.dp
-private val DigitFontSize = 13.sp
-private const val TYPE_LABEL_CHARS = 2
 
 /**
  * The four edge powers, laid out exactly as `tto.display.CardDigits`:
@@ -132,55 +92,93 @@ private const val TYPE_LABEL_CHARS = 2
  * // power [top, right, bottom, left];
  * ```
  * Those are the *top-left corners* of 18x18 digit textures, over a 28x28 `cdbg` plate
- * drawn at (8, 1) with alpha 0.5. The digits therefore overhang the plate on the left
- * and the top, which is what gives the badge its diamond silhouette — so the cluster's
- * own bounds are 44x30, wider than the plate.
+ * drawn at (8, 1). The digits therefore overhang the plate on the left and the top, which
+ * is what gives the badge its diamond silhouette — so the cluster's own bounds are 44x30,
+ * wider than the plate.
+ *
+ * `CardDigits.as:29` sets `alpha = 0.5` on the plate, but the `cdbg` texture is already
+ * semi-transparent, so nothing dims it again here.
  */
 @Composable
-private fun CardDigits(card: Card, scale: Float, modifier: Modifier = Modifier) {
+private fun CardDigits(card: Card, art: CardArt?, scale: Float, modifier: Modifier = Modifier) {
     Box(modifier = modifier.size(DigitsClusterWidth * scale, DigitsClusterHeight * scale)) {
-        Box(
-            modifier = Modifier
-                .offset(x = DigitsPlateOffsetX * scale, y = DigitsPlateOffsetY * scale)
-                .size(DigitsPlateSize * scale)
-                .background(
-                    color = Color.Black.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(PlateCorner * scale),
-                ),
-        )
-        Digit(card.top, x = 14.dp, y = 0.dp, scale = scale)
-        Digit(card.right, x = 26.dp, y = 6.dp, scale = scale)
-        Digit(card.bottom, x = 14.dp, y = 12.dp, scale = scale)
-        Digit(card.left, x = 2.dp, y = 6.dp, scale = scale)
+        Glyph(art?.digitPlate, DigitsPlateOffsetX, DigitsPlateOffsetY, DigitsPlateSize, scale)
+        Glyph(art?.digit(card.top), x = 14.dp, y = 0.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(card.right), x = 26.dp, y = 6.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(card.bottom), x = 14.dp, y = 12.dp, size = DigitSize, scale = scale)
+        Glyph(art?.digit(card.left), x = 2.dp, y = 6.dp, size = DigitSize, scale = scale)
     }
 }
+
+/**
+ * One absolutely-positioned layer: a `Starling.Image` at a fixed offset and size.
+ *
+ * A null [bitmap] leaves the slot empty rather than drawing a placeholder, so a card composes
+ * correctly before its artwork has decoded and in a preview with no [CardArt] at all.
+ *
+ * Filtering is left at Compose's default (bilinear), which is also Starling's
+ * (`TextureSmoothing.BILINEAR`). These are 104x128 textures authored for a 1:1 stage and drawn
+ * here on a 2.6x-density screen, so they are being *up*scaled — nearest-neighbour would show
+ * the card frame as a staircase.
+ */
+@Composable
+private fun Layer(
+    bitmap: ImageBitmap?,
+    x: Dp,
+    y: Dp,
+    width: Dp,
+    height: Dp,
+    scale: Float,
+) {
+    val placed = Modifier.offset(x = x * scale, y = y * scale).size(width * scale, height * scale)
+    if (bitmap == null) {
+        Box(modifier = placed)
+    } else {
+        Image(
+            bitmap = bitmap,
+            contentDescription = null,
+            modifier = placed,
+            contentScale = ContentScale.FillBounds,
+        )
+    }
+}
+
+/**
+ * As [Layer], for the square atlas-backed glyphs.
+ *
+ * They arrive as [BitmapPainter]s holding a source rectangle rather than as separate bitmaps —
+ * see [CardArt] — so they need the painter overload of `Image`.
+ */
+@Composable
+private fun Glyph(painter: Painter?, x: Dp, y: Dp, size: Dp, scale: Float) {
+    val placed = Modifier.offset(x = x * scale, y = y * scale).size(size * scale)
+    if (painter == null) {
+        Box(modifier = placed)
+    } else {
+        Image(
+            painter = painter,
+            contentDescription = null,
+            modifier = placed,
+            contentScale = ContentScale.FillBounds,
+        )
+    }
+}
+
+/** Face origin inside the 104x128 sprite: `colorBackground.x/.y` — `Card.as:74-75`. */
+private val CardFaceOffsetX = 8.dp
+private val CardFaceOffsetY = 5.dp
+
+/** `rc.x = 9; rc.y = 6` — `Card.as:177-178`. Size read off the `card_rarities` PNGs. */
+private val RarityX = 9.dp
+private val RarityY = 6.dp
+private val RarityWidth = 29.dp
+private val RarityHeight = 28.dp
+
+/** `type.x = 80; type.y = 3` — `Card.as:182-183`. Size read off the `card_types` PNGs. */
+private val TypeX = 80.dp
+private val TypeY = 3.dp
+private val TypeSize = 20.dp
 
 /** Cluster bounds: x spans 2..26+18 = 44, y spans 0..12+18 = 30. */
 private val DigitsClusterWidth = 44.dp
 private val DigitsClusterHeight = 30.dp
-private val PlateCorner = 3.dp
-
-/**
- * One power digit.
- *
- * [x] and [y] are the AS3 values unmodified — the top-left corner of an 18x18 texture,
- * scaled by [scale] like everything else. The glyph is then centred inside that box, which
- * is what the digit textures themselves do. An earlier revision subtracted 4 dp here to
- * "centre" the text and pushed the left digit to x = -2, off the plate.
- */
-@Composable
-private fun Digit(power: Int, x: Dp, y: Dp, scale: Float) {
-    Box(
-        modifier = Modifier.offset(x = x * scale, y = y * scale).size(DigitSize * scale),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = powerLabel(power),
-            color = Color.White,
-            fontSize = DigitFontSize * scale,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.wrapContentSize(),
-        )
-    }
-}

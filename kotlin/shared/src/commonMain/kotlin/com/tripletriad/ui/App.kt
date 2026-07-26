@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -30,10 +31,19 @@ const val CATALOG_SUMMARY_TEST_TAG: String = "catalog-summary"
 fun App() {
     MaterialTheme(colorScheme = darkColorScheme()) {
         Surface(modifier = Modifier.fillMaxSize(), color = Backdrop) {
-            // `produceState` runs the suspending load once and republishes when it
+            // `produceState` runs each suspending load once and republishes when it
             // finishes; null is the loading state.
+            //
+            // Two separate loads because they are separately useful and separately sized:
+            // `cards.json` is 60 KB of records, `loadCardArt` is nineteen shared textures
+            // (85 KB). The 263 card faces are *not* loaded here — `CardFace` pulls each one
+            // as it first needs it, so a match decodes at most nineteen of the seven
+            // megabytes on disk. See `CardArt`.
             val catalog by produceState<CardCatalog?>(initialValue = null) {
                 value = loadCardCatalog()
+            }
+            val art by produceState<CardArt?>(initialValue = null) {
+                value = loadCardArt()
             }
 
             // No title bar and only a hairline of padding: the board and ten cards want every
@@ -55,7 +65,12 @@ fun App() {
                         )
                     }
                 } else {
-                    MatchScreen(catalog = loaded)
+                    // Deliberately not gated on `art`: a card composes correctly with no
+                    // textures at all — flat colour quad, empty layers — so the board is
+                    // playable the instant the records land and fills in as art arrives.
+                    CompositionLocalProvider(LocalCardArt provides art) {
+                        MatchScreen(catalog = loaded)
+                    }
                 }
             }
         }
