@@ -176,7 +176,7 @@ This distinction is easy to miss and breaks the domain model if missed.
 **Card powers are 1..10** and are stored as **hexadecimal digits** in the card data. `Card.as`
 reads each side with `uint("0x" + _data.power[i])` (`Card.as:316-318`), so the literal `'A'` in
 `cards.as` means 10. There is no 0 and no value above 10 in the source data — verified across
-all 263 cards by [`extract_cards.py`](../../kotlin/tools/extract_cards.py).
+all 263 cards by [`extract_cards.py`](../../tools/extract_cards.py).
 
 **Tile powers are 0..10.** `Tile` carries its own `topPow`/`rightPow`/`bottomPow`/`leftPow`,
 computed from the card plus every active modifier, and clamped by
@@ -647,10 +647,11 @@ because the obvious refactor breaks it.
 ## 15b. Implementation status
 
 **The engine described here is implemented**, in
-[`kotlin/shared/src/commonMain/kotlin/com/tripletriad/model/`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/model/)
+[`shared/src/commonMain/kotlin/com/tripletriad/model/`](../../shared/src/commonMain/kotlin/com/tripletriad/model/)
 — `GameRules`, `Board`, `Power`, `RulesEngine`, `Match` — with the § 16 matrix as
-[`RulesEngineTest`](../../kotlin/shared/src/commonTest/kotlin/com/tripletriad/model/RulesEngineTest.kt).
-158 test executions across desktop, androidDebug and androidRelease, 0 failures.
+[`RulesEngineTest`](../../shared/src/commonTest/kotlin/com/tripletriad/model/RulesEngineTest.kt).
+`RulesEngineTest` alone is 37 tests, run on both targets (`desktopTest` and
+`testAndroidHostTest`) for 74 executions, 0 failures.
 
 How each § 15 item was resolved:
 

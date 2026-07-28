@@ -9,8 +9,8 @@ not add a local `@Suppress`.
 
 | Concern | Enforced by | Runs in |
 |---|---|---|
-| Formatting, naming, imports | [`kotlin/.editorconfig`](../../kotlin/.editorconfig) via ktlint | `./gradlew ktlintCheck` |
-| Complexity, code smells | [`kotlin/config/detekt/detekt.yml`](../../kotlin/config/detekt/detekt.yml) | `./gradlew detekt` |
+| Formatting, naming, imports | [`.editorconfig`](../../.editorconfig) via ktlint | `./gradlew ktlintCheck` |
+| Complexity, code smells | [`detekt/detekt.yml`](../../detekt/detekt.yml) | `./gradlew detekt` |
 | Both, on every push | [`.github/workflows/build.yml`](../../.github/workflows/build.yml) | the `quality` job |
 
 Both are wired into `check`, so `./gradlew build` runs them too.
@@ -26,7 +26,7 @@ agree without a second configuration.
 |---|---|---|
 | `indent_size` | 4 | Kotlin convention |
 | `max_line_length` | 100 | fits side-by-side diffs on a laptop; also set in `detekt.yml` so the two cannot disagree |
-| `end_of_line` | `lf` | except `gradlew.bat`. A stray CRLF in `local.properties` cost half a day during the PoC — see [kotlin/README.md](../../kotlin/README.md) |
+| `end_of_line` | `lf` | except `gradlew.bat`. A stray CRLF in `local.properties` cost half a day during the PoC — see [README.md](../../README.md) |
 | `insert_final_newline` | true | |
 | `ktlint_code_style` | `intellij_idea` | the `ktlint_official` style mandates argument-per-line signatures that make Compose code longer, not clearer |
 
@@ -53,7 +53,7 @@ Compose convention; `SCREAMING_SNAKE_CASE` is reserved for values the compiler c
 The distinction is real: `88.dp` is a function call, `10` is not.
 
 Anything else needing a suppression must carry the reason inline, as in
-[`MainViewController.kt`](../../kotlin/shared/src/iosMain/kotlin/com/tripletriad/ui/MainViewController.kt),
+[`MainViewController.kt`](../../shared/src/iosMain/kotlin/com/tripletriad/ui/MainViewController.kt),
 where the name must stay `PascalCase` because Swift call sites read it as a constructor.
 
 ## 3. Imports
@@ -85,7 +85,7 @@ internal val CardWidth = 88.dp
 ```
 
 Where the port deliberately differs from the original, say so and say why. See the KDoc on
-[`BoardCard`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt),
+[`BoardCard`](../../shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt),
 which records that the AS3 flip is a `scaleX` yoyo and the Kotlin one is a `rotationY`
 rotation, so nobody later mistakes it for a faithful port. `CardFace` does the same for a
 subtler one: it scales by multiplying its geometry rather than by scaling its render layer,
@@ -136,11 +136,11 @@ or tooling, and the compiler should enforce that.
 Never edited by hand, never formatted, never committed if it lands in `build/`:
 
 - Compose resource accessors (`Res`) — excluded from ktlint in
-  [`kotlin/build.gradle.kts`](../../kotlin/build.gradle.kts)
+  [`build.gradle.kts`](../../build.gradle.kts)
 - `kotlinx.serialization` serialisers
-- [`cards.json`](../../kotlin/shared/src/commonMain/composeResources/files/cards.json) —
+- [`cards.json`](../../shared/src/commonMain/composeResources/files/cards.json) —
   **is** committed, because it is a build input, but it is produced by
-  [`kotlin/tools/extract_cards.py`](../../kotlin/tools/extract_cards.py) and must be
+  [`tools/extract_cards.py`](../../tools/extract_cards.py) and must be
   regenerated rather than edited
 - [`docs/analysis/dependency-matrix.md`](../analysis/dependency-matrix.md) — same, from
   [`analyse_as3.py`](../analysis/tools/analyse_as3.py)
@@ -152,5 +152,5 @@ If you find yourself editing one of these, edit the generator.
 - [architecture-guidelines.md](./architecture-guidelines.md)
 - [testing-strategy.md](./testing-strategy.md)
 - [git-workflow.md](./git-workflow.md)
-- [../migration/15-CHEAT-SHEET.md](../migration/15-CHEAT-SHEET.md) — AS3 → Kotlin idioms
-- [../analysis/api-mapping.md](../analysis/api-mapping.md) — type-level translations
+- [docs/migration/15-CHEAT-SHEET.md](../migration/15-CHEAT-SHEET.md) — AS3 → Kotlin idioms
+- [docs/analysis/api-mapping.md](../analysis/api-mapping.md) — type-level translations

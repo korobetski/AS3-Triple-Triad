@@ -13,11 +13,14 @@ Check these before writing any automation — the earlier draft of the CI pipeli
 |---|---|
 | Default branch | **`master`** (not `main`) |
 | Current migration branch | `migration/kotlin-multiplatform` |
-| Gradle root | **`kotlin/`**, not the repository root |
-| CI | [`.github/workflows/build.yml`](../../.github/workflows/build.yml), paths-filtered to `kotlin/**` |
+| Gradle root | **the repository root** |
+| CI | [`.github/workflows/build.yml`](../../.github/workflows/build.yml), `paths-ignore` on `docs/`, `sources/` and `*.md` |
 
-The Gradle root matters for more than CI: **Android Studio must open `kotlin/`**, not the
-repository root, because the root has no `settings.gradle.kts`.
+The Gradle build used to live in a `kotlin/` subdirectory, which meant Android Studio had
+to be pointed at it and CI needed `working-directory: kotlin`. It was promoted to the root,
+so both are now the obvious thing. CI switched from a `kotlin/**` allow-list to
+`paths-ignore` at the same time: an allow-list at the root would have to name every module
+and would silently stop building one that was added and not listed.
 
 ## 2. Branches
 
@@ -69,10 +72,10 @@ without reading ActionScript.
 
 Do not commit:
 
-- `kotlin/local.properties` (machine-specific SDK path; it is in `.gitignore`)
+- `local.properties` (machine-specific SDK path; it is in `.gitignore`)
 - anything under `build/`, `.gradle/`, `.kotlin/`
 - generated files that live in `build/` — but **do** commit
-  [`cards.json`](../../kotlin/shared/src/commonMain/composeResources/files/cards.json) and
+  [`cards.json`](../../shared/src/commonMain/composeResources/files/cards.json) and
   [`dependency-matrix.md`](../analysis/dependency-matrix.md), which are checked-in
   generator output; regenerate rather than edit them
 
@@ -91,7 +94,7 @@ That is exactly how the first CI run failed. The fix is to set the mode in the i
 explicitly, then commit:
 
 ```bash
-git update-index --chmod=+x kotlin/gradlew
+git update-index --chmod=+x gradlew
 ```
 
 Check with `git ls-files -s <path>`: it must read `100755`. Any new shell script, hook or
@@ -114,7 +117,7 @@ Pixel 6a and the flip works under touch" is.
 The PoC history in this repository is the cautionary tale — a first attempt was reported
 COMPLETE and "technology stack validated" while never having been compiled, and had 12
 build-blocking defects. See
-[../migration/04-PHASE-0-PREPARATION.md](../migration/04-PHASE-0-PREPARATION.md).
+[docs/migration/04-PHASE-0-PREPARATION.md](../migration/04-PHASE-0-PREPARATION.md).
 
 ## 5. Merge strategy
 
@@ -141,7 +144,7 @@ PRs but consider not making it a blocking check until the iOS app actually exist
 the critical path rather than deferred: **updates are delivered through GitHub Releases** with
 an in-app version check, so a tag is what ships. That needs a signing key with a stable
 signature, a monotonic `versionCode`, and a workflow that attaches a signed APK to the release.
-See [../migration/12-PHASE-8-RELEASE.md](../migration/12-PHASE-8-RELEASE.md).
+See [docs/migration/12-PHASE-8-RELEASE.md](../migration/12-PHASE-8-RELEASE.md).
 
 Read the certificate note below before generating that key.
 

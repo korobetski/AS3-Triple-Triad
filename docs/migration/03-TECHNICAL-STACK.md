@@ -62,8 +62,8 @@ The migration from **ActionScript 3 / Adobe AIR** to **Kotlin Multiplatform** wi
 > | Compose compiler | `composeOptions` ext. 1.5.14 | `kotlin.plugin.compose` 2.0.21 | **`kotlin.plugin.compose` 2.2.20** |
 > | Compose resources | — | — | **`compose.components.resources` 1.9.3** |
 > | kotlinx.serialization | — | — | **1.9.0** (plugin tracks Kotlin) |
-> | AGP | 8.4.2 | 8.5.2 | **8.13.2** |
-> | Gradle | 8.7 | 8.9 | **8.14.3** |
+> | AGP | 8.4.2 | 8.5.2 | **9.3.1** |
+> | Gradle | 8.7 | 8.9 | **9.6.1** |
 > | JDK | 17 | 17 | **17** |
 > | compileSdk / minSdk | — | — | **36 / 24** |
 > | ktlint plugin | — | — | **`org.jlleitschuh.gradle.ktlint` 12.1.2** |
@@ -72,14 +72,14 @@ The migration from **ActionScript 3 / Adobe AIR** to **Kotlin Multiplatform** wi
 >
 > Sets A and B are internally consistent on paper but were never built; the whole
 > point of the Set C column is that it was. See
-> [`kotlin/gradle/libs.versions.toml`](../../kotlin/gradle/libs.versions.toml) and
-> [kotlin/README.md § Verified build results](../../kotlin/README.md#verified-build-results).
+> [`gradle/libs.versions.toml`](../../gradle/libs.versions.toml) and
+> [README.md § Verified build results](../../README.md#verified-build-results).
 >
 > **What Set C now covers**, beyond the base Compose UI stack: `kotlinx.serialization`
 > for JSON, and `compose.components.resources` for loading a file out of
 > `commonMain/composeResources` — which is also the mechanism the 263 card *images* will
 > need, so this is not an incidental addition. Both are exercised end-to-end by tests
-> that read the shipped 263-card catalog, on desktop, androidDebug and androidRelease.
+> that read the shipped 263-card catalog, on desktop and androidHostTest.
 >
 > **What Set C still does not cover.** Do not assume these work with the versions above
 > until someone has compiled them: **Ktor**, **SQLDelight**, **Koin**, **Media3**, and

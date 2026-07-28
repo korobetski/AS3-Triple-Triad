@@ -21,8 +21,9 @@ Both stacks, same machine, same day.
 | Artifact | Size | Contents |
 |---|--:|---|
 | `sources/air/tto.apk` (existing AS3/AIR build) | **9.67 MB** | 178 entries; see below |
-| `kotlin/` PoC, debug APK | **10.11 MB** | one procedurally-drawn card + 64 KB of card JSON |
-| `kotlin/` PoC, release APK (unsigned, no shrinking) | **7.43 MB** | same |
+| Kotlin PoC, debug APK | **17.27 MB** | playable board + 64 KB of card JSON + 7.00 MB of card artwork |
+| Kotlin PoC, release APK (unsigned, no shrinking) | **14.46 MB** | same |
+| — of which the 263 card faces | 7.00 MB | added after the figures above were first taken (10.11 / 7.43 MB, no artwork) |
 | `sources/bin/ttoclient.swf` (unpackaged) | 0.75 MB | code only |
 
 ### The existing APK is a downloader, not the game
@@ -77,7 +78,7 @@ un-shrunk upper bound, not the real floor.
 Device: **Pixel 6a** (`bluejay`), Android 17, API 37, arm64-v8a, 1080×2400 at 420 dpi,
 connected over adb-tcpip.
 
-Subject: `kotlin/` PoC, **debug** build (no R8, no baseline profile, no
+Subject: Kotlin PoC, **debug** build (no R8, no baseline profile, no
 `profileinstaller` warm-up — every figure below is therefore a pessimistic bound).
 
 ### Cold start
@@ -144,7 +145,7 @@ From [dependency-matrix.md](./dependency-matrix.md), regenerable with
 | Largest single file | `theme/BaseTTOTheme.as`, 2,290 lines |
 | Dead code identified so far | `net/TTONet.as` (49 lines, unreferenced), 27 of 29 `Socket_On_*` handlers |
 
-The `kotlin/` PoC is currently ~600 lines of Kotlin. It is not a basis for extrapolating
+The Kotlin PoC is a few thousand lines of Kotlin. It is not a basis for extrapolating
 a line-count ratio and should not be used as one.
 
 ---
@@ -159,7 +160,7 @@ a line-count ratio and should not be used as one.
 | AS3 asset-decode cost | **impossible here** | Starling `AssetManager` timings need the runtime |
 | Kotlin frame timing | **not done** | device locked mid-session; see §2 |
 | Kotlin release-build size with R8 | **not done** | `isMinifyEnabled = false` in the PoC |
-| iOS anything | **not done** | Kotlin/Native cannot target Apple platforms from a Windows host, and `kotlin/iosApp` has no `.xcodeproj`. The framework has never been compiled. |
+| iOS anything | **not done** | Kotlin/Native cannot target Apple platforms from a Windows host, and `iosApp/` has no `.xcodeproj`. The framework has never been compiled. |
 | Startup with a baseline profile | **not done** | no baseline profile generated |
 
 The honest consequence: **there is no before/after comparison available, and there may
@@ -215,5 +216,5 @@ in this file rather than a summary.
 
 - [dependency-matrix.md](./dependency-matrix.md) — the code-size figures in §3
 - [api-mapping.md](./api-mapping.md) §7 — texture atlases, the main unknown for graphics cost
-- [kotlin/README.md](../../kotlin/README.md) — how the PoC figures were produced
+- [README.md](../../README.md) — how the PoC figures were produced
 - [16-RISK-ASSESSMENT.md](../migration/16-RISK-ASSESSMENT.md) — performance risks

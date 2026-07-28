@@ -104,13 +104,13 @@ Create root project files:
 - Version catalog (`gradle/libs.versions.toml`) — see the verified compatible
   version set in [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md). A working
   catalog for this exact stack already exists in
-  [`kotlin/gradle/libs.versions.toml`](../../kotlin/gradle/libs.versions.toml);
+  [`gradle/libs.versions.toml`](../../gradle/libs.versions.toml);
   start from it rather than from scratch.
 - Repository configuration (`google()`, `mavenCentral()`, plus
   `gradlePluginPortal()` under `pluginManagement`)
 - **Gradle wrapper** — commit `gradlew`, `gradlew.bat` and `gradle/wrapper/`. The
   first PoC had none, so its own `./gradlew` build instructions could not run. The
-  `kotlin/` PoC pins Gradle 8.14.3.
+  the PoC pins Gradle 9.6.1.
 
 **Acceptance Criteria**:
 - [ ] `./gradlew projects` shows all modules

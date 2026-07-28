@@ -236,8 +236,8 @@ sealed interface ServerMessage {
 
 `kotlinx.serialization`'s sealed-class polymorphism replaces the string switch, and the
 `action` discriminator maps onto `@SerialName`. Note this is **untested**: the serialization
-plugin is verified in the `kotlin/` PoC for card data
-([kotlin/README.md](../../kotlin/README.md)), but no networking library is in the
+plugin is verified in the Kotlin PoC for card data
+([README.md](../../README.md)), but no networking library is in the
 verified dependency set — see Set C in
 [03-TECHNICAL-STACK.md](../migration/03-TECHNICAL-STACK.md).
 

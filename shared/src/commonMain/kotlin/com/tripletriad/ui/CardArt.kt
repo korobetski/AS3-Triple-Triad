@@ -1,8 +1,11 @@
 package com.tripletriad.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -88,15 +91,30 @@ val LocalCardArt = staticCompositionLocalOf<CardArt?> { null }
  *
  * Returns the cached bitmap synchronously when there is one, so a card that has already
  * been drawn does not blink through a null frame on recomposition.
+ *
+ * ### Why this is `remember(art, id)` and not `produceState`
+ *
+ * It *was* `produceState(art.cachedFace(card), art, card.textureId)`, which showed the **wrong
+ * card's picture**. `produceState` holds its value in an unkeyed `remember`, so changing the keys
+ * restarts the producer but leaves the previous value in place — the initial value is only ever
+ * used once, on first composition. The producer then found `value != null` and returned without
+ * loading anything, so the slot kept whatever face it had first been given.
+ *
+ * That is invisible until a composable slot is reused for a different card, and a hand slot is
+ * reused constantly: slots close up as cards are played, so playing the first card moves every
+ * card behind it down one and each of those slots is asked for a new face. Keying the state on the
+ * card resets it in the same composition the card changes in, so the face can never lag behind.
  */
 @Composable
 internal fun rememberCardFace(art: CardArt?, card: Card): ImageBitmap? {
     if (art == null) return null
-    val cached = art.cachedFace(card)
-    val loaded by produceState(cached, art, card.textureId) {
-        if (value == null) value = art.face(card)
+    val id = card.textureId
+    // Seeded from the cache so an already-decoded face is returned without a null frame.
+    var face by remember(art, id) { mutableStateOf(art.cachedFace(card)) }
+    LaunchedEffect(art, id) {
+        if (face == null) face = art.face(card)
     }
-    return loaded
+    return face
 }
 
 /** Reads and decodes the 19 shared textures. Call once, at boot. */

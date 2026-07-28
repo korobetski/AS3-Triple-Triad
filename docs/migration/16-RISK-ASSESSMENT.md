@@ -310,8 +310,8 @@ scope statement in [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md).
    far. Ktor, kotlinx.serialization, SQLDelight, Koin and Media3 are still
    unverified against it.
 3. ✅ Use compatible versions — Kotlin 2.2.20 / Compose Multiplatform 1.9.3 /
-   AGP 8.13.2 / Gradle 8.14.3 / JDK 17 is verified working in
-   [`kotlin/`](../../kotlin/README.md#verified-build-results)
+   AGP 9.3.1 / Gradle 9.6.1 / JDK 17 is verified working in
+   [`README.md`](../../README.md#verified-build-results)
 4. ✅ Resolve conflicts early
 5. ✅ Document all dependencies and versions
 6. ✅ Use dependency lock files

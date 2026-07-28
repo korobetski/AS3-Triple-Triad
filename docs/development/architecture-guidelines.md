@@ -43,7 +43,7 @@ comment. Until then, `model/` already has this property — keep it.
 - Match state lives in a ViewModel-equivalent (`StateFlow`), not in the composable tree.
 - `remember` is for state that is genuinely local and can be discarded with the widget.
 
-The PoC's [`BoardCard`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt)
+The PoC's [`BoardCard`](../../shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt)
 owns its flip animation with `remember` and re-triggers it from a `LaunchedEffect` keyed on the
 card's owner — correct, because the animation is presentation-only. *Who* owns the card is
 `MatchState`'s business: the flip is a view concern, the capture is a domain event, and
@@ -61,7 +61,7 @@ Pass state; do not reach for it.
 
 ## 3. Navigation
 
-Typed, not string-keyed. See [../analysis/event-catalog.md](../analysis/event-catalog.md) §2
+Typed, not string-keyed. See [docs/analysis/event-catalog.md](../analysis/event-catalog.md) §2
 for what the original does (31 `dispatchEventWith('gotoScreen', …)` calls resolved by name)
 and why a typo there is a silent no-op.
 
@@ -78,7 +78,7 @@ Arguments travel in the destination, not in globals.
 
 Constructor injection by default. A DI container (Koin is the plan's choice) only where
 constructor wiring becomes unwieldy — and note that **no DI library is in the verified
-dependency set** yet ([../migration/03-TECHNICAL-STACK.md](../migration/03-TECHNICAL-STACK.md),
+dependency set** yet ([docs/migration/03-TECHNICAL-STACK.md](../migration/03-TECHNICAL-STACK.md),
 Set C). Do not assume Koin works with this Kotlin/Compose combination until someone has
 compiled it.
 
@@ -134,7 +134,7 @@ is nearly pure already. Two changes when porting:
    decision from the mutation and from the presentation: `fun resolve(move, board, rules):
    MoveOutcome`, where `MoveOutcome` lists the captures, and let the UI animate that.
 2. **Move it server-side eventually.** Today the client is authoritative and trivially
-   cheatable — see [../analysis/network-protocol.md](../analysis/network-protocol.md) §3.
+   cheatable — see [docs/analysis/network-protocol.md](../analysis/network-protocol.md) §3.
    A pure function is portable to a server; a function that touches `SCREEN` is not.
 
 This is also where test coverage pays for itself: 20 rules
@@ -145,5 +145,5 @@ recurses. See [testing-strategy.md](./testing-strategy.md).
 
 - [coding-standards.md](./coding-standards.md)
 - [testing-strategy.md](./testing-strategy.md)
-- [../analysis/dependency-matrix.md](../analysis/dependency-matrix.md) — the coupling this is reacting to
-- [../analysis/api-mapping.md](../analysis/api-mapping.md) — type-level translations
+- [docs/analysis/dependency-matrix.md](../analysis/dependency-matrix.md) — the coupling this is reacting to
+- [docs/analysis/api-mapping.md](../analysis/api-mapping.md) — type-level translations

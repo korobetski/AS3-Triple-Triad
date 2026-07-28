@@ -4,7 +4,7 @@ Phase 0, Task 1.6 deliverable.
 
 > **There is no comparison baseline.** The AS3 client cannot be benchmarked — Adobe AIR is
 > end-of-life and no runtime is available. See
-> [../analysis/performance-baseline.md](../analysis/performance-baseline.md) §4. Every
+> [docs/analysis/performance-baseline.md](../analysis/performance-baseline.md) §4. Every
 > target below is therefore an **absolute**, not a "no worse than today". Someone needs to
 > accept that explicitly, because it means a regression against the original is
 > undetectable by construction.
@@ -24,7 +24,7 @@ Phase 0, Task 1.6 deliverable.
 
 The two frame metrics are the ones the plan's "60+ FPS" criterion rests on, and they are the
 two that have never been measured. Until they are,
-[../migration/04-PHASE-0-PREPARATION.md](../migration/04-PHASE-0-PREPARATION.md)'s
+[docs/migration/04-PHASE-0-PREPARATION.md](../migration/04-PHASE-0-PREPARATION.md)'s
 performance criteria are unverified.
 
 ## 2. Measuring, not guessing
@@ -111,7 +111,7 @@ Before measuring release size at all, enable R8: the PoC has `isMinifyEnabled = 
 ## 5. Assets are the performance unknown
 
 Starling batched draw calls through texture atlases. Compose has no atlas support
-([../analysis/api-mapping.md](../analysis/api-mapping.md) §7). Whichever replacement is
+([docs/analysis/api-mapping.md](../analysis/api-mapping.md) §7). Whichever replacement is
 chosen, it has to be measured, not assumed:
 
 - decode time for 263 card images
@@ -133,7 +133,7 @@ detail.
 | `bundletool` | real download size | not added |
 
 None of these are in the verified dependency set
-([../migration/03-TECHNICAL-STACK.md](../migration/03-TECHNICAL-STACK.md), Set C). Adding
+([docs/migration/03-TECHNICAL-STACK.md](../migration/03-TECHNICAL-STACK.md), Set C). Adding
 them is Phase 1 work, and each one should be verified by actually running it — the PoC
 history in this repository is a lesson in what "configured" versus "verified" means.
 
@@ -143,11 +143,11 @@ history in this repository is a lesson in what "configured" versus "verified" me
 2. Physical device, unlocked, screen on, not thermally throttled.
 3. Ten runs minimum; report the median and the 99th percentile, not the best case.
 4. Paste the raw tool output into
-   [../analysis/performance-baseline.md](../analysis/performance-baseline.md), not a summary.
+   [docs/analysis/performance-baseline.md](../analysis/performance-baseline.md), not a summary.
 
 ## 8. Related
 
-- [../analysis/performance-baseline.md](../analysis/performance-baseline.md) — the measurements
+- [docs/analysis/performance-baseline.md](../analysis/performance-baseline.md) — the measurements
 - [testing-strategy.md](./testing-strategy.md)
 - [architecture-guidelines.md](./architecture-guidelines.md)
-- [../migration/16-RISK-ASSESSMENT.md](../migration/16-RISK-ASSESSMENT.md)
+- [docs/migration/16-RISK-ASSESSMENT.md](../migration/16-RISK-ASSESSMENT.md)

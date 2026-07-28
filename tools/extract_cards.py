@@ -2,8 +2,8 @@
 
 Usage, from the repository root:
 
-    python kotlin/tools/extract_cards.py \
-        kotlin/shared/src/commonMain/composeResources/files/cards.json
+    python tools/extract_cards.py \
+        shared/src/commonMain/composeResources/files/cards.json
 
 
 The AS3 source stores each card as an object literal:
@@ -23,8 +23,8 @@ import re
 import sys
 from pathlib import Path
 
-# kotlin/tools/extract_cards.py -> repository root
-REPO = Path(__file__).resolve().parents[2]
+# tools/extract_cards.py -> repository root
+REPO = Path(__file__).resolve().parents[1]
 CARDS_AS = REPO / "sources/src/tto/datas/cards.as"
 LOCALE = REPO / "sources/bin/datas/locales/en_US.json"
 

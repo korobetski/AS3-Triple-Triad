@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.androidApplication) apply false
-    alias(libs.plugins.androidLibrary) apply false
-    alias(libs.plugins.kotlinAndroid) apply false
+    alias(libs.plugins.androidKmpLibrary) apply false
     alias(libs.plugins.kotlinJvm) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
@@ -15,7 +14,10 @@ plugins {
 
 val ktlintPluginId = libs.plugins.ktlint.get().pluginId
 val detektPluginId = libs.plugins.detekt.get().pluginId
-val detektConfigFile = file("config/detekt/detekt.yml")
+// Resolved against this file, so it stays correct in every module: `allprojects` runs the
+// block below with each subproject as receiver, and a bare relative path there would look
+// for `androidApp/detekt.yml` and so on.
+val detektConfigFile = rootProject.file("detekt/detekt.yml")
 
 allprojects {
     apply(plugin = ktlintPluginId)

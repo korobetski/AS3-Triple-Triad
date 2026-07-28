@@ -1,6 +1,11 @@
+// No `org.jetbrains.kotlin.android` here: since AGP 9.0 the Android plugin brings Kotlin
+// itself, and applying the standalone plugin on top of it now fails the build outright
+// ("no longer required for Kotlin support since AGP 9.0" — issuetracker 438678642). It was
+// still listed until the `android.builtInKotlin=false` shim came out of `gradle.properties`,
+// which had been suppressing exactly this. `:shared` is unaffected: there the Kotlin
+// Multiplatform plugin owns the Kotlin setup, not AGP.
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.composeCompiler)
 }
 

@@ -36,16 +36,16 @@ This directory contains the complete migration plan for moving **Triple Triad On
 Unlike the documents above, these describe work that has been done. They are the place
 to look when the plan and reality disagree — reality is in here.
 
-- **[../analysis/](../analysis/README.md)** — analysis of the existing AS3 codebase
+- **[docs/analysis/README.md](../analysis/README.md)** — analysis of the existing AS3 codebase
   (Task 1.3): dependency matrix, event catalog, API mapping, network protocol,
   performance baseline. Start with the
   [headline findings](../analysis/README.md#headline-findings).
-- **[../development/](../development/README.md)** — coding standards, architecture,
+- **[docs/development/README.md](../development/README.md)** — coding standards, architecture,
   git workflow, testing strategy, performance guidelines (Task 1.6). Enforced in the
   build, not advisory.
-- **[../../kotlin/README.md](../../kotlin/README.md)** — the Proof of Concept and its
+- **[README.md](../../README.md)** — the Proof of Concept and its
   verified results.
-- **[../../.github/workflows/build.yml](../../.github/workflows/build.yml)** — CI
+- **[.github/workflows/build.yml](../../.github/workflows/build.yml)** — CI
   (Task 1.5). All five jobs green, on the second run.
 
 ---
@@ -85,14 +85,14 @@ the same sense, but both change what the plan can promise:
 
 On the PoC: the first attempt (`poc/`) was reported COMPLETE and "technology stack
 validated" but had never been compiled and had 12 build-blocking defects. It has
-been **deleted and rewritten** as [../../kotlin/](../../kotlin/README.md), which does
+been **deleted and rewritten** as [README.md](../../README.md), which does
 build — Android debug + release APKs, a JVM desktop host, and **21 tests / 47
 executions with 0 failures**, verified on a physical Pixel 6a. It loads all **263
 cards** from a JSON resource through the Compose resource bundle. See
-[kotlin/README.md § Verified build results](../../kotlin/README.md#verified-build-results).
+[README.md § Verified build results](../../README.md#verified-build-results).
 
 That validates the *toolchain* (Kotlin 2.2.20 / Compose Multiplatform 1.9.3 /
-kotlinx.serialization 1.9.0 / AGP 8.13.2 / Gradle 8.14.3), single-source Compose UI on
+kotlinx.serialization 1.9.0 / AGP 9.3.1 / Gradle 9.6.1), single-source Compose UI on
 Android and JVM, and structured-data loading through Compose resources. It does **not**
 validate the highest-risk areas, which remain untouched: card artwork sliced from
 Starling texture atlases, the 3×3 board with drag-and-drop, the rules engine,
@@ -102,7 +102,7 @@ or any of Ktor / SQLDelight / Koin / Media3.
 
 ⚠️ **The IP exposure is real and was accepted with open eyes.** `cards.json` ships the names
 and stats of all 263 cards, so the PoC cannot be described as free of Square Enix material —
-see its [licensing note](../../kotlin/README.md#licensing-note). The risk was accepted on
+see its [licensing note](../../README.md#licensing-note). The risk was accepted on
 2026-07-25 on the condition of no wide distribution; accepting it does not reduce it.
 
 ---

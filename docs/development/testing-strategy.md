@@ -6,21 +6,25 @@ Phase 0, Task 1.6 deliverable.
 
 ## 1. What exists today
 
-Measured, not projected. `./gradlew build` in `kotlin/`:
+Measured, not projected. `./gradlew build` at the repository root:
 
 | Source set | Suite | Tests | Runs on |
 |---|---|--:|---|
-| `commonTest` | `CardTest` | 5 | desktop, androidDebug, androidRelease |
-| `commonTest` | `CardCatalogTest` | 8 | desktop, androidDebug, androidRelease |
-| `commonTest` | `RulesEngineTest` | 37 | desktop, androidDebug, androidRelease |
-| `commonTest` | `MatchStateTest` | 27 | desktop, androidDebug, androidRelease |
+| `commonTest` | `CardTest` | 5 | desktop, androidHostTest |
+| `commonTest` | `CardCatalogTest` | 8 | desktop, androidHostTest |
+| `commonTest` | `RulesEngineTest` | 37 | desktop, androidHostTest |
+| `commonTest` | `MatchStateTest` | 27 | desktop, androidHostTest |
 | `desktopTest` | `MatchUiTest` | 8 | desktop |
 | `desktopTest` | `MatchLayoutTest` | 6 | desktop |
 | `desktopTest` | `CardBundleTest` | 4 | desktop |
-| | **total** | **95 distinct / 249 executions** | 0 failures |
+| `desktopTest` | `CardFaceTest` | 2 | desktop |
+| | **total** | **97 distinct / 174 executions** | 0 failures |
 
 `commonTest` runs on every target, which is the point of putting it there — the same 77
-tests execute three times. They would also run on iOS via
+tests execute twice, as `:shared:desktopTest` and `:shared:testAndroidHostTest`. It was three
+times under AGP 8: AGP 9 dropped the release unit-test variant for library modules, and the
+module has since moved to `com.android.kotlin.multiplatform.library`, which runs the Android
+unit tests once, from an `androidHostTest` source set. They would also run on iOS via
 `:shared:iosSimulatorArm64Test`, which the CI workflow invokes but which has **never been
 executed**, because Kotlin/Native cannot target Apple platforms from a Windows host.
 
@@ -68,7 +72,7 @@ run both against the same cases.
 | platform | instrumented / manual | only what cannot run on the JVM |
 
 **`commonTest` by default.** Put a test in a platform source set only if it needs that
-platform. The 77 common tests here run three times for free; the same tests in
+platform. The 77 common tests here run twice for free; the same tests in
 `desktopTest` would run once.
 
 **Desktop is the fast host for Compose UI tests.** `runComposeUiTest` on the JVM needs no
@@ -81,12 +85,12 @@ Three rules learned from the PoC.
 
 ### Test through the real tree
 
-[`MatchUiTest`](../../kotlin/shared/src/desktopTest/kotlin/com/tripletriad/ui/MatchUiTest.kt)
+[`MatchUiTest`](../../shared/src/desktopTest/kotlin/com/tripletriad/ui/MatchUiTest.kt)
 drives the real `App()`, which reads `cards.json` out of the actual Compose resource bundle. It
 therefore fails if the resource is dropped from packaging, if the generated `Res` accessor moves,
 or if the JSON schema drifts from the model — none of which a mocked loader would catch. The
 *parser* is tested purely in `commonTest`; the *bundle's contents* in
-[`CardBundleTest`](../../kotlin/shared/src/desktopTest/kotlin/com/tripletriad/data/CardBundleTest.kt).
+[`CardBundleTest`](../../shared/src/desktopTest/kotlin/com/tripletriad/data/CardBundleTest.kt).
 
 That last split is worth naming. The bundle's card counts used to be asserted through the UI,
 off a debug line the app printed above the board. When the line was removed the assertion had
@@ -95,9 +99,9 @@ resource is packaged and parses" needs a composition.
 
 ### Extract what can be tested without a screen
 
-[`matchLayout`](../../kotlin/shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt) is a
+[`matchLayout`](../../shared/src/commonMain/kotlin/com/tripletriad/ui/MatchScreen.kt) is a
 pure function from a measured width and height to an arrangement, and
-[`MatchLayoutTest`](../../kotlin/shared/src/desktopTest/kotlin/com/tripletriad/ui/MatchLayoutTest.kt)
+[`MatchLayoutTest`](../../shared/src/desktopTest/kotlin/com/tripletriad/ui/MatchLayoutTest.kt)
 checks across nine viewports that the arrangement fits inside the bounds it was given.
 
 It was extracted *because* the alternative had already failed three times: each earlier revision
@@ -117,6 +121,19 @@ mutating `RulesEngine.beats` from `defence < attack` to `defence <= attack` fail
 
 **Do this at least once per non-trivial UI test.** If breaking the feature does not break
 the test, the test is decoration.
+
+### Assert on identity, not on pixels
+
+`CardFaceTest` had to prove a card is drawn with its own picture — a screenshot question. It
+does it by bitmap identity instead: `CardArt` caches one `ImageBitmap` per texture id, so "the
+right artwork" reduces to "the instance the cache hands out for this card". Cheap, exact, and
+it runs on the JVM.
+
+That bug — `produceState` keeping a previous card's value because its state is remembered
+unkeyed — was live for a whole feature and the suite could not see it. It needs a *reused*
+composable slot, and nothing had asserted on what a reused slot contains. **When a bug needs
+a slot to be reused, drive the reuse in the test**: the failing case here is one
+`mutableStateOf` swapped from one card to another with the composition kept.
 
 ### Known gap: no layout assertions
 
@@ -148,7 +165,6 @@ tests of getters.
 ## 6. What running the tests looks like
 
 ```bash
-cd kotlin
 ./gradlew build                      # everything, including ktlint + detekt
 ./gradlew :shared:desktopTest        # fast loop: all 95 tests, ~10 s warm
 ./gradlew :shared:allTests           # every target the host can build
@@ -165,11 +181,11 @@ Stated so nobody mistakes green CI for coverage:
 | Area | Status |
 |---|---|
 | iOS, at all | never compiled |
-| Texture atlas loading | not implemented; the highest unvalidated risk — [../analysis/api-mapping.md](../analysis/api-mapping.md) §7 |
+| Texture atlas loading | not implemented; the highest unvalidated risk — [docs/analysis/api-mapping.md](../analysis/api-mapping.md) §7 |
 | Drag and drop onto the board | not implemented |
 | The rules engine | not migrated |
-| Networking | not migrated; and see [../analysis/network-protocol.md](../analysis/network-protocol.md) |
-| Frame timing / jank | not measured — [../analysis/performance-baseline.md](../analysis/performance-baseline.md) §2 |
+| Networking | not migrated; and see [docs/analysis/network-protocol.md](../analysis/network-protocol.md) |
+| Frame timing / jank | not measured — [docs/analysis/performance-baseline.md](../analysis/performance-baseline.md) §2 |
 | Layout geometry | no assertions — §4 above |
 
 ## 8. Related
@@ -177,5 +193,5 @@ Stated so nobody mistakes green CI for coverage:
 - [coding-standards.md](./coding-standards.md)
 - [architecture-guidelines.md](./architecture-guidelines.md) §8 — making the rules engine testable
 - [performance-guidelines.md](./performance-guidelines.md)
-- [../migration/17-TESTING-GUIDE.md](../migration/17-TESTING-GUIDE.md) — framework examples
-- [../migration/11-PHASE-7-TESTING.md](../migration/11-PHASE-7-TESTING.md) — the QA phase
+- [docs/migration/17-TESTING-GUIDE.md](../migration/17-TESTING-GUIDE.md) — framework examples
+- [docs/migration/11-PHASE-7-TESTING.md](../migration/11-PHASE-7-TESTING.md) — the QA phase

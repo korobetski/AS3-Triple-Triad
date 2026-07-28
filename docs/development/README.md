@@ -12,21 +12,21 @@ Phase 0, Task 1.6 deliverables. How this project is written, tested, reviewed an
 
 ## Two things to know before you start
 
-**1. Open `kotlin/` in the IDE, not the repository root.** The Gradle build lives in
-`kotlin/`; the repository root has no `settings.gradle.kts`. See
-[../../kotlin/README.md](../../kotlin/README.md).
+**1. Open the repository root in the IDE.** The Gradle build *is* the root —
+`settings.gradle.kts`, `gradlew` and the three modules are all there. It used to live in a
+`kotlin/` subdirectory that had to be opened instead; that is no longer the case. See
+[README.md](../../README.md).
 
 **2. The standards are enforced.** `./gradlew build` runs ktlint and detekt and fails on any
 finding. The configuration files are the authority; the documents explain the reasoning.
 
 ```bash
-cd kotlin
 ./gradlew build          # compile + test + ktlint + detekt
 ./gradlew ktlintFormat   # fix formatting
 ```
 
 ## Related
 
-- [../analysis/](../analysis/) — analysis of the existing AS3 codebase
-- [../migration/](../migration/) — the migration plan
-- [../../kotlin/README.md](../../kotlin/README.md) — the Proof of Concept
+- [docs/analysis/](../analysis/) — analysis of the existing AS3 codebase
+- [docs/migration/](../migration/) — the migration plan
+- [README.md](../../README.md) — the Proof of Concept

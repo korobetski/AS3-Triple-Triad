@@ -1,0 +1,33 @@
+# Line endings and file modes, pinned rather than left to each machine's git config.
+#
+# This repository is developed on Windows with `core.autocrlf=true` and
+# `core.filemode=false`, and both defaults have already broken CI once: `gradlew` landed in
+# the index as 100644 instead of 100755 and every job failed with
+# `./gradlew: Permission denied` (exit 126). The mode is fixed with
+# `git update-index --chmod=+x gradlew`; the rules below stop the line-ending half of the
+# same problem, where a CRLF `gradlew` fails on a Linux runner with `bad interpreter`.
+
+# Let git decide for text, but never guess for the files below.
+* text=auto
+
+# Shell scripts must be LF on every platform: the shebang is read byte-for-byte.
+*.sh            text eol=lf
+gradlew         text eol=lf
+
+# Windows batch files must be CRLF: cmd.exe mis-parses LF-only .bat labels and gotos.
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# Never touched. Some of these are the AS3 original's assets, which must stay byte-identical
+# to what `tools/import_card_art.py` copies out of `sources/`.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.jar           binary
+*.apk           binary
+*.swf           binary
+*.air           binary
+*.p12           binary
+*.keystore      binary
+*.jks           binary

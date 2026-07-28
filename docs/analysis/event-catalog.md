@@ -101,7 +101,7 @@ this.parent.dispatchEventWith(Tile.CARD_DROPED_ON_TILE_EVENT, false, this);
 `Tile`, `DragDropManager` as broker) has no Compose equivalent and must be rebuilt on
 `Modifier.pointerInput` with `detectDragGestures`, with the board owning the drop
 resolution as a state hoist rather than an event. This is the single largest UI-layer
-risk in the plan and it is **not** covered by the `kotlin/` PoC.
+risk in the plan and it is **not** covered by the Kotlin PoC.
 
 ### 3.2 `cardPanel.CARD_SELECTED_EVENT`
 
@@ -182,4 +182,4 @@ Two findings worth acting on:
 - [dependency-matrix.md](./dependency-matrix.md) — who imports whom
 - [api-mapping.md](./api-mapping.md) — AS3 → Kotlin type translations
 - [network-protocol.md](./network-protocol.md) — the socket events in detail
-- [../migration/14-COMPONENT-MAPPING.md](../migration/14-COMPONENT-MAPPING.md) — Feathers → Compose
+- [docs/migration/14-COMPONENT-MAPPING.md](../migration/14-COMPONENT-MAPPING.md) — Feathers → Compose

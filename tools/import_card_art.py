@@ -4,7 +4,7 @@
 Companion to extract_cards.py: that one produces cards.json, this one produces the
 images those records point at. Run it from the repository root:
 
-    python kotlin/tools/import_card_art.py
+    python tools/import_card_art.py
 
 It is a copy, not a conversion — every file is byte-identical to the AS3 original. The
 only transformation is the *name*, normalised to the AS3 texture id so a card's art is
@@ -41,10 +41,11 @@ import pathlib
 import shutil
 import sys
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
+# tools/import_card_art.py -> repository root
+REPO = pathlib.Path(__file__).resolve().parents[1]
 ASSETS = REPO / "sources" / "assets"
 CARDS = ASSETS / "cards"
-OUT = REPO / "kotlin" / "shared" / "src" / "commonMain" / "composeResources" / "files" / "art"
+OUT = REPO / "shared" / "src" / "commonMain" / "composeResources" / "files" / "art"
 CATALOG = OUT.parent / "cards.json"
 
 # The four FFXIV tribes and the eight FF8 elements, as CardType serialises them.

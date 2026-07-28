@@ -1,7 +1,8 @@
 name: Build and Test
 
-# The Gradle build lives in `kotlin/`, not at the repository root: the root has no
-# settings.gradle.kts, so every job sets `working-directory: kotlin`.
+# The Gradle build is the repository root: `settings.gradle.kts`, `gradlew` and the three
+# modules all live here. It used to sit in a `kotlin/` subdirectory, which is why every job
+# once carried `working-directory: kotlin`; that is gone.
 #
 # The default branch of this repository is `master`. A workflow keyed on `main` would
 # never fire.
@@ -25,23 +26,30 @@ name: Build and Test
 on:
   push:
     branches: [master, 'migration/**']
-    paths:
-      - 'kotlin/**'
-      - '.github/workflows/build.yml'
+    # `paths-ignore` and not `paths`: now that the build is the repository root, an
+    # allow-list would have to name every module and be edited whenever one is added, and
+    # forgetting to would silently stop building it. Skipping a docs-only change is the
+    # cheap mistake; not building a code change is the expensive one.
+    #
+    # `sources/**` is the read-only AS3 original. The artwork is copied out of it into
+    # `shared/src/commonMain/composeResources/` by `tools/import_card_art.py`, so editing
+    # the AS3 tree cannot change what gets built until that script is re-run — and the
+    # script's output is not in `sources/`.
+    paths-ignore:
+      - 'docs/**'
+      - 'sources/**'
+      - '**/*.md'
   pull_request:
     branches: [master]
-    paths:
-      - 'kotlin/**'
-      - '.github/workflows/build.yml'
+    paths-ignore:
+      - 'docs/**'
+      - 'sources/**'
+      - '**/*.md'
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-defaults:
-  run:
-    working-directory: kotlin
 
 jobs:
   # Static analysis first and on its own: it is the fastest signal and a formatting
@@ -63,11 +71,14 @@ jobs:
         with:
           name: quality-reports
           path: |
-            kotlin/*/build/reports/ktlint/
-            kotlin/*/build/reports/detekt/
+            */build/reports/ktlint/
+            */build/reports/detekt/
 
-  # `:shared:build` covers the common + desktop + Android library compilations, the
-  # 13 common tests on three targets and the 8 Compose UI tests on desktop.
+  # `:shared:build` covers the common + desktop + Android library compilations: the 77 common
+  # tests on two targets (`desktopTest` and `testAndroidHostTest`) plus the 18 desktop-only
+  # ones, 172 executions. The Android half runs under `testAndroidHostTest` and not
+  # `testDebugUnitTest` since the module moved to `com.android.kotlin.multiplatform.library`;
+  # nothing here names the task, but the uploaded results directory is named after it.
   shared:
     name: Shared module
     runs-on: ubuntu-latest
@@ -87,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: shared-test-results
-          path: kotlin/shared/build/test-results/
+          path: shared/build/test-results/
 
   android:
     name: Android APK
@@ -105,7 +116,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: android-apks
-          path: kotlin/androidApp/build/outputs/apk/*/*.apk
+          path: androidApp/build/outputs/apk/*/*.apk
 
   desktop:
     name: Desktop JAR
@@ -123,9 +134,9 @@ jobs:
   # them on a Linux or Windows host, so a green build elsewhere says nothing about iOS.
   #
   # This builds and tests the shared *framework* only. It does NOT build an iOS app,
-  # because `kotlin/iosApp` has no .xcodeproj — the Swift sources are there but there is
-  # no Xcode project to drive them. Adding an `xcodebuild` step before that project
-  # exists would fail on every run.
+  # because `iosApp/` has no .xcodeproj — the Swift sources are there but there is no
+  # Xcode project to drive them. Adding an `xcodebuild` step before that project exists
+  # would fail on every run.
   ios-framework:
     name: iOS framework (shared only)
     runs-on: macos-latest
@@ -143,4 +154,4 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: ios-framework
-          path: kotlin/shared/build/bin/iosSimulatorArm64/debugFramework/
+          path: shared/build/bin/iosSimulatorArm64/debugFramework/

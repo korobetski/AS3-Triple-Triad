@@ -1,7 +1,7 @@
 # Source Code Analysis
 
 Phase 0, Task 1.3 deliverables. These describe the **existing ActionScript 3 codebase**,
-as read from `sources/`. The migration *plan* lives in [../migration/](../migration/).
+as read from `sources/`. The migration *plan* lives in [docs/migration/](../migration/).
 
 | Document | What it answers | How it was produced |
 |---|---|---|
@@ -20,7 +20,7 @@ as read from `sources/`. The migration *plan* lives in [../migration/](../migrat
    estimating.
 2. **Generate what can be generated.** The dependency matrix is a script output so it
    can be refreshed and checked, not trusted.
-3. **Say what is not covered.** The `kotlin/` PoC validates a narrow slice; every
+3. **Say what is not covered.** The Kotlin PoC validates a narrow slice; every
    document marks which of its claims rest on it and which do not.
 
 ## Headline findings
@@ -68,6 +68,6 @@ These change scope or cost and are worth reading even if you read nothing else:
 
 ## Related
 
-- [../migration/00-INDEX.md](../migration/00-INDEX.md) — the migration plan
-- [../migration/04-PHASE-0-PREPARATION.md](../migration/04-PHASE-0-PREPARATION.md) — the phase these belong to
-- [../../kotlin/README.md](../../kotlin/README.md) — the Proof of Concept
+- [docs/migration/00-INDEX.md](../migration/00-INDEX.md) — the migration plan
+- [docs/migration/04-PHASE-0-PREPARATION.md](../migration/04-PHASE-0-PREPARATION.md) — the phase these belong to
+- [README.md](../../README.md) — the Proof of Concept

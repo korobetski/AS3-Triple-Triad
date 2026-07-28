@@ -12,7 +12,7 @@ Every row is marked with how much confidence it carries:
 
 | Mark | Meaning |
 |---|---|
-| ✅ | verified in the `kotlin/` PoC — it compiles and is covered by a test |
+| ✅ | verified in the Kotlin PoC — it compiles and is covered by a test |
 | 🔶 | standard, well-documented equivalent, not yet exercised in this repo |
 | ⚠️ | no direct equivalent; needs design work |
 | ❌ | no equivalent at all; the feature has to be dropped or replaced wholesale |
@@ -131,7 +131,7 @@ Compose Multiplatform has **no atlas support**. Three options, none validated:
    the APK, and there are 263 card images plus UI sheets.
 3. Re-author the assets. Only viable if BR-003 forces a reskin anyway.
 
-The `kotlin/` PoC deliberately draws its card from primitives and loads **no** texture, so
+The Kotlin PoC deliberately draws its card from primitives and loads **no** texture, so
 it says nothing about this. Treat it as an open Phase 1 spike, not a solved problem.
 
 ## 8. Feathers → Compose
@@ -177,4 +177,4 @@ the original.
 - [event-catalog.md](./event-catalog.md) — event-by-event mapping
 - [network-protocol.md](./network-protocol.md) — the socket rows in detail
 - [15-CHEAT-SHEET.md](../migration/15-CHEAT-SHEET.md) — pattern-level idioms
-- [kotlin/README.md](../../kotlin/README.md) — what the ✅ marks are based on
+- [README.md](../../README.md) — what the ✅ marks are based on

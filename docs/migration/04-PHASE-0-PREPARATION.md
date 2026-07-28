@@ -11,7 +11,7 @@
 - **Version**: 1.4
 - **Last Updated**: 2026-07-25
 
-> **What is actually done, in one paragraph.** The PoC in [`kotlin/`](../../kotlin/README.md)
+> **What is actually done, in one paragraph.** The PoC in [the repository root](../../README.md)
 > builds and runs on a physical Android device, loads all 263 cards from a JSON resource,
 > and passes 47 test executions with 0 failures — but has never been compiled for iOS from
 > this Windows host, and no iOS app has ever been run.
@@ -181,8 +181,8 @@ shared exists.
 **Description**: Set up all development infrastructure and tools required for the migration.
 
 **Sub-tasks**:
-- [x] Prepare existing repo — the Kotlin project lives in [`kotlin/`](../../kotlin/README.md)
-      on the `migration/kotlin-multiplatform` branch. **Note the Gradle root is `kotlin/`,
+- [x] Prepare existing repo — the Kotlin project lives in [the repository root](../../README.md)
+      on the `migration/kotlin-multiplatform` branch. **Note the Gradle root is the repository root,
       not the repository root**, which has consequences for both the IDE and CI
 - [ ] Configure repository structure (branches, protection rules) — branch *conventions*
       are documented in [git-workflow.md](../development/git-workflow.md); **no protection
@@ -190,8 +190,8 @@ shared exists.
 - [x] Set up GitHub Actions for CI/CD (basic pipeline) — green on all five jobs; see Task 1.5
 - [ ] Configure development IDEs — `.editorconfig` is committed and the IDE reads it, so
       formatting is consistent out of the box. But there is **no IDE configuration guide**,
-      and there is a trap that needs one: **Android Studio must open `kotlin/`**, and AGP
-      8.13.2 requires Studio Otter / 2025.2 or newer
+      and there is a trap that needs one: AGP 9.3.1 requires a recent
+      Android Studio
 - [ ] Set up shared development resources — not done
 - [ ] Create development, staging, and production environments — not done, and arguably
       not meaningful until the multiplayer/server question (TR-007) is decided
@@ -205,7 +205,7 @@ shared exists.
       enforcement absent
 - [x] Working CI/CD pipeline (build, test) — five jobs, all green
 - [x] Development environment documentation —
-      [kotlin/README.md § Prerequisites](../../kotlin/README.md#prerequisites), including
+      [README.md § Prerequisites](../../README.md#prerequisites), including
       the Windows `local.properties` escaping trap that cost half a day
 - [ ] IDE configuration guide for team — not written
 
@@ -224,7 +224,7 @@ shared exists.
 **Owner**: Tech Lead
 **Duration**: 3 days
 **Priority**: CRITICAL
-**Status**: ⚠️ PARTIALLY DELIVERED — the PoC in [`kotlin/`](../../kotlin/README.md)
+**Status**: ⚠️ PARTIALLY DELIVERED — the PoC in [the repository root](../../README.md)
 builds and is verified, and now covers requirements **1, 2, 3, 4 and 6**.
 Requirement 5 (runs on iOS) is unmet.
 
@@ -233,14 +233,14 @@ Requirement 5 (runs on iOS) is unmet.
 > (missing Ktor and serialization dependencies, `import kotlinx.coroutines.IO`,
 > non-existent artifact versions, Material 2/3 mismatch, no Gradle wrapper).
 > It was deleted and rewritten from scratch as
-> [`kotlin/`](../../kotlin/README.md), which builds. Results are recorded in
-> [kotlin/README.md § Verified build results](../../kotlin/README.md#verified-build-results).
+> [the repository root](../../README.md), which builds. Results are recorded in
+> [README.md § Verified build results](../../README.md#verified-build-results).
 >
 > **Now delivered.** Android debug + release APKs, a JVM desktop host, and
-> **21 tests / 47 executions, 0 failures** across desktop, androidDebug and
-> androidRelease. Requirement 2 is closed: all **263 cards** (153 `ff14` + 110
+> **97 tests / 174 executions, 0 failures** across desktop and androidHostTest.
+> Requirement 2 is closed: all **263 cards** (153 `ff14` + 110
 > `ff8`) are extracted from `tto/datas/cards.as` by
-> [`kotlin/tools/extract_cards.py`](../../kotlin/tools/extract_cards.py) and loaded
+> [`tools/extract_cards.py`](../../tools/extract_cards.py) and loaded
 > at runtime from a JSON file through the Compose Multiplatform resource bundle,
 > which is also the mechanism the 263 card *images* will need. Five UI tests read
 > the shipped resource end-to-end.
@@ -258,7 +258,7 @@ Requirement 5 (runs on iOS) is unmet.
 > card's **top-left** instead of 44×30 at (28, 88) near the bottom; and each digit
 > glyph was shifted by −4 dp, putting the left digit off the plate. The corrected
 > values, each cited to a source line, are in
-> [kotlin/README.md § Fidelity to the AS3 source](../../kotlin/README.md#fidelity-to-the-as3-source).
+> [README.md § Fidelity to the AS3 source](../../README.md#fidelity-to-the-as3-source).
 
 **Description**: Create a working proof of concept to validate the technology stack and migration approach.
 
@@ -294,8 +294,8 @@ PoC Scope:
       Compose resource bundle, covered by 5 end-to-end UI tests
 - [x] Touch handling works correctly — verified under real touch and `adb shell input tap`
 - [ ] App size is reasonable (< 20MB for PoC). **This criterion compares the wrong
-      things and must be restated.** MEASURED: `kotlin/` PoC is 17 681 KB debug /
-      14 907 KB release-unsigned (and `isMinifyEnabled = false`, so the release figure
+      things and must be restated.** MEASURED: Kotlin PoC is 17 679 KB debug /
+      14 807 KB release-unsigned (and `isMinifyEnabled = false`, so the release figure
       is an un-shrunk upper bound). 7.00 MB of that is the 263 card faces, now embedded. For comparison, the existing AS3 build
       `sources/air/tto.apk` is 9.67 MB — but **it contains no card artwork at all**;
       it is a downloader shell that fetches assets at runtime. The real runtime asset
@@ -333,16 +333,16 @@ PoC Scope:
 - If iOS setup is problematic, consider using KMP iOS template
 
 **Deliverables**:
-- ✅ Working PoC code in the [`kotlin/`](../../kotlin/README.md) directory
+- ✅ Working PoC code at the [repository root](../../README.md)
   (the earlier `poc/` directory was deleted — see the history note above)
-- ✅ PoC validation report — [kotlin/README.md](../../kotlin/README.md)
+- ✅ PoC validation report — [README.md](../../README.md)
 - ⚠️ Performance benchmarks — partial; see
   [performance-baseline.md](../analysis/performance-baseline.md), which states
   explicitly what could not be measured and why
 - ✅ Technology validation document — Set C in
   [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md)
 - ✅ Reproducible card-data extractor —
-  [`kotlin/tools/extract_cards.py`](../../kotlin/tools/extract_cards.py)
+  [`tools/extract_cards.py`](../../tools/extract_cards.py)
 
 ---
 
@@ -515,7 +515,7 @@ cannot be met by writing more: nobody has reviewed any of it. See
 task paths it invokes were verified to exist** with `--dry-run`, and **all five jobs pass**.
 
 It took two runs. The first failed at the first step of every job with
-`./gradlew: Permission denied` (exit 126): `kotlin/gradlew` was committed from Windows,
+`./gradlew: Permission denied` (exit 126): `gradlew` was committed from Windows,
 where `core.filemode` is `false`, so it was recorded `100644` rather than `100755`. Fixed in
 the index with `git update-index --chmod=+x`; see
 [git-workflow.md § File modes on Windows](../development/git-workflow.md#file-modes-on-windows).
@@ -545,7 +545,7 @@ owner; the rationale is recorded in the workflow header.
 > **Corrections against the draft that used to live in this document.** The YAML
 > below was aspirational and would have failed on every run:
 > - it triggered on `main`; this repository's default branch is **`master`**
-> - it ran Gradle from the repository root; the Gradle root is **`kotlin/`** (the
+> - it ran Gradle from the repository root, which at the time was not the Gradle root (the
 >   repository root has no `settings.gradle.kts`)
 > - it called `xcodebuild -project iosApp/iosApp.xcodeproj`; **no `.xcodeproj`
 >   exists**, so that step could only ever fail
@@ -607,7 +607,7 @@ Notes for whoever runs it first:
 
 - `defaults.run.working-directory: kotlin` on every job — the Gradle root is not the
   repository root.
-- Triggers are paths-filtered to `kotlin/**`, so documentation-only commits do not burn
+- Triggers use `paths-ignore` on `docs/`, `sources/` and `*.md`, so documentation-only commits do not burn
   runner minutes.
 - `android-actions/setup-android@v3` is present because `compileSdk` is 36 and the
   runner image does not always carry it; there is no `local.properties` on CI, so AGP
@@ -631,9 +631,9 @@ Notes for whoever runs it first:
 - [ ] ~~`.github/workflows/release.yml`~~ — **deliberately not created.** Signing keys
       and store credentials are Phase 8 concerns; a release pipeline that cannot sign
       anything is theatre. And see the committed-`.p12` finding first
-- [x] detekt configuration — [`kotlin/config/detekt/detekt.yml`](../../kotlin/config/detekt/detekt.yml),
+- [x] detekt configuration — [`detekt/detekt.yml`](../../detekt/detekt.yml),
       every override carrying its reason, `maxIssues = 0`
-- [x] ktlint configuration — [`kotlin/.editorconfig`](../../kotlin/.editorconfig), which
+- [x] ktlint configuration — [`.editorconfig`](../../.editorconfig), which
       the IDE reads too, so there is one source of truth
 - [ ] Code coverage configuration — **not done**; needs Kover
 - [x] CI/CD documentation — this section plus
@@ -712,11 +712,11 @@ fails on any finding (`maxIssues = 0`). Verified green on this codebase.
 - [x] [`docs/development/git-workflow.md`](../development/git-workflow.md)
 - [x] [`docs/development/testing-strategy.md`](../development/testing-strategy.md)
 - [x] [`docs/development/performance-guidelines.md`](../development/performance-guidelines.md)
-- [x] [`kotlin/.editorconfig`](../../kotlin/.editorconfig) — also read by the IDE, so
+- [x] [`.editorconfig`](../../.editorconfig) — also read by the IDE, so
       formatting cannot diverge between a developer's editor and CI
 - [x] ktlint configuration — no separate file by design; `.editorconfig` is the only
       source of truth
-- [x] detekt configuration — [`kotlin/config/detekt/detekt.yml`](../../kotlin/config/detekt/detekt.yml)
+- [x] detekt configuration — [`detekt/detekt.yml`](../../detekt/detekt.yml)
 
 Two exceptions to Kotlin's official style are documented with reasons rather than left
 implicit: `@Composable` functions stay `PascalCase`, and non-`const` design tokens
@@ -761,9 +761,9 @@ the *entire* body of some socket handlers — and none of that should be carried
 - [x] [`docs/development/git-workflow.md`](../development/git-workflow.md)
 - [x] [`docs/development/testing-strategy.md`](../development/testing-strategy.md)
 - [x] [`docs/development/performance-guidelines.md`](../development/performance-guidelines.md)
-- [x] [`kotlin/README.md`](../../kotlin/README.md) — PoC validation report
-- [x] `kotlin/` — Proof of Concept code (builds; 263 cards loaded from JSON; one
-      flipping card; no board, rules, network or artwork)
+- [x] [`README.md`](../../README.md) — PoC validation report
+- [x] Proof of Concept code at the repository root (builds; 263 cards loaded from JSON;
+      playable 3x3 board with both hands; rules engine; card artwork; no network or AI)
 - [x] [`.github/workflows/build.yml`](../../.github/workflows/build.yml)
 - [ ] Training materials — not started
 - [x] Game-rules specification — [game-rules.md](../analysis/game-rules.md); was the highest-value remaining analysis
@@ -810,7 +810,7 @@ consequences.
       GitHub without incident. ⚠️ The technical facts are unchanged and worth keeping
       visible: the PoC ships `cards.json` with the names and stats of all 263 cards, so it
       cannot be described as free of Square Enix material. See the
-      [licensing note](../../kotlin/README.md#licensing-note) and
+      [licensing note](../../README.md#licensing-note) and
       [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md)
 - [x] **TR-007 (multiplayer scope) — the original socket protocol is abandoned.** A new
       architecture will be designed rather than migrated; Bluetooth is under consideration.
@@ -829,8 +829,8 @@ consequences.
       An application *update* mechanism is wanted separately, which is a distribution
       question rather than an asset question and is still open. See
       [performance-guidelines.md](../development/performance-guidelines.md) §4
-- [ ] PoC actually builds and runs on Android and iOS — **Android: done** (`kotlin/`,
-      APKs produced, 47 test executions green, verified on a physical Pixel 6a).
+- [ ] PoC actually builds and runs on Android and iOS — **Android: done** (both
+      APKs produced, 174 test executions green, verified on a physical Pixel 6a).
       **iOS: not done**, never compiled.
 - [ ] Tech Lead approves phase completion
 - [ ] Team confirms readiness for Phase 1
@@ -899,7 +899,7 @@ because each one is a risk that the PoC did *not* retire:
 
 ### Phase 0 outputs
 
-- **Proof of Concept**: [kotlin/README.md](../../kotlin/README.md)
+- **Proof of Concept**: [README.md](../../README.md)
 - **Source analysis** (Task 1.3): [docs/analysis/](../analysis/README.md)
 - **Development standards** (Task 1.6): [docs/development/](../development/README.md)
 - **CI** (Task 1.5): [.github/workflows/build.yml](../../.github/workflows/build.yml)

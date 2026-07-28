@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -380,15 +381,23 @@ private fun HandArea(
                                 ),
                             )
                         } else {
-                            HandCard(
-                                card = card,
-                                owner = owner,
-                                slot = slot,
-                                isSelected = active && selected?.id == card.id,
-                                active = active,
-                                scale = layout.scale,
-                                onSelect = onSelect,
-                            )
+                            // Keyed by the card, not by the slot. Slots close up when a card is
+                            // played, so without this every slot behind the played one is handed
+                            // a different card and silently keeps the previous one's composition
+                            // state. That is what made cards draw each other's artwork
+                            // (`rememberCardFace`, and `CardFaceTest`); nothing else in a slot
+                            // holds state today, and this is what stops the next thing that does.
+                            key(card.textureId) {
+                                HandCard(
+                                    card = card,
+                                    owner = owner,
+                                    slot = slot,
+                                    isSelected = active && selected?.id == card.id,
+                                    active = active,
+                                    scale = layout.scale,
+                                    onSelect = onSelect,
+                                )
+                            }
                         }
                     }
                 }
