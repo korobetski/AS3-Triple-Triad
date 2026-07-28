@@ -1,0 +1,7 @@
+{
+  "APP_LOADING_CARDS": "loading cards…",
+  "APP_SIDE_BLUE": "blue",
+  "APP_SIDE_RED": "red",
+  "APP_TURN_PICK_CARD": "{0} to play — pick a card",
+  "APP_TURN_PICK_CELL": "{0}: {1} — pick a cell"
+}

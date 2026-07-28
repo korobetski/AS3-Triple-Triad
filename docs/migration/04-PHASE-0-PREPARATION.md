@@ -237,7 +237,7 @@ Requirement 5 (runs on iOS) is unmet.
 > [README.md § Verified build results](../../README.md#verified-build-results).
 >
 > **Now delivered.** Android debug + release APKs, a JVM desktop host, and
-> **97 tests / 174 executions, 0 failures** across desktop and androidHostTest.
+> **116 tests / 202 executions, 0 failures** across desktop and androidHostTest.
 > Requirement 2 is closed: all **263 cards** (153 `ff14` + 110
 > `ff8`) are extracted from `tto/datas/cards.as` by
 > [`tools/extract_cards.py`](../../tools/extract_cards.py) and loaded
@@ -830,7 +830,7 @@ consequences.
       question rather than an asset question and is still open. See
       [performance-guidelines.md](../development/performance-guidelines.md) §4
 - [ ] PoC actually builds and runs on Android and iOS — **Android: done** (both
-      APKs produced, 174 test executions green, verified on a physical Pixel 6a).
+      APKs produced, 202 test executions green, verified on a physical Pixel 6a).
       **iOS: not done**, never compiled.
 - [ ] Tech Lead approves phase completion
 - [ ] Team confirms readiness for Phase 1

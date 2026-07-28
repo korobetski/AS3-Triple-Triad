@@ -32,11 +32,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CardType
@@ -177,27 +183,39 @@ private fun PlayArea(
     }
 }
 
-/** Score, whose turn it is, and a reset. One compact line so the board gets the rest. */
+/**
+ * Score, whose turn it is, and a reset. One compact line so the board gets the rest.
+ *
+ * The score is two numbers and a dash, with each number in its side's colour and no colour *word*
+ * — it used to read "blue 5 — 5 red". Nothing in the AS3 bundles names a side, so those two words
+ * would have been the only untranslatable text on screen, and the FFXIV board they are modelled on
+ * shows the score without them too.
+ */
 @Composable
 private fun StatusBar(state: MatchState, selected: Card?, onNewMatch: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val score = state.score
+        val strings = LocalStrings.current
+        Score(state)
+        // The turn line takes whatever the two fixed ends leave, and elides rather than growing.
+        //
+        // It used to be three items in a centred `spacedBy` row, which fitted because every
+        // string was English: French is "au bleu de jouer — choisissez une carte" where English is
+        // "blue to play — pick a card", and the extra 14 characters pushed "Match suivant" onto a
+        // second line on a 1080 px screen. A row sized for one language is the oldest
+        // localisation bug there is, so the *sentence* is the part that gives, not the controls.
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            TurnLine(state = state, selected = selected)
+        }
         Text(
-            text = "blue ${score.blue} — ${score.red} red",
-            color = Color.White,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.testTag(SCORE_TEST_TAG),
-        )
-        TurnLine(state = state, selected = selected)
-        Text(
-            text = "new match ▸",
+            text = "${strings[StringKeys.NEXT_MATCH]} ▸",
             color = Color.White.copy(alpha = 0.7f),
             fontSize = 12.sp,
+            maxLines = 1,
+            softWrap = false,
             modifier = Modifier
                 .testTag(NEW_MATCH_TEST_TAG)
                 .clickable(onClick = onNewMatch)
@@ -206,16 +224,47 @@ private fun StatusBar(state: MatchState, selected: Card?, onNewMatch: () -> Unit
     }
 }
 
-/** Whose turn it is, what is selected, or the result once the board is full. */
+/** `5 — 5`, each half in its owner's colour. */
+@Composable
+private fun Score(state: MatchState) {
+    val score = state.score
+    Text(
+        text = buildAnnotatedString {
+            withStyle(SpanStyle(color = CardColor.BLUE.edge)) { append(score.blue.toString()) }
+            append(" — ")
+            withStyle(SpanStyle(color = CardColor.RED.edge)) { append(score.red.toString()) }
+        },
+        color = Color.White,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.testTag(SCORE_TEST_TAG),
+    )
+}
+
+/**
+ * Whose turn it is, what is selected, or the result once the board is full.
+ *
+ * The outcome is phrased from **blue's** side — `You win !` / `You lose...` — because that is what
+ * the bundles offer and it matches the original, where the local player is always the blue one
+ * (`data-flow.md`, `openPhase`). When there is an AI or a second player this needs revisiting; a
+ * neutral "red wins" has no key in any of the four locales.
+ */
 @Composable
 private fun TurnLine(state: MatchState, selected: Card?) {
+    val strings = LocalStrings.current
     val outcome = state.outcome()
     if (outcome != null) {
         Text(
             text = when (outcome) {
-                is MatchOutcome.Win -> "${outcome.winner.name.lowercase()} wins"
-                is MatchOutcome.Draw -> "draw"
-                is MatchOutcome.SuddenDeath -> "draw — sudden death"
+                is MatchOutcome.Win ->
+                    if (outcome.winner == CardColor.BLUE) {
+                        strings[StringKeys.YOU_WIN]
+                    } else {
+                        strings[StringKeys.YOU_LOSE]
+                    }
+                is MatchOutcome.Draw -> strings[StringKeys.DRAW]
+                is MatchOutcome.SuddenDeath ->
+                    "${strings[StringKeys.DRAW]} — ${strings[StringKeys.SUDDEN_DEATH]}"
             },
             color = Color.White,
             fontSize = 14.sp,
@@ -225,14 +274,17 @@ private fun TurnLine(state: MatchState, selected: Card?) {
         return
     }
     val player = state.currentPlayer ?: return
+    val side = strings[if (player == CardColor.BLUE) StringKeys.SIDE_BLUE else StringKeys.SIDE_RED]
     Text(
         text = if (selected == null) {
-            "${player.name.lowercase()} to play — pick a card"
+            strings.format(StringKeys.TURN_PICK_CARD, side)
         } else {
-            "${player.name.lowercase()}: ${selected.name} — pick a cell"
+            strings.format(StringKeys.TURN_PICK_CELL, side, selected.name)
         },
         color = player.edge,
         fontSize = 13.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier.testTag(TURN_TEST_TAG),
     )
 }

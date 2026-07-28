@@ -43,6 +43,7 @@ Everything below has been executed; the results are in
 ├── gradle/wrapper/              Gradle 9.6.1
 ├── tools/extract_cards.py       regenerates cards.json from the AS3 source
 ├── tools/import_card_art.py     copies the card artwork into composeResources
+├── tools/import_locales.py      normalises the four AS3 string bundles
 ├── shared/                      KMP module: model + data + Compose UI
 │   └── src/
 │       ├── commonMain/
@@ -54,6 +55,8 @@ Everything below has been executed; the results are in
 │       │   │   ├── model/RulesEngine.kt capture resolution + combo, pure
 │       │   │   ├── model/Match.kt       turn order, scoring
 │       │   │   ├── data/CardRepository.kt  CardCatalog + parser + resource loader
+│       │   │   ├── i18n/Strings.kt      AppLocale, lookup + fallback, LocalStrings
+│       │   │   ├── i18n/StringKeys.kt   every key the UI names, in one place
 │       │   │   └── ui/
 │       │   │       ├── App.kt           root composable + catalog/art load
 │       │   │       ├── CardArt.kt       texture loading, face cache, digit atlas
@@ -62,11 +65,13 @@ Everything below has been executed; the results are in
 │       │   │       └── CardColors.kt    colours and geometry lifted from the AS3 source
 │       │   └── composeResources/files/
 │       │       ├── cards.json    263 cards, generated
-│       │       └── art/          282 PNGs, 7.00 MB, imported
+│       │       ├── art/          282 PNGs, 7.00 MB, imported
+│       │       └── locales/      tto-<tag>.json imported ×4, app-<tag>.json authored ×4
 │       ├── commonTest/…         CardTest (5) + CardCatalogTest (8) + RulesEngineTest (37)
-│       │                        + MatchStateTest (27) = 77, run on desktop + androidHostTest
-│       ├── desktopTest/…        MatchUiTest (8) + MatchLayoutTest (6) + CardBundleTest (4)
-│       │                        + CardFaceTest (2) = 20
+│       │                        + MatchStateTest (27) + StringsTest (9) = 86,
+│       │                        run on desktop + androidHostTest
+│       ├── desktopTest/…        MatchUiTest (10) + StringsBundleTest (8) + MatchLayoutTest (6)
+│       │                        + CardBundleTest (4) + CardFaceTest (2) = 30
 │       └── iosMain/…/MainViewController.kt
 ├── androidApp/                  Android host (ComponentActivity + setContent)
 ├── desktopApp/                  JVM host — lets you run the UI without an emulator
@@ -364,17 +369,17 @@ Run on Windows 11, JDK 17 (Temurin), Android SDK platform 36.1 / build-tools 36.
 | Command | Result |
 |---------|--------|
 | `./gradlew clean` then `./gradlew build assembleRelease` | **BUILD SUCCESSFUL**, 264 tasks |
-| `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 17 679 KB |
-| `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 14 807 KB |
+| `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 17 789 KB |
+| `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 14 900 KB |
 | `./gradlew :desktopApp:build` | **BUILD SUCCESSFUL** — `desktopApp.jar` |
 | `./gradlew :shared:desktopTest` | **95 tests, 0 failures** |
-| `./gradlew :shared:build` (all targets) | **174 test executions, 0 failures** |
+| `./gradlew :shared:build` (all targets) | **202 test executions, 0 failures** |
 | `./gradlew ktlintCheck detekt` | **BUILD SUCCESSFUL** — 0 findings, `maxIssues = 0` |
 | `./gradlew :shared:lint` | **0 errors**, warnings only ("a newer version is available") |
 | `./gradlew :desktopApp:run` | window opens, titled "Triple Triad — KMP PoC", nothing on stderr |
 | `./gradlew :androidApp:installDebug` + launch | **runs on a physical device** — see below |
 
-Release APK note: `isMinifyEnabled = false`, so 14 807 KB is an **un-shrunk upper bound**,
+Release APK note: `isMinifyEnabled = false`, so 14 900 KB is an **un-shrunk upper bound**,
 not what a shipped build would weigh.
 
 ### On a physical device
@@ -435,8 +440,9 @@ commonTest — runs on desktop and androidHostTest
     unknownFieldsDoNotBreakParsing
     invalidDataIsRejectedAtConstruction
 
-desktopTest — real Compose tree on the JVM, plus the JVM-only bundle read
-  com.tripletriad.ui.MatchUiTest          8 tests
+desktopTest — real Compose tree on the JVM, plus the JVM-only bundle reads
+  com.tripletriad.ui.MatchUiTest         10 tests
+  com.tripletriad.i18n.StringsBundleTest  8 tests
   com.tripletriad.ui.MatchLayoutTest      6 tests
   com.tripletriad.data.CardBundleTest     4 tests
   com.tripletriad.ui.CardFaceTest         2 tests
@@ -447,8 +453,8 @@ desktopTest — real Compose tree on the JVM, plus the JVM-only bundle read
 specification, case for case: basic capture and Reverse, Fallen Ace and its interactions,
 Same / Plus / Same Wall, combo propagation, the three type rules, turn order and scoring.
 
-97 distinct tests; **174 executions** — the 77 in `commonTest` run once per target
-(`desktopTest` and `testAndroidHostTest`) and the 20 in `desktopTest` once — 0 failures.
+116 distinct tests; **202 executions** — the 86 in `commonTest` run once per target
+(`desktopTest` and `testAndroidHostTest`) and the 30 in `desktopTest` once — 0 failures.
 
 It used to be 249, over three targets, and the drop is not a loss of coverage. AGP 9 stopped
 creating a release unit-test variant for library modules, and the module then moved to
@@ -494,6 +500,59 @@ device — which is not a visible error, because `Modifier.size` silently coerce
 constraints it is given, so children collapse to zero height while continuing to draw at full
 size. The symptom is cards drawn on top of each other; the test is the thing that would have
 caught it.
+
+## Localisation
+
+Four languages, from the original's own bundles: **English, French, German, Japanese**
+(`utils/conf.as:11`, `application.xml`). The device language is narrowed to the nearest of the
+four and everything falls back to `en_US`.
+
+```
+shared/src/commonMain/composeResources/files/locales/
+  tto-<tag>.json    687-688 keys, imported by tools/import_locales.py — do not edit
+  app-<tag>.json    5 keys this port wrote — edit these
+```
+
+The split is provenance. `tto-*` is Square Enix wording that must stay exactly what the original
+displayed; `app-*` exists because the AS3 showed whose turn it was *graphically* and never wrote
+the sentence. `Strings` merges them with `app-*` on top, then falls back to English.
+
+`app-de_DE.json` and `app-ja_JA.json` are `{}` on purpose. Those five sentences are not
+translated into German or Japanese — they resolve to English while the other 647 / 680 keys stay
+in the device's language. An empty file states that; a missing one would read as an oversight.
+
+### What the source data turned out to be
+
+The plan (Task 1.10) said the bundles were under `sources/bin/assets/{de_DE,…}/`. They are not:
+those four directories hold `rules.png` + `rulesAtlas.xml`, a *texture* atlas of rule-name
+images. The strings are already JSON, in **`sources/bin/datas/locales/`**.
+
+Four defects in that data, all reported by the importer on every run:
+
+| Defect | Detail |
+|---|---|
+| Duplicate key, different values | `STR_REGISTER_MATCH` twice in `en_US` ("Create Match" then "Defy") and `fr_FR`. Resolved **last-wins**, which is what AS3's `JSON.parse` did, so the port shows what the original showed. Pinned by a test, because the alternative is an implementation detail silently choosing a product string. |
+| Keys absent from the fallback | `RULE_OPEN` (only `de_DE`, a pre-rename leftover), `STR_GSGROUP` (only `fr_FR`), and two malformed `ja_JA` keys — `STR_SAVES_LISTは` and a `STR_NPC_MA_DINCHT` with two trailing zero-width spaces. Unreachable typos; kept rather than quietly deleted. |
+| Uneven coverage | `de_DE` is 44 keys short of the union, `ja_JA` 11. `STR_NEXT_MATCH` is one of them, which is why the reset control reads "Next Match" on a German device — a real fallback, exercised by the shipped data rather than by a contrived fixture. |
+| Markup in one locale only | `fr_FR` prefixes 18 `RULE_*_HELP` values with `<i>FF14 uniquement</i>`; Feathers rendered HTML in a text field and Compose's `Text` does not. Nothing displays rule help yet, so the markup is left in the data — stripping it now would hide that the rules screen needs an `AnnotatedString` converter. |
+
+Two mistranslations are also present and **not** fixed: `STR_DRAW` is "Zeichnen" in German and
+"描く" in Japanese, both of which mean *to draw a picture*, not *a tie*. They are the original's
+strings; overriding them is a product decision, and `app-<tag>.json` is the mechanism when it is
+taken.
+
+### Verified on the device
+
+French renders end to end. Japanese renders too — **あなたは勝つ！** for a win — with no bundled
+font: the port uses the platform font family, so Android's CJK fallback covers it. The plan's
+"Japanese needs a CJK font" warning is about `Eurostile`, which `Card.as:81` bundles for card
+text and this port does not use; the concern returns if that font is ever adopted.
+
+One real bug came out of switching language, and only the screenshot could see it. The status bar
+was three items in a centred row, which fitted because every string was English — French pushed
+"Match suivant" onto a second line. The turn line now takes the leftover width and elides; the
+controls keep theirs. **No test in the suite can catch that**, because wrapping does not change
+the semantics text a Compose test reads.
 
 ## Known issues
 

@@ -1,0 +1,7 @@
+{
+  "APP_LOADING_CARDS": "chargement des cartes…",
+  "APP_SIDE_BLUE": "bleu",
+  "APP_SIDE_RED": "rouge",
+  "APP_TURN_PICK_CARD": "au {0} — choisissez une carte",
+  "APP_TURN_PICK_CELL": "{0} : {1} — choisissez une case"
+}

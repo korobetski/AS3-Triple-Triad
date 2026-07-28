@@ -4,7 +4,7 @@
 
 - **Phase**: 1 - Infrastructure Setup
 - **Duration**: 4 weeks (Weeks 3-6)
-- **Status**: NOT STARTED
+- **Status**: IN PROGRESS — Task 1.10 done; see § Phase 1 Deliverables
 - **Version**: 1.0
 - **Last Updated**: 2026-07-21
 - **Prerequisites**: Phase 0 - Preparation
@@ -289,35 +289,46 @@ Convert AS3 data to JSON:
 
 ---
 
-#### Task 1.10: Localization
-**Owner**: Tech Lead | **Duration**: 1 day | **Priority**: MEDIUM
+#### Task 1.10: Localization — ✅ **DONE**
 
-Extract all strings from AS3 — **4 locales**, not 2:
-- `shared/src/commonMain/resources/locales/de_DE.json`
-- `shared/src/commonMain/resources/locales/en_US.json`
-- `shared/src/commonMain/resources/locales/fr_FR.json`
-- `shared/src/commonMain/resources/locales/ja_JA.json`
-- `I18n.kt` - Localization class
-
-> ⚠️ **Corrected.** An earlier revision listed only `en.json` and `fr.json`, which
-> would have silently dropped German and Japanese. Both are supported in the
-> original: `application.xml` declares
-> `<supportedLanguages>de en fr ja</supportedLanguages>`, and
-> `utils/conf.as::supportedLanguages` maps
-> `{en_US, fr_FR, de_DE, ja_JA}`. Translated string bundles already exist under
-> `sources/bin/assets/{de_DE,en_US,fr_FR,ja_JA}/` — they should be converted, not
-> re-translated.
->
-> **Japanese needs a font.** `Eurostile` (used in `display/Card.as:81`) has no CJK
-> coverage. Audit `sources/bin/assets/fonts/` and budget a CJK fallback family;
-> also check that the licence of any bundled font permits redistribution in a
-> mobile app.
+Delivered as
+[`i18n/Strings.kt`](../../shared/src/commonMain/kotlin/com/tripletriad/i18n/Strings.kt) +
+[`StringKeys.kt`](../../shared/src/commonMain/kotlin/com/tripletriad/i18n/StringKeys.kt),
+imported by [`tools/import_locales.py`](../../tools/import_locales.py) into
+`shared/src/commonMain/composeResources/files/locales/`. Covered by
+[`StringsTest`](../../shared/src/commonTest/kotlin/com/tripletriad/i18n/StringsTest.kt) (9, both
+targets) and
+[`StringsBundleTest`](../../shared/src/desktopTest/kotlin/com/tripletriad/i18n/StringsBundleTest.kt)
+(8). Full write-up in the [README](../../README.md#localisation).
 
 **Acceptance Criteria**:
-- [ ] All strings extracted from the 4 existing `rulesAtlas.xml` / string bundles
-- [ ] Localization works for all 4 locales
-- [ ] Japanese renders correctly with a CJK-capable font
-- [ ] Fallback to `en_US` works for missing keys
+- [x] All strings extracted — 691 keys across the four bundles
+- [x] Localization works for all 4 locales — verified on a physical Pixel 6a in French and
+      Japanese, plus two UI tests driving the real tree
+- [x] Japanese renders correctly — see the font note below; **no bundled font was needed**
+- [x] Fallback to `en_US` works for missing keys — and is exercised by the shipped data, not a
+      fixture: `de_DE` has no `STR_NEXT_MATCH` at all
+
+> ⚠️ **Two things this document got wrong, corrected against the source.**
+>
+> 1. **The bundles are not where this said they were.** `sources/bin/assets/{de_DE,en_US,fr_FR,ja_JA}/`
+>    holds `rules.png` + `rulesAtlas.xml`, which is a *texture atlas of rule-name images*. The
+>    strings are already JSON, in **`sources/bin/datas/locales/`**. The acceptance criterion
+>    "extracted from the 4 existing `rulesAtlas.xml` / string bundles" conflated the two; nothing
+>    needed extracting from an atlas.
+> 2. **The paths were `resources/`, which does not work here.** Compose Multiplatform reads
+>    through `composeResources/`, the same mechanism `cards.json` and the card art already use.
+>
+> **On the CJK font.** The warning is real but does not apply yet, and it was worth checking rather
+> than budgeting for. `Eurostile` has no CJK coverage — but `display/Card.as:81` uses it for *card
+> text*, which this port does not render in a bundled font at all. Compose's default family maps to
+> the platform's, and Android's CJK fallback renders the Japanese correctly on device (verified:
+> **あなたは勝つ！**). The concern returns the moment Eurostile is adopted for card digits or names,
+> and the licence question with it.
+>
+> **Not corrected, deliberately.** `STR_DRAW` is "Zeichnen" (de) and "描く" (ja) — both meaning *to
+> draw a picture*, not *a tie*. They are the original's strings, so overriding them is a product
+> decision rather than a port decision; `app-<tag>.json` is the mechanism when it is taken.
 
 ---
 
@@ -369,16 +380,25 @@ Create development guides:
 ## 📊 Phase 1 Deliverables
 
 ### Code Deliverables
-- [ ] Complete project structure
-- [ ] All build files
-- [ ] Platform-specific implementations
-- [ ] Core utility classes
-- [ ] All data models
-- [ ] JSON data files
-- [ ] Localization files
-- [ ] Repository implementations
-- [ ] Test infrastructure
-- [ ] CI/CD workflows
+
+Ticked against what is in the repository, not against intent.
+
+- [x] Complete project structure — root Gradle build, `:shared` / `:androidApp` / `:desktopApp`
+- [x] All build files — version catalog, ktlint + detekt applied to every module at `maxIssues = 0`
+- [ ] Platform-specific implementations — **none needed so far**. Audio (P1.5) and file access
+      (P1.6) are the two that want `expect`/`actual`; the locale lookup did not, because Compose's
+      own `Locale.current` is multiplatform, and asset reads did not, because Compose resources are
+- [ ] Core utility classes — P1.7, not started
+- [x] All data models — `Card`, `Board`, `GameRules`, `Power`, `Match`, `MatchState`
+- [x] JSON data files — `cards.json`, 263 records, generated by `tools/extract_cards.py`
+- [x] Localization files — four imported bundles + four app-owned, see Task 1.10
+- [x] Repository implementations — `CardRepository`, read through the Compose resource bundle
+- [x] Test infrastructure — 116 tests / 202 executions; **Kover is still absent** (P1.11)
+- [x] CI/CD workflows — five jobs, green
+
+Remaining in this phase: **P1.5** audio, **P1.6** file access, **P1.7** core utilities,
+**P1.11** coverage reporting, **P1.13** setup/build guides. **P1.4** (iOS app) is void — Android
+only, decided 2026-07-25.
 
 ### Documentation Deliverables
 - [ ] Phase documentation

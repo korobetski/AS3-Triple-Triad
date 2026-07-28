@@ -2,6 +2,7 @@ package com.tripletriad.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -24,7 +25,7 @@ internal fun ComposeUiTest.assertVisible(text: String, message: String) {
 
 /**
  * Blocks until `cards.json` has been read out of the Compose resource bundle and
- * parsed. Every test needs this: [App] starts on a "loading cards…" placeholder and
+ * parsed. Every test needs this: [App] starts on an `APP_LOADING_CARDS` placeholder and
  * there is no card to tap until the load completes.
  *
  * The board appearing *is* the signal, since [App] shows nothing but the placeholder until
@@ -44,6 +45,10 @@ internal fun ComposeUiTest.awaitCatalog() {
  *
  * The line reads either "blue to play — pick a card" or "blue: <card> — pick a cell", so the
  * colour word plus a following ":" or " to play" identifies it unambiguously.
+ *
+ * That is `app-en_US.json` wording, which is why every test pins `AppLocale.EN_US`. Reading the
+ * side off the screen rather than off the model is deliberate — it is the only way a test can
+ * catch the turn line and the turn disagreeing — and the cost is this coupling to one locale.
  */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.sideToPlay(): CardColor =
@@ -70,7 +75,15 @@ internal fun ComposeUiTest.playOut() {
     }
 }
 
-/** True when the visible score line sums to [TOTAL_CARDS]. */
+/**
+ * True when the score line sums to [TOTAL_CARDS].
+ *
+ * Matched on the score node with an **exact** text comparison, not a substring anywhere on
+ * screen: the line now reads `5 — 5`, and `"0 — 0"` is a substring of `"10 — 0"`.
+ */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.totalIsTen(): Boolean =
-    (0..TOTAL_CARDS).any { blue -> isVisible("blue $blue — ${TOTAL_CARDS - blue} red") }
+    (0..TOTAL_CARDS).any { blue ->
+        onAllNodes(hasTestTag(SCORE_TEST_TAG) and hasText("$blue — ${TOTAL_CARDS - blue}"))
+            .fetchSemanticsNodes().isNotEmpty()
+    }

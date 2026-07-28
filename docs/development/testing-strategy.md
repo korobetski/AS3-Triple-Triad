@@ -14,13 +14,15 @@ Measured, not projected. `./gradlew build` at the repository root:
 | `commonTest` | `CardCatalogTest` | 8 | desktop, androidHostTest |
 | `commonTest` | `RulesEngineTest` | 37 | desktop, androidHostTest |
 | `commonTest` | `MatchStateTest` | 27 | desktop, androidHostTest |
-| `desktopTest` | `MatchUiTest` | 8 | desktop |
+| `commonTest` | `StringsTest` | 9 | desktop, androidHostTest |
+| `desktopTest` | `MatchUiTest` | 10 | desktop |
+| `desktopTest` | `StringsBundleTest` | 8 | desktop |
 | `desktopTest` | `MatchLayoutTest` | 6 | desktop |
 | `desktopTest` | `CardBundleTest` | 4 | desktop |
 | `desktopTest` | `CardFaceTest` | 2 | desktop |
-| | **total** | **97 distinct / 174 executions** | 0 failures |
+| | **total** | **116 distinct / 202 executions** | 0 failures |
 
-`commonTest` runs on every target, which is the point of putting it there — the same 77
+`commonTest` runs on every target, which is the point of putting it there — the same 86
 tests execute twice, as `:shared:desktopTest` and `:shared:testAndroidHostTest`. It was three
 times under AGP 8: AGP 9 dropped the release unit-test variant for library modules, and the
 module has since moved to `com.android.kotlin.multiplatform.library`, which runs the Android
@@ -72,8 +74,10 @@ run both against the same cases.
 | platform | instrumented / manual | only what cannot run on the JVM |
 
 **`commonTest` by default.** Put a test in a platform source set only if it needs that
-platform. The 77 common tests here run twice for free; the same tests in
-`desktopTest` would run once.
+platform. The 86 common tests here run twice for free; the same tests in
+`desktopTest` would run once. `StringsTest` is the pattern: the lookup and fallback *logic* needs
+no resource bundle, so it lives in `commonTest`; what the shipped bundles *contain* is
+`StringsBundleTest`, in `desktopTest`, for the same reason `CardBundleTest` is.
 
 **Desktop is the fast host for Compose UI tests.** `runComposeUiTest` on the JVM needs no
 emulator and no device, so it runs in CI in seconds. Reserve instrumented Android tests
@@ -134,6 +138,19 @@ unkeyed — was live for a whole feature and the suite could not see it. It need
 composable slot, and nothing had asserted on what a reused slot contains. **When a bug needs
 a slot to be reused, drive the reuse in the test**: the failing case here is one
 `mutableStateOf` swapped from one card to another with the composition kept.
+
+### Some bugs only a screenshot can see, and it is worth saying which
+
+Localising the board surfaced a defect no assertion could: the status bar was sized for English,
+and French pushed one control onto a second line. A Compose test reads the semantics text, which
+is identical whether the text wrapped, elided or fitted — so the suite was green and the screen
+was wrong.
+
+That is the opposite lesson to `matchLayout`'s. There, the arithmetic could be extracted and
+tested; here the thing that is wrong is the *typography of a real string in a real font*, and
+there is nothing to extract. **When a class of bug is unreachable from the suite, name it** — this
+one is checked by running the app in each locale, and the README says so rather than implying the
+tests cover it.
 
 ### Known gap: no layout assertions
 

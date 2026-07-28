@@ -1,9 +1,13 @@
 package com.tripletriad.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.Board
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.HAND_SIZE
@@ -33,7 +37,7 @@ import kotlin.test.assertTrue
 class MatchUiTest {
     @Test
     fun theBoardHasNineCellsAndBothHandsHaveFive() = runComposeUiTest {
-        setContent { App() }
+        setContent { App(AppLocale.EN_US) }
         awaitCatalog()
 
         onNodeWithTag(BOARD_TEST_TAG).assertExists()
@@ -48,15 +52,15 @@ class MatchUiTest {
 
     @Test
     fun theScoreStartsFiveFive() = runComposeUiTest {
-        setContent { App() }
+        setContent { App(AppLocale.EN_US) }
         awaitCatalog()
 
-        assertVisible("blue 5 — 5 red", "unplayed cards count for their owner")
+        onNodeWithTag(SCORE_TEST_TAG).assertTextEquals(LEVEL_SCORE)
     }
 
     @Test
     fun pickingACardThenACellPlacesItAndPassesTheTurn() = runComposeUiTest {
-        setContent { App() }
+        setContent { App(AppLocale.EN_US) }
         awaitCatalog()
 
         val first = sideToPlay()
@@ -77,7 +81,7 @@ class MatchUiTest {
 
     @Test
     fun onlyTheSideToPlayCanSelect() = runComposeUiTest {
-        setContent { App() }
+        setContent { App(AppLocale.EN_US) }
         awaitCatalog()
 
         val waiting = sideToPlay().opposite()
@@ -89,7 +93,7 @@ class MatchUiTest {
 
     @Test
     fun placingOnATakenCellIsIgnored() = runComposeUiTest {
-        setContent { App() }
+        setContent { App(AppLocale.EN_US) }
         awaitCatalog()
 
         onNodeWithTag(handCardTestTag(sideToPlay(), 0)).performClick()
@@ -109,38 +113,37 @@ class MatchUiTest {
 
     @Test
     fun capturesMoveTheScoreAndItAlwaysTotalsTen() = runComposeUiTest {
-        setContent { App() }
+        setContent { App(AppLocale.EN_US) }
         awaitCatalog()
 
         playOut()
 
         // Nine placements from a 263-card deal ending exactly level would mean no capture
         // ever happened, which is not credible.
-        assertFalse(
-            isVisible("blue 5 — 5 red"),
-            "the score should have moved: a capture must have occurred",
-        )
+        onNode(hasTestTag(SCORE_TEST_TAG) and hasText(LEVEL_SCORE)).assertDoesNotExist()
         assertTrue(totalIsTen(), "the two scores must always total 10")
     }
 
     @Test
     fun playingOutTheMatchProducesAResult() = runComposeUiTest {
-        setContent { App() }
+        setContent { App(AppLocale.EN_US) }
         awaitCatalog()
 
         playOut()
 
         onNodeWithTag(OUTCOME_TEST_TAG).assertExists()
         onNodeWithTag(TURN_TEST_TAG).assertDoesNotExist()
+        // `You win !` / `You lose...` / `Draw` — the bundle has no neutral "red wins", so the
+        // result is phrased from blue's side. See `TurnLine`.
         assertTrue(
-            isVisible("wins") || isVisible("draw"),
-            "a finished match must announce a winner or a draw",
+            isVisible("You win") || isVisible("You lose") || isVisible("Draw"),
+            "a finished match must announce a result",
         )
     }
 
     @Test
     fun newMatchResetsTheBoard() = runComposeUiTest {
-        setContent { App() }
+        setContent { App(AppLocale.EN_US) }
         awaitCatalog()
 
         playOut()
@@ -152,11 +155,48 @@ class MatchUiTest {
                 onNodeWithTag(handCardTestTag(owner, slot)).assertExists()
             }
         }
-        assertVisible("blue 5 — 5 red", "a new match starts level")
+        onNodeWithTag(SCORE_TEST_TAG).assertTextEquals(LEVEL_SCORE)
         onNodeWithTag(OUTCOME_TEST_TAG).assertDoesNotExist()
+    }
+
+    /**
+     * The localisation, through the real tree rather than through [Strings] in isolation.
+     *
+     * Without this, every other test in this file pins `EN_US` and the wiring could be serving one
+     * hard-coded bundle to everybody.
+     */
+    @Test
+    fun theUiIsInTheChosenLanguage() = runComposeUiTest {
+        setContent { App(AppLocale.FR_FR) }
+        awaitCatalog()
+
+        assertVisible("choisissez une carte", "the turn line should be French")
+        onNodeWithTag(NEW_MATCH_TEST_TAG).assertTextEquals("Match suivant ▸")
+        assertFalse(isVisible("pick a card"), "no English should be left on the board screen")
+    }
+
+    /**
+     * The fallback, also through the real tree — and exercised by the shipped data rather than by a
+     * contrived table. `de_DE` has no `STR_NEXT_MATCH` at all (it is 44 keys short), so that one
+     * control resolves through English while the German it does have is used.
+     */
+    @Test
+    fun aMissingStringFallsBackToEnglishWithoutDisturbingTheRest() = runComposeUiTest {
+        setContent { App(AppLocale.DE_DE) }
+        awaitCatalog()
+
+        onNodeWithTag(NEW_MATCH_TEST_TAG).assertTextEquals("Next Match ▸")
+        playOut()
+        assertTrue(
+            isVisible("Du hast gewonnen") || isVisible("Sie verlieren") || isVisible("Zeichnen"),
+            "the outcome is one of the keys German does define",
+        )
     }
 
     private companion object {
         const val CENTRE = 4
+
+        /** Five unplayed cards each. The score line is two numbers and a dash, no colour words. */
+        const val LEVEL_SCORE = "5 — 5"
     }
 }
