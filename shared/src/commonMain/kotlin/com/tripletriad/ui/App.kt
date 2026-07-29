@@ -1,96 +1,155 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.tripletriad.data.CardCatalog
-import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
-import com.tripletriad.i18n.StringKeys
-import com.tripletriad.i18n.rememberDeviceLocale
 import com.tripletriad.i18n.rememberStrings
+import com.tripletriad.settings.InMemorySettingsStore
+import com.tripletriad.settings.SettingsStore
+import com.tripletriad.settings.UserSettings
+import com.tripletriad.settings.UserSettingsRepository
+import kotlinx.coroutines.launch
 
 private val Backdrop = Color(0xFF14161C)
 
-/** Test tag for the loading/summary line. Match tags live in `MatchScreen.kt`. */
-const val CATALOG_SUMMARY_TEST_TAG: String = "catalog-summary"
+/**
+ * Which screen is showing.
+ *
+ * A `remember`ed value and not a navigation library: there are four destinations, no deep links,
+ * no back stack worth the name, and no arguments to pass. Compose Navigation would be a dependency
+ * and a `NavHost` to earn nothing. If this grows to the original's fourteen screens with a real
+ * back stack, that is the point to reconsider — not before.
+ */
+internal enum class Screen {
+    SPLASH,
+    MENU,
+    OPTIONS,
+    MATCH,
+}
 
 /**
- * @param locale which of the four string bundles to show. Defaults to the device's, narrowed to
- *   the nearest supported one. It is a parameter and not simply read inside because otherwise
- *   every UI test would assert against whatever language the machine running it happens to be
- *   set to — green on one developer's laptop and red on another's, for no defect. The eventual
- *   settings screen needs the same seam.
+ * The whole app: splash while it loads, then the menu, then a match or the options.
+ *
+ * @param store where `UserSettings.json` lives. Supplied by the host, because `:shared` has no
+ *   platform file access of its own — see `SettingsStore`. Defaults to an in-memory store so a
+ *   preview or a test needs no filesystem, and so that a test can pin the language by handing in
+ *   `InMemorySettingsStore("""{"language":"en_US"}""")` rather than inheriting whatever locale the
+ *   machine running it happens to be set to.
+ * @param onQuit what the Quit action does. Nothing, by default: a host that cannot express
+ *   quitting (iOS) or does not want to (a preview) is a legitimate host, and the button being inert
+ *   is better than `:shared` guessing.
  */
+// `BackHandler` is still `@ExperimentalComposeUiApi` in Compose 1.9.3. Opted into here rather than
+// project-wide, so the day it moves or changes shape there is exactly one call site to fix.
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun App(locale: AppLocale = rememberDeviceLocale()) {
+fun App(
+    store: SettingsStore = InMemorySettingsStore(),
+    onQuit: () -> Unit = {},
+) {
     MaterialTheme(colorScheme = darkColorScheme()) {
         Surface(modifier = Modifier.fillMaxSize(), color = Backdrop) {
-            // `produceState` runs each suspending load once and republishes when it
-            // finishes; null is the loading state.
-            //
-            // Two separate loads because they are separately useful and separately sized:
-            // `cards.json` is 60 KB of records, `loadCardArt` is nineteen shared textures
-            // (85 KB). The 263 card faces are *not* loaded here — `CardFace` pulls each one
-            // as it first needs it, so a match decodes at most nineteen of the seven
-            // megabytes on disk. See `CardArt`.
-            val catalog by produceState<CardCatalog?>(initialValue = null) {
-                value = loadCardCatalog()
-            }
-            val art by produceState<CardArt?>(initialValue = null) {
-                value = loadCardArt()
-            }
-            // The device language, narrowed to one of the four the original ships, with English
-            // behind it. Not gated on either: text renders as its own key until the bundle
-            // lands, which is a visible-but-harmless state rather than a blank screen.
+            val startup = rememberStartup(store)
+            val settings = rememberSettingsHolder(store, startup.settings)
+            // Before the settings file has been read there is no language to render in, so the
+            // splash's first frames use the fallback bundle. It says "reading settings…" in
+            // English for a few milliseconds; the alternative is a blank screen for the same few
+            // milliseconds. The holder is preferred over `startup` once it exists, because from
+            // then on the options screen owns the language.
+            val locale = settings?.value?.locale ?: startup.settings?.locale ?: AppLocale.Default
             val strings = rememberStrings(locale)
 
-            // No title bar and only a hairline of padding: the board and ten cards want every
-            // dp there is. `MatchScreen` measures what it is given rather than being told a
-            // size — see `matchLayout`.
-            Box(modifier = Modifier.fillMaxSize().padding(4.dp)) {
-                val loaded = catalog
-                CompositionLocalProvider(LocalStrings provides strings) {
-                    if (loaded == null) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Text(
-                                text = strings[StringKeys.LOADING_CARDS],
-                                color = Color.White.copy(alpha = 0.75f),
-                                fontSize = 13.sp,
-                                modifier = Modifier.testTag(CATALOG_SUMMARY_TEST_TAG),
+            var screen by remember { mutableStateOf(Screen.SPLASH) }
+            // Leaves the splash exactly once, when the last phase completes. Driven by an effect
+            // rather than by deriving the screen from `startup.isReady`, because from then on the
+            // *user* decides where they are and startup must stop having an opinion.
+            LaunchedEffect(startup.isReady) {
+                if (startup.isReady && screen == Screen.SPLASH) screen = Screen.MENU
+            }
+
+            // Android's system back gesture, which would otherwise finish the activity mid-match
+            // — the app would appear to quit from the middle of a game. `BackHandler` is
+            // multiplatform in Compose 1.9 (`androidx.compose.ui.backhandler`), so this needs no
+            // Android-only source set; on desktop it simply never fires. Disabled on the menu so
+            // back there still leaves the app, which is what a main menu should do.
+            BackHandler(enabled = screen == Screen.MATCH || screen == Screen.OPTIONS) {
+                screen = Screen.MENU
+            }
+
+            CompositionLocalProvider(LocalStrings provides strings) {
+                // Only a hairline of padding: the board and ten cards want every dp there is.
+                Box(modifier = Modifier.fillMaxSize().padding(4.dp)) {
+                    // Crossfade so the splash does not snap to the menu. 220 ms is short enough
+                    // not to feel like a wait and long enough to read as a transition.
+                    Crossfade(targetState = screen, label = "screen") { destination ->
+                        when (destination) {
+                            Screen.SPLASH -> SplashScreen(startup)
+                            Screen.MENU -> MainMenuScreen(
+                                onPlay = { screen = Screen.MATCH },
+                                onOptions = { screen = Screen.OPTIONS },
+                                onQuit = onQuit,
                             )
-                        }
-                    } else {
-                        // Deliberately not gated on `art`: a card composes correctly with no
-                        // textures at all — flat colour quad, empty layers — so the board is
-                        // playable the instant the records land and fills in as art arrives.
-                        CompositionLocalProvider(LocalCardArt provides art) {
-                            MatchScreen(catalog = loaded)
+                            Screen.OPTIONS -> settings?.let {
+                                OptionsScreen(settings = it, onBack = { screen = Screen.MENU })
+                            }
+                            Screen.MATCH -> startup.catalog?.let { catalog ->
+                                // Deliberately provided even when null: a card composes correctly
+                                // with no textures at all — flat colour quad, empty layers — so a
+                                // failed art load costs appearance, not playability.
+                                CompositionLocalProvider(LocalCardArt provides startup.art) {
+                                    MatchScreen(
+                                        catalog = catalog,
+                                        onExit = { screen = Screen.MENU },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+/**
+ * Wraps the loaded settings in something the options screen can mutate.
+ *
+ * Null until startup has read the file. Keyed on nothing but the store, so the holder — and any
+ * change the user has since made — survives recomposition; `initial` seeds it once.
+ */
+@Composable
+private fun rememberSettingsHolder(
+    store: SettingsStore,
+    initial: UserSettings?,
+): SettingsHolder? {
+    val scope = rememberCoroutineScope()
+    val repository = remember(store) { UserSettingsRepository(store) }
+    var holder by remember(store) { mutableStateOf<SettingsHolder?>(null) }
+    LaunchedEffect(store, initial) {
+        if (holder == null && initial != null) {
+            holder = SettingsHolder(initial) { updated ->
+                scope.launch { repository.save(updated) }
+            }
+        }
+    }
+    return holder
 }

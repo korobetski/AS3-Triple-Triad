@@ -92,13 +92,22 @@ jobs:
       # compileSdk is 36; the runner image does not always carry it, and there is no
       # local.properties on CI so AGP relies on ANDROID_HOME.
       - uses: android-actions/setup-android@v4
-      - run: ./gradlew :shared:build --no-daemon
+      # `:shared:build` already runs `coverageVerify`, which is wired into `check`. The
+      # report task is named here as well so the HTML exists to upload even on the runs
+      # where the gate passes and Gradle would otherwise have nothing to produce.
+      - run: ./gradlew :shared:build :shared:coverageReport --no-daemon
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: shared-test-results
           path: shared/build/test-results/
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: shared-coverage
+          path: shared/build/reports/jacoco/coverageReport/
 
   android:
     name: Android APK

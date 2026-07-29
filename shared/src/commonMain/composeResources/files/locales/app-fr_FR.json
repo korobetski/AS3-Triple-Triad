@@ -1,7 +1,12 @@
 {
+  "APP_AUDIO_PENDING": "enregistré, mais rien ne joue encore",
+  "APP_BACK": "Retour",
   "APP_LOADING_CARDS": "chargement des cartes…",
   "APP_SIDE_BLUE": "bleu",
   "APP_SIDE_RED": "rouge",
+  "APP_STARTUP_ART": "chargement des illustrations…",
+  "APP_STARTUP_READY": "prêt",
+  "APP_STARTUP_SETTINGS": "lecture des réglages…",
   "APP_TURN_PICK_CARD": "au {0} — choisissez une carte",
   "APP_TURN_PICK_CELL": "{0} : {1} — choisissez une case"
 }

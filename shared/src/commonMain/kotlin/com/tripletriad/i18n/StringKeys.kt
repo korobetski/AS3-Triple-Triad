@@ -38,10 +38,44 @@ object StringKeys {
     /** `{0}` is the side, `{1}` the selected card's name. */
     const val TURN_PICK_CELL: String = "APP_TURN_PICK_CELL"
 
+    // ---- Main menu. All three come from the AS3 bundles, so all four languages have them:
+    // `MenuScreen.as` builds its stack from `STR_CONTINUE`/`STR_NEW_GAME`/`STR_LOAD_GAME`/
+    // `STR_SETTINGS`/`STR_QUIT`. This port shows three of them for now.
+    const val PLAY: String = "STR_PLAY"
+
+    /** The AS3's own label for its settings screen, and it really is "Options" in en_US. */
+    const val SETTINGS: String = "STR_SETTINGS"
+    const val QUIT: String = "STR_QUIT"
+
+    // ---- Options screen.
+    const val GENERAL_SETTINGS: String = "STR_GENERAL_SETTINGS"
+    const val AUDIO_SETTINGS: String = "STR_AUDIO_SETTINGS"
+    const val LANGUAGE: String = "STR_LANGUAGE"
+    const val BACKGROUND_VOLUME: String = "STR_BACKGROUND_VOLUME"
+    const val NOISE_VOLUME: String = "STR_NOISE_VOLUME"
+
+    /**
+     * No AS3 equivalent: its screens all used `STR_CANCEL`, which is the wrong word for
+     * leaving a pane that has already saved everything.
+     */
+    const val BACK: String = "APP_BACK"
+
+    /** Says out loud that the two volume sliders persist but nothing plays yet. */
+    const val AUDIO_PENDING: String = "APP_AUDIO_PENDING"
+
+    // ---- Splash. One key per `StartupPhase`, in the same order.
+    const val STARTUP_SETTINGS: String = "APP_STARTUP_SETTINGS"
+    const val STARTUP_ART: String = "APP_STARTUP_ART"
+    const val STARTUP_READY: String = "APP_STARTUP_READY"
+
     /** Every key above, for the tests that assert each resolves. */
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
         LOADING_CARDS, SIDE_BLUE, SIDE_RED, TURN_PICK_CARD, TURN_PICK_CELL,
+        PLAY, SETTINGS, QUIT,
+        GENERAL_SETTINGS, AUDIO_SETTINGS, LANGUAGE, BACKGROUND_VOLUME, NOISE_VOLUME,
+        BACK, AUDIO_PENDING,
+        STARTUP_SETTINGS, STARTUP_ART, STARTUP_READY,
     )
 
     /** The subset this port authored, which is the subset that may be untranslated. */

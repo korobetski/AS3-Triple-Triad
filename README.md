@@ -3,7 +3,7 @@
 Proof of concept for the migration described in
 [docs/migration/00-INDEX.md](docs/migration/00-INDEX.md).
 
-It does five things:
+It does six things:
 
 1. **Loads all 263 cards** from a JSON resource extracted out of the AS3 source
    (`tto/datas/cards.as`), through the Compose Multiplatform resource bundle.
@@ -19,8 +19,11 @@ It does five things:
    See [§ Rules engine](#rules-engine).
 5. **Sequences the match as a state machine**, `MatchState -> MatchState`, replacing the
    original's cascade of `setTimeout` callbacks.
+6. **Starts like an app**: a splash that names each startup phase, a main menu (play / options /
+   quit) and an options screen that changes the language on the spot and persists it. See
+   [§ Screens and navigation](#screens-and-navigation).
 
-Everything else (drag-and-drop, AI, network, persistence, the collection and deck-builder
+Everything else (drag-and-drop, AI, network, save games, the collection and deck-builder
 screens, sound) is deliberately out of scope. See
 [§ What this PoC does and does not prove](#what-this-poc-does-and-does-not-prove).
 
@@ -44,6 +47,7 @@ Everything below has been executed; the results are in
 ├── tools/extract_cards.py       regenerates cards.json from the AS3 source
 ├── tools/import_card_art.py     copies the card artwork into composeResources
 ├── tools/import_locales.py      normalises the four AS3 string bundles
+├── tools/make_launcher_icons.py regenerates the Android launcher icon from the AIR art
 ├── shared/                      KMP module: model + data + Compose UI
 │   └── src/
 │       ├── commonMain/
@@ -57,24 +61,34 @@ Everything below has been executed; the results are in
 │       │   │   ├── data/CardRepository.kt  CardCatalog + parser + resource loader
 │       │   │   ├── i18n/Strings.kt      AppLocale, lookup + fallback, LocalStrings
 │       │   │   ├── i18n/StringKeys.kt   every key the UI names, in one place
+│       │   │   ├── log/Log.kt           levels, lazy messages, pluggable sink
+│       │   │   ├── settings/SettingsStore.kt   interface + in-memory implementation
+│       │   │   ├── settings/UserSettings.kt    UserSettings.json, load/save, first run
 │       │   │   └── ui/
-│       │   │       ├── App.kt           root composable + catalog/art load
+│       │   │       ├── App.kt           root composable, four screens, back handling
+│       │   │       ├── Startup.kt       StartupPhase, the splash's own model
+│       │   │       ├── SplashScreen.kt  logo + phase line + progress
+│       │   │       ├── MainMenuScreen.kt   play / options / quit
+│       │   │       ├── OptionsScreen.kt    language + the two volumes
 │       │   │       ├── CardArt.kt       texture loading, face cache, digit atlas
 │       │   │       ├── MatchScreen.kt   playable board, both hands, orientation layout
 │       │   │       ├── CardView.kt      CardFace + CardDigits, scalable
 │       │   │       └── CardColors.kt    colours and geometry lifted from the AS3 source
 │       │   └── composeResources/files/
 │       │       ├── cards.json    263 cards, generated
-│       │       ├── art/          282 PNGs, 7.00 MB, imported
+│       │       ├── art/          283 PNGs, 7.01 MB, imported (incl. the logo)
 │       │       └── locales/      tto-<tag>.json imported ×4, app-<tag>.json authored ×4
 │       ├── commonTest/…         CardTest (5) + CardCatalogTest (8) + RulesEngineTest (37)
-│       │                        + MatchStateTest (27) + StringsTest (9) = 86,
+│       │                        + MatchStateTest (27) + StringsTest (9)
+│       │                        + UserSettingsTest (12) + LogTest (7) = 105,
 │       │                        run on desktop + androidHostTest
-│       ├── desktopTest/…        MatchUiTest (10) + StringsBundleTest (8) + MatchLayoutTest (6)
-│       │                        + CardBundleTest (4) + CardFaceTest (2) = 30
+│       ├── desktopTest/…        MatchUiTest (10) + NavigationTest (9) + StringsBundleTest (8)
+│       │                        + OptionsUiTest (7) + MatchLayoutTest (6)
+│       │                        + CardBundleTest (4) + CardFaceTest (2) = 46
 │       └── iosMain/…/MainViewController.kt
-├── androidApp/                  Android host (ComponentActivity + setContent)
-├── desktopApp/                  JVM host — lets you run the UI without an emulator
+├── androidApp/                  Android host + AndroidSettingsStore (Context.filesDir)
+│   └── src/main/res/            launcher icon only, all of it generated — see below
+├── desktopApp/                  JVM host + DesktopSettingsStore — run the UI without an emulator
 └── iosApp/*.swift               SwiftUI host sources (see the iOS caveat below)
 ```
 
@@ -92,10 +106,12 @@ is gone and the path filters are `paths-ignore` rather than a `kotlin/**` allow-
 | Kotlin | 2.2.20 | `org.jetbrains.kotlin.plugin.compose` is versioned with Kotlin, not with Compose |
 | Compose Multiplatform | 1.9.3 | Material 3, plus `compose.components.resources` |
 | kotlinx.serialization | 1.9.0 | plugin version tracks Kotlin |
+| kotlinx-coroutines-test | 1.8.1 | `commonTest` only; pinned to the version Compose already brings in |
 | Android Gradle Plugin | 9.3.1 | `:shared` uses `com.android.kotlin.multiplatform.library`; `:androidApp` needs no Kotlin plugin of its own |
 | ktlint (via `org.jlleitschuh.gradle.ktlint`) | plugin 12.1.2 | configured entirely from `.editorconfig` |
+| JaCoCo | Gradle built-in | coverage; **not Kover**, which cannot be applied here at all — see [§ Coverage](#coverage) |
 | detekt | 1.23.8 | `buildUponDefaultConfig`, `maxIssues = 0` |
-| compileSdk / targetSdk / minSdk | 36 / 36 / 24 | |
+| compileSdk / targetSdk / minSdk | 37 / 36 / 24 | |
 
 There is no `composeOptions.kotlinCompilerExtensionVersion` anywhere: since Kotlin 2.0 the
 Compose compiler ships inside Kotlin and is applied as a plugin.
@@ -136,7 +152,7 @@ and detekt:
 ./gradlew build
 ```
 
-Fast test loop (all 95 tests, a few seconds warm):
+Fast test loop (all 126 desktop tests, a few seconds warm):
 
 ```bash
 ./gradlew :shared:desktopTest
@@ -205,6 +221,7 @@ addressable as `files/art/{collection}{id}.png` — literally `Card.as:166`.
 |---|--:|--:|
 | card faces (`ff14_1` … `ff8_110`) | 263 | 7.00 MB |
 | card back, digit atlas, 5 rarity rows, 12 type icons | 19 | 85 KB |
+| `logo.png` — the wordmark, for the splash and the menu | 1 | 15 KB |
 
 ### Individual files, not the sprite sheets
 
@@ -248,6 +265,214 @@ text, which no rule in this UI switches on yet.
 Not every card has a translucent centre: the FF8 five-star character cards ship a silver frame
 with an opaque illustration, so they read grey in both hands. That is the source artwork, not a
 layering fault — `ff8_102.png` (Laguna) shows it directly.
+
+## Launcher icon
+
+The manifest used to say `android:icon="@mipmap/"` — an empty reference, so the launcher fell
+back to the stock Android robot. `androidApp/src/main/res/` now holds a full icon set, and every
+file in it is generated by
+[`tools/make_launcher_icons.py`](tools/make_launcher_icons.py) from
+`sources/assets/appIcons/icon_128.png`, the icon the AIR build shipped and the only size of it
+that exists. Do not hand-edit `res/`; re-run the script.
+
+The two halves of the source are **separated rather than resized together**, because 128 px is
+not enough for an xxxhdpi icon (432 px of adaptive canvas):
+
+| Layer | How | Sharpness |
+|---|---|---|
+| teal plate | vector gradient, `drawable/ic_launcher_background.xml` | exact at every density |
+| white wing | PNG per density, `mipmap-*/ic_launcher_foreground.png` | resampled from 128 px |
+| legacy (API 24–25) | plate + wing composited, `mipmap-*/ic_launcher.png` | plate exact |
+| themed (API 33+) | the same wing as `<monochrome>` | resampled |
+
+The whole set is 85 KB across 12 files, of which 58 KB is the legacy bitmaps.
+
+Both halves were **measured, not eyeballed**. Fitting a plane per channel across the plate's
+9 338 opaque background pixels gives equal x and y slopes to three decimals with a median
+residual of 4/255 — so the plate is a linear gradient at 45°, `#0CD4FE` to `#034D60`, and it is
+kept as a vector. The wing is pure white, so the plate's red channel (0–12) and the wing's (255)
+never overlap and the red channel *is* the coverage mask; a blend pixel at the wing edge,
+(190, 233, 242), is white at α = 0.74 over the fitted plate to within 4/255. Only the wing is
+ever resampled, and its mask is re-sharpened by the scale factor afterwards, so the one lossy
+step is confined to a smooth silhouette.
+
+The source's drop shadow under the wing is **dropped on purpose**: an adaptive icon must not
+carry a baked shadow, since the launcher casts its own from the layer geometry.
+
+### The foreground is smaller than the usual 72dp
+
+The wing reaches a radius of 66.7 px in the 128 px source — past the plate's own rounded
+corners. Mapping the plate to the standard 72dp would put the wing at radius 37.5dp, which a
+**circular mask (r = 36) cuts**. So the plate maps to 63.4dp instead, which keeps every wing
+pixel inside the 66dp safe circle under any mask shape. The icon therefore reads a little
+smaller than a stock Android Studio import, and is never clipped — verified against circle,
+squircle and square masks before building, then on a device.
+
+**`android:roundIcon` is deliberately not declared.** It exists so an API 25 launcher can ask
+for a circular treatment of a square icon, and the AS3 plate is already a circle — its corner
+radius is 59/128 of the side, recovered from the 2 994 transparent corner pixels, leaving a
+10 px straight segment per side. The round variant was generated first, compared, found
+indistinguishable, and dropped: it was 59 KB of near-duplicate bitmaps.
+
+**Not verified:** the `<monochrome>` themed-icon layer. Seeing it requires turning on themed
+icons in the launcher's own settings, which is a change to the device rather than to this build.
+
+## Coverage
+
+`./gradlew :shared:coverageReport` writes HTML and XML to
+`shared/build/reports/jacoco/coverageReport/`. `./gradlew build` runs `coverageVerify`, which is
+wired into `check`, so a coverage collapse fails the build rather than waiting to be noticed.
+
+| Counter | Covered | Gate |
+|---|--:|--:|
+| line | **97.7%** (1208/1236) | 90% |
+| branch | **86.2%** (462/536) | 75% |
+| instruction | 95.6% (11 185/11 695) | — |
+| method | 93.0% (396/426) | — |
+
+The gates are **floors, not targets**, set well under the measured figures on purpose: they
+exist to catch a test file being deleted or a whole area going untested, not to turn every
+refactor into a coverage negotiation. That the gate can actually fail was checked by raising the
+line minimum to 99% and watching the build stop
+(`lines covered ratio is 0.96, but expected minimum is 0.99`).
+
+### JaCoCo, not Kover
+
+Task 1.11 asked for Kover. **Kover cannot be applied to this module at all.** Version 0.9.3 —
+the newest that exists; there is no 0.10.0 — aborts during plugin application with:
+
+```
+Kover error: Kover requires extension with name 'android' for project ':shared'
+since it is recognized as Kotlin/Android project
+```
+
+Under `com.android.kotlin.multiplatform.library` there is no project-level `android` extension to
+find, because the Android configuration moved inside `kotlin { android { } }`. Kover offers no way
+to opt out of that detection, so the choice was JaCoCo or no coverage. 0.9.1, 0.9.2 and 0.9.3 were
+each tried and each fail identically.
+
+### Measured on desktop only
+
+Not a shortcut. `commonMain` is the code under test; `desktopTest` runs all 105 common tests plus
+the 46 that need a UI; the Android host-test run executes *the same common sources* a second time.
+Instrumenting both would double-count identical lines rather than reach new ones. What is
+genuinely not measured is the two host modules — `AndroidSettingsStore`, `DesktopSettingsStore`,
+`MainActivity`, the logcat sink — which have no tests and are excluded rather than counted as 0%.
+The generated Compose resource accessors are excluded too.
+
+## Logging
+
+Nothing logged at all until the settings layer needed to explain itself.
+[`log/Log.kt`](shared/src/commonMain/kotlin/com/tripletriad/log/Log.kt) is about eighty lines:
+four levels, a `fun interface` sink, `println` by default.
+
+```kotlin
+Log.w(TAG, failure) { "settings file is not readable JSON; replacing it" }
+```
+
+**The message is a lambda**, so a suppressed line is never formatted. A logger that builds its
+string and then discards it is one nobody dares call from the per-frame and per-card paths, which
+is exactly where it would earn its keep. A test pins this by counting how many times the lambda
+runs while the level is above it.
+
+**No Napier**, which the plan named. Napier's job is to forward to `android.util.Log` on Android
+and `println` elsewhere; that is the file above plus four lines in `MainActivity`, which installs
+the logcat sink and holds release builds at `INFO`. `:shared` keeps no Android import. A
+dependency earns its place by doing something hard.
+
+### It has callers, which is the point
+
+`UserSettingsRepository` had three `runCatching { }.getOrNull()` that discarded the failure with
+it: an unreadable file, unparseable JSON, a failed write. All three now report. Repairing a
+settings file silently is how a file that is rewritten on *every* launch goes unnoticed for
+months.
+
+Verified end to end rather than only in tests: a corrupt `UserSettings.json` was written onto a
+Pixel with `adb shell run-as`, and the relaunch produced
+
+```
+W Settings: settings file is not readable JSON; replacing it
+W Settings: kotlinx.serialization.json.internal.JsonDecodingException: Unexpected JSON token
+            at offset 2: Expected quotation mark '"', but had 'n' instead at path: $
+```
+
+followed by a repaired file holding the device's own language.
+
+## Screens and navigation
+
+Four destinations, in a `remember`ed enum:
+
+```
+SPLASH ──(startup finishes)──▶ MENU ──▶ MATCH   (‹ chevron, or system back)
+                                └────▶ OPTIONS (‹ Back, or system back)
+                                └────▶ onQuit  (the host's business)
+```
+
+**No Compose Navigation.** `docs/migration/08-PHASE-4-UI-LAYER.md` Task 4.3 specifies a `NavHost`
+with named routes. Four destinations, no deep links, no arguments and no back stack worth the name
+do not pay for a dependency and a route-string layer. When this grows toward the original's 32
+screens, that is the point to reconsider — and the enum will have told us so by then.
+
+**The Android system back gesture is handled**, which it was not before: `BackHandler` from
+`androidx.compose.ui.backhandler` — multiplatform in Compose 1.9, so no Android-only source set —
+returns to the menu from a match or the options. Without it, back mid-match finished the activity
+and the app appeared to quit from the middle of a game. It is deliberately *disabled* on the menu,
+where leaving the app is the right answer. It needs the `ui-backhandler` artifact, which
+`compose.ui` does not bring in.
+
+### Splash
+
+The AS3 build had no splash — Flash's own preloader covered the wait and `MenuScreen` was the first
+thing drawn. This is not a port of anything: an installed APK has no preloader, and the update
+check that is coming needs somewhere visible to live.
+
+So startup is an **ordered enum, not a spinner**:
+
+| `StartupPhase` | Waits for | Line |
+|---|---|---|
+| `SETTINGS` | `UserSettings.json` — it decides the language everything after is shown in | `reading settings…` |
+| `CARDS` | `cards.json`, 263 records | `loading cards…` |
+| `ART` | the nineteen shared textures | `loading artwork…` |
+| `READY` | nothing; terminal | `ready` |
+
+Adding an update check is one entry, one branch in `rememberStartup`, and one string. A bare
+spinner would have had nowhere to put something that can be slow *and can fail*.
+
+The sequence is now **sequential**, where the two loads used to run concurrently with the match
+gated on neither. That was right without a splash — the board arrived a fraction sooner — and wrong
+with one: the artwork pop-in happened in front of the user instead of behind a progress line. What
+did *not* change is that `CardArt` is still nullable everywhere downstream, so a failed art load
+still costs appearance and not playability.
+
+### Main menu
+
+`MenuScreen.as` in shape — the `logo_white_512` wordmark centred over a vertical stack, 8 px gap —
+but three actions rather than eight: **Play, Options, Quit**. The original's Continue / New Game /
+Load Game all need save games, which do not exist yet; `MenuScreen.as:52-58` is the order to grow
+the list back in.
+
+`onQuit` is a parameter, not something `:shared` does: `finish()` on Android, `exitApplication` on
+desktop, and on iOS nothing at all, since Apple's guidelines have no "quit". A test asserts the
+callback fires and that the menu stays put — `:shared` must not try to leave an app.
+
+### Options
+
+The three fields `UserSettings.json` actually holds, under the AS3's own headings
+(`STR_GENERAL_SETTINGS`, `STR_AUDIO_SETTINGS` — `SettingsScreen.as` splits them the same way).
+
+**Changes apply and persist immediately.** There is no Save button and `STR_SETTINGS_SAVED` — which
+exists in all four bundles — is not used: on a phone, a pane you can leave with a back gesture must
+not be able to lose what you just did, and picking a language redraws the screen in it, which *is*
+the confirmation.
+
+**The volume sliders admit they do nothing.** They persist, and the AS3 file has carried both
+fields all along, so hiding them would be worse; the caveat under them says `saved, but nothing
+plays yet` until Task 1.5 lands. Silent sliders with no explanation read as a bug.
+
+Nearly every label came for free: `STR_PLAY`, `STR_SETTINGS`, `STR_QUIT`, `STR_LANGUAGE`, both
+volume labels and both headings are all in the imported bundles, translated four ways. Only five
+new `APP_*` keys were needed — `APP_BACK`, `APP_AUDIO_PENDING` and three `APP_STARTUP_*` — which is
+why the app-owned count went from 5 to 10 and not to 17.
 
 ## Rules engine
 
@@ -369,17 +594,17 @@ Run on Windows 11, JDK 17 (Temurin), Android SDK platform 36.1 / build-tools 36.
 | Command | Result |
 |---------|--------|
 | `./gradlew clean` then `./gradlew build assembleRelease` | **BUILD SUCCESSFUL**, 264 tasks |
-| `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 17 789 KB |
-| `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 14 900 KB |
+| `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 17 933 KB |
+| `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 15 021 KB |
 | `./gradlew :desktopApp:build` | **BUILD SUCCESSFUL** — `desktopApp.jar` |
 | `./gradlew :shared:desktopTest` | **95 tests, 0 failures** |
-| `./gradlew :shared:build` (all targets) | **202 test executions, 0 failures** |
+| `./gradlew :shared:build` (all targets) | **222 test executions, 0 failures** |
 | `./gradlew ktlintCheck detekt` | **BUILD SUCCESSFUL** — 0 findings, `maxIssues = 0` |
 | `./gradlew :shared:lint` | **0 errors**, warnings only ("a newer version is available") |
 | `./gradlew :desktopApp:run` | window opens, titled "Triple Triad — KMP PoC", nothing on stderr |
 | `./gradlew :androidApp:installDebug` + launch | **runs on a physical device** — see below |
 
-Release APK note: `isMinifyEnabled = false`, so 14 900 KB is an **un-shrunk upper bound**,
+Release APK note: `isMinifyEnabled = false`, so 15 021 KB is an **un-shrunk upper bound**,
 not what a shipped build would weigh.
 
 ### On a physical device
@@ -424,6 +649,9 @@ gated on targeting 37.
 
 ```
 commonTest — runs on desktop and androidHostTest
+  com.tripletriad.settings.UserSettingsTest 12 tests
+  com.tripletriad.log.LogTest              7 tests
+  com.tripletriad.i18n.StringsTest         9 tests
   com.tripletriad.model.CardTest          5 tests
     oppositeIsAnInvolution
     captureChangesOwnerAndNothingElse
@@ -453,8 +681,11 @@ desktopTest — real Compose tree on the JVM, plus the JVM-only bundle reads
 specification, case for case: basic capture and Reverse, Fallen Ace and its interactions,
 Same / Plus / Same Wall, combo propagation, the three type rules, turn order and scoring.
 
-116 distinct tests; **202 executions** — the 86 in `commonTest` run once per target
-(`desktopTest` and `testAndroidHostTest`) and the 30 in `desktopTest` once — 0 failures.
+151 distinct tests; **256 executions** — the 105 in `commonTest` run once per target
+(`desktopTest` and `testAndroidHostTest`) and the 46 in `desktopTest` once — 0 failures.
+
+Line coverage is **97.7%**, branch **86.2%**, measured on the desktop target and gated in
+`check` — see [§ Coverage](#coverage).
 
 It used to be 249, over three targets, and the drop is not a loss of coverage. AGP 9 stopped
 creating a release unit-test variant for library modules, and the module then moved to
@@ -536,10 +767,14 @@ Four defects in that data, all reported by the importer on every run:
 | Uneven coverage | `de_DE` is 44 keys short of the union, `ja_JA` 11. `STR_NEXT_MATCH` is one of them, which is why the reset control reads "Next Match" on a German device — a real fallback, exercised by the shipped data rather than by a contrived fixture. |
 | Markup in one locale only | `fr_FR` prefixes 18 `RULE_*_HELP` values with `<i>FF14 uniquement</i>`; Feathers rendered HTML in a text field and Compose's `Text` does not. Nothing displays rule help yet, so the markup is left in the data — stripping it now would hide that the rules screen needs an `AnnotatedString` converter. |
 
-Two mistranslations are also present and **not** fixed: `STR_DRAW` is "Zeichnen" in German and
-"描く" in Japanese, both of which mean *to draw a picture*, not *a tie*. They are the original's
-strings; overriding them is a product decision, and `app-<tag>.json` is the mechanism when it is
-taken.
+Mistranslations are also present and **not** fixed. `STR_DRAW` is "Zeichnen" (de) and "描く" (ja),
+both meaning *to draw a picture* rather than *a tie*. The main menu adds two more, now that
+`STR_PLAY` is on screen: it is **untranslated in German** ("Play") and in Japanese reads **"再生"**,
+which is *playback* — the button on a media player, not an invitation to play a game. All of them
+are the original's strings, they are visible on the app's most prominent button, and overriding them
+is a product decision rather than a porting one. `app-<tag>.json` is the mechanism when it is taken:
+an entry there wins over the imported bundle. Inventing replacements inside a bundle that is
+evidently machine-translated would not make it trustworthy, so they are reported instead.
 
 ### Verified on the device
 
@@ -553,6 +788,57 @@ was three items in a centred row, which fitted because every string was English 
 "Match suivant" onto a second line. The turn line now takes the leftover width and elides; the
 controls keep theirs. **No test in the suite can catch that**, because wrapping does not change
 the semantics text a Compose test reads.
+
+## User settings
+
+`UserSettings.json` — three fields, exactly the ones `utils/conf.as` wrote:
+
+```json
+{ "language": "fr_FR", "background_volume": 1.0, "noise_volume": 1.0 }
+```
+
+The snake_case keys are deliberate and pinned by a test: a file written by the AS3 build has to keep
+parsing, and one written here has to stay readable by it. Two volumes rather than one because
+`SoundManager` has two channels — with a single stream every card flip would duck the music.
+
+First run writes the file, seeded from the device language, which is `conf.as:22-40`. After that
+**the file decides**: changing the device language does not follow, as in the original, and the
+settings screen is where it is meant to be changed. Verified on a French device — a file saying
+`en_US` produces an English UI.
+
+### Where it lives, and why not where the AS3 put it
+
+| Host | Path |
+|---|---|
+| Android | `Context.filesDir/UserSettings.json` |
+| Desktop | `~/My Games/Triple Triad Online/UserSettings.json` |
+
+`conf.as:14` wrote `My Games/Triple Triad Online/UserSettings.json` under AIR's
+`documentsDirectory` — shared external storage on Android. Scoped storage (API 29+) closed that
+off, `minSdk` is 24 so a legacy path would need a permission prompt plus a runtime branch, and a
+settings file has no business being visible to a file manager. App-private storage is the right
+target; the file name is kept so the contents stay recognisable.
+
+### No `expect`/`actual`, on purpose
+
+Task 1.6 asks for `expect class FileManager`. That is the wrong shape here:
+
+- **`expect` obliges every declared target to supply an `actual`,** and `:shared` declares the three
+  iOS targets. Kotlin/Native cannot build Apple targets from a Windows host, so an iOS `actual`
+  could not be compiled — let alone run — before being pushed; the macOS CI job would be the first
+  thing to see it. Writing unverifiable code to satisfy a target that was explicitly descoped
+  ("Android only for now") buys nothing.
+- **The Android implementation needs a `Context`,** which means threading one into a composable or
+  parking it in a global.
+
+So `:shared` declares a `SettingsStore` interface and each host supplies the implementation it can
+actually build. `:shared` keeps no platform file access at all, and when iOS returns it implements
+the same interface with `NSFileManager` — still no `expect`. The Android store writes to a temp file
+and renames, so a kill mid-write leaves the old settings rather than a truncated file.
+
+A corrupt file is **repaired, not fatal**: `conf.as` would have thrown out of `JSON.parse` and taken
+the launch with it. Nothing in this file is worth failing to start over, and an unrepaired file
+would throw on every launch thereafter.
 
 ## Known issues
 

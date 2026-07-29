@@ -7,9 +7,12 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.PLACEMENTS_PER_MATCH
 import com.tripletriad.model.TOTAL_CARDS
+import com.tripletriad.settings.InMemorySettingsStore
+import com.tripletriad.settings.SettingsStore
 
 /** How long to allow for an animation or a resource load before failing a test. */
 internal const val UI_TIMEOUT_MS = 10_000L
@@ -24,17 +27,41 @@ internal fun ComposeUiTest.assertVisible(text: String, message: String) {
 }
 
 /**
- * Blocks until `cards.json` has been read out of the Compose resource bundle and
- * parsed. Every test needs this: [App] starts on an `APP_LOADING_CARDS` placeholder and
- * there is no card to tap until the load completes.
+ * A store that pins the language, so a test never inherits the machine's own locale.
  *
- * The board appearing *is* the signal, since [App] shows nothing but the placeholder until
- * `loadCardCatalog()` returns — so every test that calls this also covers resource packaging:
- * they all time out here if the JSON is dropped from the bundle. What the bundle *contains* is
- * `CardBundleTest`'s business.
+ * This is what `App`'s old `locale` parameter was for. Going through the settings *file* instead
+ * is strictly better: it is the path the app really takes, so these tests now also cover
+ * `UserSettingsRepository` reading a language and the whole tree rendering in it.
+ */
+internal fun settingsFor(locale: AppLocale): SettingsStore =
+    InMemorySettingsStore("""{"language":"${locale.tag}"}""")
+
+/**
+ * Blocks until the splash finishes and the main menu is up.
+ *
+ * The menu appearing is the signal that every startup phase completed — settings, `cards.json`
+ * and the nineteen shared textures — so any test that calls this also covers resource packaging:
+ * it times out here if the JSON or the art is dropped from the bundle. What the bundle *contains*
+ * is `CardBundleTest`'s business.
  */
 @OptIn(ExperimentalTestApi::class)
-internal fun ComposeUiTest.awaitCatalog() {
+internal fun ComposeUiTest.awaitMenu() {
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+        onAllNodesWithTag(MENU_PLAY_TEST_TAG).fetchSemanticsNodes().isNotEmpty()
+    }
+}
+
+/**
+ * Waits out the splash, presses Play, and waits for the board.
+ *
+ * Every match test starts here now, and goes through the menu rather than around it — a shortcut
+ * that skipped straight to `MatchScreen` would stop the tests noticing if Play ever stopped
+ * leading anywhere.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.startMatch() {
+    awaitMenu()
+    onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
         onAllNodesWithTag(BOARD_TEST_TAG).fetchSemanticsNodes().isNotEmpty()
     }

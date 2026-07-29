@@ -134,16 +134,25 @@ class StringsBundleTest {
         const val CONTINUE = "STR_CONTINUE"
         const val REGISTER_MATCH = "STR_REGISTER_MATCH"
 
-        /** Keys defined by any of the four bundles, `import_locales.py`'s reported union plus 5. */
-        const val UNION_KEYS = 696
+/**
+         * Keys defined by any of the four bundles: `import_locales.py`'s reported union of 691
+         * plus the 10 `APP_*` strings this port authored.
+         */
+        const val UNION_KEYS = 701
 
         /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 5,
-         * 688 + 5, then 647 and 680 with no app-owned strings at all.
+         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 10,
+         * 688 + 10, then 647 and 680 with no app-owned strings at all.
+         *
+         * The splash and the options screen added five app-owned keys — `APP_BACK`,
+         * `APP_AUDIO_PENDING` and three `APP_STARTUP_*`. Everything else those screens show comes
+         * out of the AS3 bundles (`STR_PLAY`, `STR_SETTINGS`, `STR_QUIT`, `STR_LANGUAGE`, the two
+         * volume labels, both section headings), so it is translated in all four languages for
+         * free — which is why these two numbers moved by 5 and not by 12.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 692,
-            AppLocale.FR_FR to 693,
+            AppLocale.EN_US to 697,
+            AppLocale.FR_FR to 698,
             AppLocale.DE_DE to 647,
             AppLocale.JA_JA to 680,
         )
@@ -160,9 +169,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus the 5 app-owned; and 11 short, plus the 5.
-            AppLocale.DE_DE to 49,
-            AppLocale.JA_JA to 16,
+            // 44 imported keys short, plus all 10 app-owned; and 11 short, plus the 10.
+            AppLocale.DE_DE to 54,
+            AppLocale.JA_JA to 21,
         )
     }
 }

@@ -61,6 +61,9 @@ const val SCORE_TEST_TAG: String = "score"
 const val OUTCOME_TEST_TAG: String = "outcome"
 const val NEW_MATCH_TEST_TAG: String = "new-match"
 
+/** The chevron back to the main menu. */
+const val MATCH_EXIT_TEST_TAG: String = "match-exit"
+
 /** `tile-0` … `tile-8`, row-major, matching `Board.cells`. */
 fun tileTestTag(position: Int): String = "tile-$position"
 
@@ -92,7 +95,7 @@ fun handCardTestTag(owner: CardColor, slot: Int): String =
  * portrait. See [matchLayout].
  */
 @Composable
-internal fun MatchScreen(catalog: CardCatalog) {
+internal fun MatchScreen(catalog: CardCatalog, onExit: () -> Unit = {}) {
     var matchIndex by remember { mutableStateOf(0) }
     // Seeded from the match index so a given match is reproducible, but "new match" deals a
     // different pair of hands.
@@ -106,7 +109,12 @@ internal fun MatchScreen(catalog: CardCatalog) {
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        StatusBar(state = state, selected = selected, onNewMatch = { matchIndex++ })
+        StatusBar(
+            state = state,
+            selected = selected,
+            onNewMatch = { matchIndex++ },
+            onExit = onExit,
+        )
 
         // The play area takes whatever the status bar leaves and sizes every card to what it
         // actually got. Nothing below this line guesses at a screen size or a "chrome"
@@ -192,13 +200,31 @@ private fun PlayArea(
  * shows the score without them too.
  */
 @Composable
-private fun StatusBar(state: MatchState, selected: Card?, onNewMatch: () -> Unit) {
+private fun StatusBar(
+    state: MatchState,
+    selected: Card?,
+    onNewMatch: () -> Unit,
+    onExit: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val strings = LocalStrings.current
+        // A bare chevron, not "‹ Back". The row already learned once that a fixed-width control
+        // sized for English squeezes the turn line in French (see below), and this bar now has two
+        // of them; a glyph costs the same in every language. The Android system back gesture
+        // reaches the same place — see `App`.
+        Text(
+            text = "‹",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 18.sp,
+            modifier = Modifier
+                .testTag(MATCH_EXIT_TEST_TAG)
+                .clickable(onClick = onExit)
+                .padding(horizontal = 4.dp),
+        )
         Score(state)
         // The turn line takes whatever the two fixed ends leave, and elides rather than growing.
         //

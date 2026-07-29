@@ -11,12 +11,15 @@ import com.tripletriad.ui.App
  * Desktop entry point. Not a migration target — it exists so the shared Compose
  * UI can be built and run on a developer machine without an emulator or Xcode.
  */
-fun main() = application {
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "Triple Triad — KMP PoC",
-        state = rememberWindowState(size = DpSize(480.dp, 420.dp)),
-    ) {
-        App()
+fun main() {
+    val settings = DesktopSettingsStore()
+    application {
+        Window(
+            onCloseRequest = ::exitApplication,
+            title = "Triple Triad",
+            state = rememberWindowState(size = DpSize(480.dp, 420.dp)),
+        ) {
+            App(store = settings, onQuit = ::exitApplication)
+        }
     }
 }

@@ -15,14 +15,19 @@ Measured, not projected. `./gradlew build` at the repository root:
 | `commonTest` | `RulesEngineTest` | 37 | desktop, androidHostTest |
 | `commonTest` | `MatchStateTest` | 27 | desktop, androidHostTest |
 | `commonTest` | `StringsTest` | 9 | desktop, androidHostTest |
+| `commonTest` | `UserSettingsTest` | 12 | desktop, androidHostTest |
+| `commonTest` | `LogTest` | 7 | desktop, androidHostTest |
 | `desktopTest` | `MatchUiTest` | 10 | desktop |
+| `desktopTest` | `NavigationTest` | 9 | desktop |
+| `desktopTest` | `OptionsUiTest` | 7 | desktop |
 | `desktopTest` | `StringsBundleTest` | 8 | desktop |
 | `desktopTest` | `MatchLayoutTest` | 6 | desktop |
 | `desktopTest` | `CardBundleTest` | 4 | desktop |
 | `desktopTest` | `CardFaceTest` | 2 | desktop |
-| | **total** | **116 distinct / 202 executions** | 0 failures |
+| | **total** | **151 distinct / 256 executions** | 0 failures |
+| | coverage | **97.7% line / 86.2% branch** | gated at 90 / 75 in `check` |
 
-`commonTest` runs on every target, which is the point of putting it there — the same 86
+`commonTest` runs on every target, which is the point of putting it there — the same 96
 tests execute twice, as `:shared:desktopTest` and `:shared:testAndroidHostTest`. It was three
 times under AGP 8: AGP 9 dropped the release unit-test variant for library modules, and the
 module has since moved to `com.android.kotlin.multiplatform.library`, which runs the Android
@@ -74,7 +79,7 @@ run both against the same cases.
 | platform | instrumented / manual | only what cannot run on the JVM |
 
 **`commonTest` by default.** Put a test in a platform source set only if it needs that
-platform. The 86 common tests here run twice for free; the same tests in
+platform. The 96 common tests here run twice for free; the same tests in
 `desktopTest` would run once. `StringsTest` is the pattern: the lookup and fallback *logic* needs
 no resource bundle, so it lives in `commonTest`; what the shipped bundles *contain* is
 `StringsBundleTest`, in `desktopTest`, for the same reason `CardBundleTest` is.
@@ -138,6 +143,52 @@ unkeyed — was live for a whole feature and the suite could not see it. It need
 composable slot, and nothing had asserted on what a reused slot contains. **When a bug needs
 a slot to be reused, drive the reuse in the test**: the failing case here is one
 `mutableStateOf` swapped from one card to another with the composition kept.
+
+### Say what is not covered, in the file that is not covering it
+
+`UserSettingsTest` drives the settings layer through an in-memory store. The two **platform** stores
+— `AndroidSettingsStore`, `DesktopSettingsStore` — have no tests at all, and that is a decision, not
+an omission: they are twenty lines of `java.io.File` each, they live in the host modules, and a test
+would be testing the JDK. What is worth pinning is the *on-disk shape*, because a `UserSettings.json`
+written by the AS3 build has to keep parsing — so that is what the tests assert, including a
+verbatim AS3-written payload as a fixture.
+
+The temp-file-and-rename in the Android store is likewise unasserted; it was verified by reading the
+file off a device with `adb shell run-as`. **When coverage stops, say where** — the alternative is a
+reader assuming the green suite means the file handling was exercised.
+
+### Do not let the harness decide what you are testing
+
+The first version of `theSplashHoldsWhileStartupIsUnfinishedAndNamesItsPhase` asserted on the
+first frame of a *normal* start: set the content, then check the menu is not up yet. It failed,
+and the failure was the useful part — `runComposeUiTest` drains coroutines around every
+interaction, so by the time the first assertion ran a healthy startup had already finished.
+
+Had the timing gone the other way the test would have **passed while proving nothing**: it would
+have been measuring how fast the machine reads a 60 KB JSON file. The fix is to remove the timing
+from the question — a settings store whose `read` never returns holds the splash in
+`StartupPhase.SETTINGS` indefinitely, and the assertion becomes about the state rather than about
+the clock.
+
+Note this is deliberately *not* the same fixture as
+`aStoreThatThrowsDoesNotStrandTheSplash`. A store that throws must be recovered from; a store that
+never answers is the only way to observe a fixed phase. Two different claims, two different doubles.
+
+### Screenshots still catch what assertions cannot
+
+The three new screens were rendered to PNG through `captureToImage()` at phone dimensions and
+looked at, in French and in Japanese, before being called done. Two things came out of it that no
+assertion in this suite would have found:
+
+* the Japanese options screen shows its two app-owned strings **in English**, because `app-ja_JA.json`
+  is empty — correct, documented fallback behaviour, and quite different to read about than to see;
+* a suspected rendering defect — a stray vertical tick beside each volume slider — turned out to be
+  the Material 3 slider **thumb**, which in this version is a thin detached bar. Rendering the same
+  screen at 40% instead of 100% moved the tick with the value and settled it. The "fix" was reverted,
+  along with the experimental opt-in it had needed.
+
+The second one is the more useful lesson: a screenshot is evidence, not a verdict. It showed
+something worth investigating and the investigation said the code was already right.
 
 ### Some bugs only a screenshot can see, and it is worth saying which
 

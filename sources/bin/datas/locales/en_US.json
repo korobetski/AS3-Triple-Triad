@@ -85,7 +85,7 @@
     "STR_NPC_Vorsaile_Heuloix":"Vorsaile Heuloix",
     "STR_NPC_Tataru":"Tataru Taru",
     "STR_NPC_PAPALYMO":"Papalymo",
-	
+
 	"STR_NPC_Lewena":"Lewena",
 	"STR_NPC_Okalkaya":"Okalkaya",
 	"STR_NPC_Mordyn":"Mordyn",
@@ -110,7 +110,7 @@
 	"STR_NPC_Mogmill":"Mogmill",
 	"STR_NPC_Midnight_Dew":"Midnight Dew",
 	"STR_NPC_Seika":"Seika",
-	
+
     "STR_NPC_KID":"Kid",
     "STR_NPC_CHOCOBOY":"Chocoboy",
     "STR_NPC_UFO":"UFO",
@@ -177,7 +177,6 @@
     "RULE_ROULETTE":"Roulette",
     "RULE_ROULETTE_HELP":"Rules in play are chosen at random.",
     "STR_MATCH_FEE":"Match Fee",
-    "STR_REGISTER_MATCH":"Defy",
     "STR_LEVEL":"Level",
     "STR_WINS":"Wins",
     "STR_DEFEATS":"Defeats",
@@ -225,7 +224,7 @@
     "STR_REMATCH":"Rematch",
     "STR_FF14_CARD_1":"Dodo",
     "STR_FF14_CARD_1_DESC":"These large, flightless cloudkin originated from the island of Mazlaya, and were brought to the mainland by Qiqirn who bred them for their eggs. The free races of Eorzea have reared the rotund creatures ever since, though they are now valued primarily for their meat. Would-be poultry farmers be warned: when seeking to defend itself, a dodo will spit forth a sleep-inducing secretion.",
-	"STR_FF14_CARD_2":"Tonberry", 
+	"STR_FF14_CARD_2":"Tonberry",
     "STR_FF14_CARD_2_DESC":"Little is known about this inscrutable race of beastmen that inhabits the ruins of Nym─a culture that reached its peak during the Fifth Astral Era. Tonberries wear clothing and are adept in the use of complex tools, both of which would seem to suggest a civilized level of intelligence. Recently discovered texts from Nymian times suggest that the green denizens of the Wanderer's Palace are the carriers of a terrible pestilence.",
 	"STR_FF14_CARD_3":"Sabotender",
     "STR_FF14_CARD_3_DESC":"Found exclusively in arid regions, cactuars are known for their ability to survive extended periods under the scorching sun on naught but the moisture stored within their bodies. Conditioned by the brutal nature of their surroundings, cactuars are quick to defend themselves, launching a barrage of needle-like projectiles at potential predators─and the occasional unwary traveler.",
@@ -383,7 +382,7 @@
     "STR_FF14_CARD_79_DESC":"“Who said anything about strong? You'll make it. You got good friends.”",
     "STR_FF14_CARD_80":"Lightning",
     "STR_FF14_CARD_80_DESC":"“It's not a question of can or can't. There are some things in life you just do.”",
-	
+
 	"STR_FF14_CARD_81":"Gaelicat",
 	"STR_FF14_CARD_81_DESC":"A curious, charming creature with a feline body and the wings of a bat. Some scholars posit that it is a type of beastkin, while others insist that it is a lesser voidsent belonging to the eleventh rung of the hierarchy of twelve. One thing that cannot be denied is that it clearly possesses a keen, mischievous intelligence.",
 	"STR_FF14_CARD_82":"Vanu Vanu",
@@ -530,7 +529,7 @@
 	"STR_FF14_CARD_152_DESC":"Head crowned with animate tresses and mind caressed by madness, Calofisteri haunts the Tomb of the Nullstone as the relic's self-appointed guardian. This mighty sorceress of Mhach achieved a twisted form of immortality by combining the power of aether-infused crystal with the ritual consumption of voidsent blood.",
 	"STR_FF14_CARD_153":"Hraesvelgr",
 	"STR_FF14_CARD_153_DESC":"One of the seven great wyrms sired by Midgardsormr, Hraesvelgr shared a love with Saint Shiva that transcended race and reason. Their pure bond quelled the hostility between dragon and man, until one fateful day when mortal treachery shattered the peace and soured the wyrm's heart with grief.",
-	
+
 	"STR_FF8_CARD_1":"Geezard",
 	"STR_FF8_CARD_2":"Funguar",
 	"STR_FF8_CARD_3":"Bite Bug",

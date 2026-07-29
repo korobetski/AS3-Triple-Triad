@@ -65,7 +65,7 @@ data class MatchState(
         get() = currentPlayer?.let { hands[it] }.orEmpty()
 
     /**
-     * Counts colours across both hands, played or not — see [score].
+     * Counts colors across both hands, played or not — see [score].
      *
      * Unplayed cards count for their owner, so the total is always [TOTAL_CARDS] and a
      * draw is 5-5.
@@ -144,7 +144,7 @@ data class MatchState(
      * change** and there is no new coin flip (`BaseMatchScreen.as:238-243`,
      * `:415-420`).
      *
-     * Cards return to their printed owner colour for the new hands; ownership is carried
+     * Cards return to their printed owner color for the new hands; ownership is carried
      * by which hand they are in, exactly as in the original.
      */
     fun suddenDeathRematch(elements: List<CardType?> = List(Board.SIZE) { null }): MatchState {
@@ -170,7 +170,7 @@ data class MatchState(
          * Starts a match.
          *
          * The pre-match rule chain — Random hand, Swap, Open, the coin flip — is **not**
-         * modelled: five of its seven links exist only to play an animation, and the two
+         * modeled: five of its seven links exist only to play an animation, and the two
          * that do work (building a random hand, swapping a card) belong to whatever
          * assembles the hands. Pass the hands you want and who moves first.
          *

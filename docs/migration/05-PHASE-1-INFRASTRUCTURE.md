@@ -218,39 +218,86 @@ and iOS (`AVAudioPlayer` / `AVAudioEngine`).
 
 ---
 
-#### Task 1.6: Platform File Access (expect/actual)
-**Owner**: Android + iOS Specialists | **Duration**: 1 day | **Priority**: MEDIUM
+#### Task 1.6: Platform File Access — ✅ **DONE, with a different shape**
 
-Create unified file API:
-```kotlin
-// commonMain
-expect class FileManager {
-    fun readAsset(path: String): ByteArray
-    fun readAssetAsString(path: String): String
-    fun getDocumentsDirectory(): String
-}
-```
-
-Implement for Android (Assets/Context) and iOS (NSBundle/NSFileManager).
+Delivered as
+[`settings/SettingsStore.kt`](../../shared/src/commonMain/kotlin/com/tripletriad/settings/SettingsStore.kt)
++ [`UserSettings.kt`](../../shared/src/commonMain/kotlin/com/tripletriad/settings/UserSettings.kt),
+implemented by
+[`AndroidSettingsStore`](../../androidApp/src/main/kotlin/com/tripletriad/android/AndroidSettingsStore.kt)
+and
+[`DesktopSettingsStore`](../../desktopApp/src/main/kotlin/com/tripletriad/desktop/DesktopSettingsStore.kt).
+Ten tests in
+[`UserSettingsTest`](../../shared/src/commonTest/kotlin/com/tripletriad/settings/UserSettingsTest.kt).
+Full write-up in the [README](../../README.md#user-settings).
 
 **Acceptance Criteria**:
-- [ ] File operations work on both platforms
-- [ ] Asset loading works
+- [x] File operations work — verified on a physical Pixel 6a: first launch creates the file, editing
+      it changes the language, a second launch does **not** rewrite it
+- [x] Asset loading works — **already did, and needs none of this API**. Compose resources read
+      `cards.json`, the 282 images and the four locale bundles; `readAsset` would be a second
+      mechanism doing the same job worse
+
+> ⚠️ **Three corrections to the API sketched above.**
+>
+> 1. **`expect class` is the wrong shape.** `expect` obliges *every* declared target to supply an
+>    `actual`, and `:shared` declares three iOS targets. Kotlin/Native cannot build Apple targets
+>    from a Windows host, so an iOS `actual` could not be compiled or run before being pushed — the
+>    macOS CI job would be the first thing to see it. An interface in `commonMain`, implemented by
+>    each host module, gives the same seam with nothing unverifiable in it. It also solves the
+>    `Context` problem for free: `:androidApp` has one, `:shared` does not need one.
+> 2. **`readAsset`/`readAssetAsString` are redundant.** Compose resources already do this, are
+>    already load-bearing for the catalog, the artwork and the locales, and work identically on
+>    every target. Adding a parallel asset API would mean two ways to read a bundled file.
+> 3. **`getDocumentsDirectory()` cannot be honoured on Android.** It maps to AIR's
+>    `documentsDirectory`, i.e. shared external storage, which scoped storage closed off at API 29.
+>    App-private storage is the correct target and needs no path accessor at all.
 
 ---
 
-#### Task 1.7: Core Utilities
-**Owner**: Senior Kotlin Devs | **Duration**: 2 days | **Priority**: MEDIUM
+#### Task 1.7: Core Utilities — ⚠️ **mostly void; read `tools.as` before budgeting two days**
 
-Create utility classes (ported from AS3):
-- `Tools.kt` - Common functions (rand, madmax, etc.)
-- `Constants.kt` - App constants
-- `Logger.kt` - Napier wrapper
-- `CryptoHelper.kt` - Save file encryption
+`utils/tools.as` is 158 lines, of which about ten are portable and most of those are **already
+done**:
 
-**Acceptance Criteria**:
-- [ ] All utilities compile and work
-- [ ] Logging configured
+| AS3 | Status |
+|---|---|
+| `madmax(value)` | **Done** as [`clampPower`](../../shared/src/commonMain/kotlin/com/tripletriad/model/Power.kt) — it is `min(10, max(0, v))`, i.e. the effective-power clamp, and it belongs in `Power.kt` rather than in a `Tools` bag |
+| `rand(to)` | Superseded by `kotlin.random`. Worth knowing it was **`Math.round(random()*to)`** — inclusive of `to`, and biased: the two end values get half the weight of the others |
+| `array_rand(arr, n)` | Not ported; needed when the RANDOM hand rule is. One line with `shuffled().take(n)` |
+| `fileOpen`, `imageLoad`, `purge` | Flash `URLLoader` and display-list plumbing. Nothing to port |
+
+`Constants.kt` is not wanted either: constants live next to what reads them — `Board.SIZE`,
+`HAND_SIZE`, `Card.POWER_RANGE`, `CardSpriteWidth`.
+
+The logger is now **done**:
+[`log/Log.kt`](../../shared/src/commonMain/kotlin/com/tripletriad/log/Log.kt) — four levels, a
+`fun interface` sink, `println` by default, and a logcat sink installed by `MainActivity`. Seven
+tests in [`LogTest`](../../shared/src/commonTest/kotlin/com/tripletriad/log/LogTest.kt).
+
+**Napier was not taken.** Its job is to forward to `android.util.Log` on Android and `println`
+elsewhere — eighty lines here plus four in the host. A dependency has to do something hard.
+
+Two things the port has that the AS3 did not: the message is a **lambda**, so a suppressed line is
+never formatted (a logger that formats then discards is one nobody calls from a per-frame path),
+and it has **callers** — `UserSettingsRepository` had three `runCatching { }.getOrNull()` that
+threw the failure away, and all three now report. A logger with no callers would have been dead
+code shipped to satisfy a checklist.
+
+Still outstanding: **`CryptoHelper`**, which is only needed when save games are.
+
+> **`CryptoHelper` is obfuscation, not encryption, and should not be reproduced as-is.**
+> `utils/CryptoHelper.as` builds its AES key from the *pixels of a bundled image*:
+> `[Embed] assets/tto_key.gif` (1 219 bytes, present in `sources/assets/`), read as
+> `getPixels(new Rectangle(0, 0, 31, 31))` — 961 pixels × 4 bytes = **3 844 bytes**, which is not a
+> valid AES key length (16/24/32). Whatever as3crypto's `AESKey` does with that, two things are
+> certain: the key ships inside the app, so anyone holding the APK holds the key; and it protects a
+> **local single-player save**, which has no attacker worth the trouble. When saves are ported,
+> either drop the encryption and say so, or use a real KMP crypto library — but do not spend effort
+> re-implementing a 31×31 GIF as a key schedule.
+>
+> Settings are **not** encrypted in the original either: `conf.as` reads and writes plain JSON. So
+> this task is not a prerequisite for Task 1.6.
 
 ---
 
@@ -334,18 +381,31 @@ targets) and
 
 ### Week 6: Testing and Finalization
 
-#### Task 1.11: Testing Infrastructure
-**Owner**: QA Engineer | **Duration**: 2 days | **Priority**: HIGH
-
-Set up:
-- Kotest + Turbine for coroutine testing
-- Compose testing
-- Test utilities
-- Coverage reporting
+#### Task 1.11: Testing Infrastructure — ✅ **DONE, with JaCoCo instead of Kover**
 
 **Acceptance Criteria**:
-- [ ] Unit tests run successfully
-- [ ] Coverage is measured
+- [x] Unit tests run successfully — 135 distinct / 240 executions, 0 failures
+- [x] Coverage is measured — **96.7% line, 86.0% branch**, `./gradlew :shared:coverageReport`,
+      gated at 90/75 by `coverageVerify` which `check` depends on. Full write-up in the
+      [README](../../README.md#coverage)
+
+> ⚠️ **Kover cannot be applied to this module at all**, so the plan's tool was not usable.
+> Version 0.9.3 (the newest; 0.10.0 does not exist) aborts during plugin application with
+> *"Kover requires extension with name 'android' for project ':shared' since it is recognized as
+> Kotlin/Android project"*. Under `com.android.kotlin.multiplatform.library` there is no
+> project-level `android` extension, because that configuration moved inside
+> `kotlin { android { } }`. 0.9.1, 0.9.2 and 0.9.3 each fail identically and Kover has no opt-out
+> for the detection. JaCoCo is a Gradle built-in with no AGP coupling, so that is what is wired up.
+
+**Kotest and Turbine were not added either**, and this is a decision rather than an omission.
+`kotlin.test` plus `kotlinx-coroutines-test` cover everything the 135 tests need; Kotest would be
+a second assertion vocabulary alongside the one already in use, and Turbine tests `Flow`, of which
+this codebase has none — `MatchState` is a plain immutable value passed through `remember`. Add
+them when there is a Flow to test.
+
+The coverage gates are **floors, not targets**: set well below the measured figures so they catch
+a deleted test file rather than making every refactor a negotiation. The gate was proved able to
+fail by raising the line minimum to 99% and watching the build stop.
 
 ---
 
@@ -360,9 +420,12 @@ Enhance pipelines:
 - Release automation
 
 **Acceptance Criteria**:
-- [ ] All CI pipelines pass
-- [ ] Coverage reported
-- [ ] Artifacts built and stored
+- [x] All CI pipelines pass — five jobs, green
+- [x] Coverage reported — the `shared` job runs `:shared:coverageReport` and uploads the HTML as
+      a `shared-coverage` artifact; the gate itself runs inside `:shared:build`
+- [x] Artifacts built and stored — test results, coverage, and the debug APK
+- [ ] Release automation — **not done**, and deliberately deferred to Phase 8: it needs a signing
+      key, which is a secret this repository does not have yet
 
 ---
 
@@ -385,20 +448,21 @@ Ticked against what is in the repository, not against intent.
 
 - [x] Complete project structure — root Gradle build, `:shared` / `:androidApp` / `:desktopApp`
 - [x] All build files — version catalog, ktlint + detekt applied to every module at `maxIssues = 0`
-- [ ] Platform-specific implementations — **none needed so far**. Audio (P1.5) and file access
-      (P1.6) are the two that want `expect`/`actual`; the locale lookup did not, because Compose's
-      own `Locale.current` is multiplatform, and asset reads did not, because Compose resources are
-- [ ] Core utility classes — P1.7, not started
+- [x] Platform-specific implementations — `AndroidSettingsStore` / `DesktopSettingsStore`, as
+      host-module implementations of a common interface rather than `expect`/`actual`; see Task 1.6
+      for why. Audio (P1.5) is the remaining one
+- [x] Core utility classes — the logger is done (P1.7); the rest of `tools.as` is void or
+      already in place, and `CryptoHelper` waits for save games. See the task
 - [x] All data models — `Card`, `Board`, `GameRules`, `Power`, `Match`, `MatchState`
 - [x] JSON data files — `cards.json`, 263 records, generated by `tools/extract_cards.py`
 - [x] Localization files — four imported bundles + four app-owned, see Task 1.10
 - [x] Repository implementations — `CardRepository`, read through the Compose resource bundle
-- [x] Test infrastructure — 116 tests / 202 executions; **Kover is still absent** (P1.11)
+- [x] Test infrastructure — 135 tests / 240 executions, and coverage measured and gated;
+      **JaCoCo, because Kover cannot be applied here at all** — see Task 1.11
 - [x] CI/CD workflows — five jobs, green
 
-Remaining in this phase: **P1.5** audio, **P1.6** file access, **P1.7** core utilities,
-**P1.11** coverage reporting, **P1.13** setup/build guides. **P1.4** (iOS app) is void — Android
-only, decided 2026-07-25.
+Remaining in this phase: **P1.5** audio and **P1.13** setup/build guides. **P1.4** (iOS app) is
+void — Android only, decided 2026-07-25. Everything else is delivered.
 
 ### Documentation Deliverables
 - [ ] Phase documentation

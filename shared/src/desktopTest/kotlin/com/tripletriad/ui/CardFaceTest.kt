@@ -62,7 +62,7 @@ class CardFaceTest {
     @Test
     fun anAlreadyDecodedFaceIsReturnedWithoutABlankFrame() = runComposeUiTest {
         val card: Card = cards.last()
-        runBlocking { art.face(card) }
+        art.face(card)
         val frames = mutableListOf<ImageBitmap?>()
 
         setContent { frames += rememberCardFace(art, card) }

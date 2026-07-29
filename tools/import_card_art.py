@@ -83,6 +83,11 @@ def main() -> int:
 
     extras = [
         (CARDS / "back.png", "back.png"),
+        # The wordmark `MenuScreen.as:43` puts above its button stack. 512x128, white letters
+        # with a dark outline, so it reads on the app's own near-black backdrop. The 256 and 128
+        # variants exist in the AS3 tree but are not copied: Compose scales the one bitmap, and
+        # the layout never asks for it larger than 512.
+        (ASSETS / "logo_white_512.png", "logo.png"),
         (ASSETS / "digits" / "digits.png", "digits.png"),
         *[(ASSETS / "card_rarities" / f"{n}stars.png", f"{n}stars.png") for n in RARITIES],
         *[(ASSETS / "card_types" / f"type-{t}.png", f"type-{t}.png") for t in TYPES],

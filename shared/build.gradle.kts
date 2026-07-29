@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+    id("jacoco")
 }
 
 kotlin {
@@ -19,7 +20,7 @@ kotlin {
     // Declares the Android target *and* configures it — there is no separate `android {}`
     // block under this plugin, and no `compileOptions` either: `jvmToolchain(17)` sets the
     // bytecode level for every JVM target, and this module has no Java source.
-    androidLibrary {
+    android {
         namespace = "com.tripletriad.shared"
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
         minSdk = libs.versions.androidMinSdk.get().toInt()
@@ -51,10 +52,12 @@ kotlin {
             // Card data is read through Compose resources, which is also the
             // mechanism the real migration needs for the 263 card images.
             api(compose.components.resources)
+            api(libs.compose.backhandler)
             api(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
         // `getByName` and not `val desktopTest by getting`: Gradle 9 deprecated the delegate
         // syntax and removes it in Gradle 10. There is no generated `desktopTest` accessor
@@ -74,3 +77,84 @@ compose.resources {
     packageOfResClass = "tripletriad.shared.generated.resources"
     generateResClass = auto
 }
+
+// ---------------------------------------------------------------------------------------
+// Coverage
+//
+// JaCoCo directly, and **not Kover**, which the migration plan named. Kover 0.9.3 — the
+// newest there is; 0.10.0 does not exist — cannot even be applied to this module: it
+// aborts with "Kover requires extension with name 'android' for project ':shared' since it
+// is recognized as Kotlin/Android project". Under `com.android.kotlin.multiplatform.library`
+// there is no project-level `android` extension to find, because the Android configuration
+// moved inside `kotlin { android { } }`. Kover has no way to opt out of that detection, so
+// the choice is JaCoCo or no coverage at all.
+//
+// Measured on the **desktop** target only. That is not a shortcut: `commonMain` is the code
+// under test, `desktopTest` runs all 96 common tests plus the 30 that need a UI, and the
+// Android host-test run executes the same common sources a second time. Instrumenting both
+// would double-count identical lines rather than reach new ones.
+// ---------------------------------------------------------------------------------------
+
+val desktopTestTask = tasks.named<Test>("desktopTest")
+
+tasks.register<JacocoReport>("coverageReport") {
+    group = "verification"
+    description = "HTML + XML coverage for the desktop target, from :shared:desktopTest."
+    dependsOn(desktopTestTask)
+    executionData(
+        desktopTestTask.map { test ->
+            test.extensions.getByType<JacocoTaskExtension>().destinationFile!!
+        },
+    )
+
+    classDirectories.setFrom(
+        // The Compose resource accessors (`Res`, `Res.drawable.…`) are generated into
+        // build/ and are not ours to cover; counting them would inflate the total with
+        // hundreds of trivial generated getters.
+        kotlin.targets.getByName("desktop")
+            .compilations.getByName("main")
+            .output.classesDirs
+            .asFileTree
+            .matching { exclude("tripletriad/shared/generated/**") },
+    )
+    sourceDirectories.setFrom(files("src/commonMain/kotlin", "src/desktopMain/kotlin"))
+
+    reports {
+        html.required = true
+        xml.required = true
+        csv.required = false
+    }
+}
+
+// A floor, not a target. Measured at 96.6% line / 85.3% branch when this was written, and set
+// well under that: the point is to catch a test file being deleted or a whole area going
+// untested, not to make every ordinary refactor a coverage negotiation. Raising it to just
+// below the current number would make the build fail on noise.
+tasks.register<JacocoCoverageVerification>("coverageVerify") {
+    group = "verification"
+    description = "Fails if desktop coverage drops well below what it was."
+    val report = tasks.named<JacocoReport>("coverageReport")
+    dependsOn(report)
+    executionData(report.map { it.executionData })
+    classDirectories.setFrom(report.map { it.classDirectories })
+    sourceDirectories.setFrom(report.map { it.sourceDirectories })
+
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.90".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "0.75".toBigDecimal()
+            }
+        }
+    }
+}
+
+// So `./gradlew build` measures coverage rather than leaving it to be remembered. It costs
+// one extra `desktopTest` run's worth of instrumentation, and the tests were running anyway.
+tasks.named("check") { dependsOn("coverageVerify") }

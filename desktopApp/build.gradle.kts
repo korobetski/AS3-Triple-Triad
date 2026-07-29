@@ -21,7 +21,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "TripleTriadPoC"
+            packageName = "Triple Triad"
             packageVersion = "1.0.0"
         }
     }

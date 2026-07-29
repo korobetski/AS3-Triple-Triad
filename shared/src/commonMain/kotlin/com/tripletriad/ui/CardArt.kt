@@ -185,6 +185,15 @@ private fun sliceDigitAtlas(sheet: ImageBitmap): Map<String, Painter> =
 private suspend fun loadImage(name: String): ImageBitmap =
     Res.readBytes("$ART_PATH/$name").decodeToImageBitmap()
 
+/**
+ * `logo_white_512` — the wordmark `MenuScreen.as:43` centres above its button stack.
+ *
+ * Not part of [loadCardArt] and not a [StartupPhase] of its own: it is 15 KB of chrome that the
+ * splash wants on its *first* frame, before the phase it would otherwise be loaded in. The splash
+ * asks for it separately and renders the phase line without it until it arrives.
+ */
+suspend fun loadLogo(): ImageBitmap = loadImage("logo.png")
+
 /** Where [`import_card_art.py`](../../../../../../../tools/import_card_art.py) writes. */
 private const val ART_PATH = "files/art"
 private const val PLATE_TEXTURE = "cdbg"

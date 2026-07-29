@@ -320,7 +320,25 @@ fun CardComponent(
 
 ---
 
-#### Task 4.3: Navigation System
+#### Task 4.3: Navigation System — 🔄 **partly done, without Navigation Compose**
+
+Splash → menu → match / options is implemented in
+[`ui/App.kt`](../../shared/src/commonMain/kotlin/com/tripletriad/ui/App.kt) as a `remember`ed
+`Screen` enum. Nine tests in
+[`NavigationTest`](../../shared/src/desktopTest/kotlin/com/tripletriad/ui/NavigationTest.kt).
+Write-up in the [README](../../README.md#screens-and-navigation).
+
+> ⚠️ **No `NavHost`, deliberately.** Four destinations, no deep links, no arguments, no back stack
+> worth the name. A navigation library plus a route-string layer would earn nothing here; the point
+> to reconsider is when this approaches the 32 screens below, and the enum will have become
+> unpleasant by then rather than silently wrong.
+>
+> **What the plan's sketch left out**: the Android system back gesture. Nothing in Task 4.3
+> mentions it, and without handling it, back during a match finishes the activity — the app appears
+> to quit mid-game. `androidx.compose.ui.backhandler.BackHandler` is multiplatform in Compose 1.9,
+> so it needs no Android-only source set, but it does need the `ui-backhandler` artifact, which
+> `compose.ui` does not pull in.
+
 **Owner**: Tech Lead | **Duration**: 2 days | **Priority**: CRITICAL
 
 **Navigation Implementation**:
@@ -395,7 +413,22 @@ fun NavController.navigateToPvP() {
 
 ### Week 14: Core Screens
 
-#### Task 4.4: Menu Screen
+#### Task 4.4: Menu Screen — ✅ **done, with three actions**
+
+[`MainMenuScreen.kt`](../../shared/src/commonMain/kotlin/com/tripletriad/ui/MainMenuScreen.kt) and
+[`OptionsScreen.kt`](../../shared/src/commonMain/kotlin/com/tripletriad/ui/OptionsScreen.kt), plus
+a [`SplashScreen`](../../shared/src/commonMain/kotlin/com/tripletriad/ui/SplashScreen.kt) that
+Tier 1's **LoadScreen** entry does not actually describe — `LoadScreen.as` is a *save-game list*,
+not a loading screen, so the splash is new work rather than a port.
+
+**Play / Options / Quit**, not the eight buttons listed below: New Game, Load Game, Decks and
+Inventory all need save games or a collection, and neither exists yet. `MenuScreen.as:52-58` is the
+order to grow the list back in.
+
+`SettingsScreen.as` is 243 lines against this port's options pane, because the original also
+carried a resolution picker, a fullscreen toggle and an account section. What is here is what
+`UserSettings.json` holds: language and the two volumes.
+
 **Owner**: Senior Kotlin Dev | **Duration**: 2 days | **Priority**: HIGH
 
 > ⚠️ **Week 14 is over-allocated**: Task 4.4 (2 d) + Task 4.5 (5 d) + Task 4.6 (3 d)

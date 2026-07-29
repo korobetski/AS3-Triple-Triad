@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
  * deal is seeded, so the sequence below is deterministic, but the assertions are invariants
  * rather than a particular board.
  *
- * Resource packaging is covered by [awaitCatalog], which every test calls and which cannot
+ * Resource packaging is covered by [startMatch], which every test calls and which cannot
  * succeed unless `cards.json` was read from the bundle. The catalog's *contents* are
  * `CardBundleTest`'s business, and the arrangement — which hand goes where at which size — is
  * [MatchLayoutTest]'s.
@@ -37,8 +37,8 @@ import kotlin.test.assertTrue
 class MatchUiTest {
     @Test
     fun theBoardHasNineCellsAndBothHandsHaveFive() = runComposeUiTest {
-        setContent { App(AppLocale.EN_US) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
 
         onNodeWithTag(BOARD_TEST_TAG).assertExists()
         repeat(Board.SIZE) { onNodeWithTag(tileTestTag(it)).assertExists() }
@@ -52,16 +52,16 @@ class MatchUiTest {
 
     @Test
     fun theScoreStartsFiveFive() = runComposeUiTest {
-        setContent { App(AppLocale.EN_US) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
 
         onNodeWithTag(SCORE_TEST_TAG).assertTextEquals(LEVEL_SCORE)
     }
 
     @Test
     fun pickingACardThenACellPlacesItAndPassesTheTurn() = runComposeUiTest {
-        setContent { App(AppLocale.EN_US) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
 
         val first = sideToPlay()
         onNodeWithTag(handCardTestTag(first, 0)).performClick()
@@ -81,8 +81,8 @@ class MatchUiTest {
 
     @Test
     fun onlyTheSideToPlayCanSelect() = runComposeUiTest {
-        setContent { App(AppLocale.EN_US) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
 
         val waiting = sideToPlay().opposite()
         onNodeWithTag(handCardTestTag(waiting, 0)).performClick()
@@ -93,8 +93,8 @@ class MatchUiTest {
 
     @Test
     fun placingOnATakenCellIsIgnored() = runComposeUiTest {
-        setContent { App(AppLocale.EN_US) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
 
         onNodeWithTag(handCardTestTag(sideToPlay(), 0)).performClick()
         onNodeWithTag(tileTestTag(CENTRE)).performClick()
@@ -113,8 +113,8 @@ class MatchUiTest {
 
     @Test
     fun capturesMoveTheScoreAndItAlwaysTotalsTen() = runComposeUiTest {
-        setContent { App(AppLocale.EN_US) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
 
         playOut()
 
@@ -126,8 +126,8 @@ class MatchUiTest {
 
     @Test
     fun playingOutTheMatchProducesAResult() = runComposeUiTest {
-        setContent { App(AppLocale.EN_US) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
 
         playOut()
 
@@ -143,8 +143,8 @@ class MatchUiTest {
 
     @Test
     fun newMatchResetsTheBoard() = runComposeUiTest {
-        setContent { App(AppLocale.EN_US) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
 
         playOut()
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
@@ -167,8 +167,8 @@ class MatchUiTest {
      */
     @Test
     fun theUiIsInTheChosenLanguage() = runComposeUiTest {
-        setContent { App(AppLocale.FR_FR) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.FR_FR)) }
+        startMatch()
 
         assertVisible("choisissez une carte", "the turn line should be French")
         onNodeWithTag(NEW_MATCH_TEST_TAG).assertTextEquals("Match suivant ▸")
@@ -182,8 +182,8 @@ class MatchUiTest {
      */
     @Test
     fun aMissingStringFallsBackToEnglishWithoutDisturbingTheRest() = runComposeUiTest {
-        setContent { App(AppLocale.DE_DE) }
-        awaitCatalog()
+        setContent { App(store = settingsFor(AppLocale.DE_DE)) }
+        startMatch()
 
         onNodeWithTag(NEW_MATCH_TEST_TAG).assertTextEquals("Next Match ▸")
         playOut()

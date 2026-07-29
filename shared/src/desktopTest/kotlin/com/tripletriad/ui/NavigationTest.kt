@@ -1,0 +1,165 @@
+package com.tripletriad.ui
+
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.runComposeUiTest
+import com.tripletriad.i18n.AppLocale
+import com.tripletriad.i18n.loadStrings
+import com.tripletriad.settings.InMemorySettingsStore
+import com.tripletriad.settings.SettingsStore
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.runBlocking
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/**
+ * Splash → menu → match / options, driven through the real [App].
+ *
+ * Everything here is asserted on what is *on screen*, never on the `Screen` value: the enum being
+ * right while nothing changed is exactly the failure worth catching.
+ */
+@OptIn(ExperimentalTestApi::class)
+class NavigationTest {
+    /**
+     * While startup is incomplete, the splash is up and says which phase it is on.
+     *
+     * Held there by a store that never answers, rather than by asserting on the first frame of a
+     * normal start: `runComposeUiTest` drains coroutines around every interaction, so by the time
+     * the first assertion runs a healthy startup has already finished and the menu is up. A test
+     * that "passed" on timing would prove nothing about the splash.
+     */
+    @Test
+    fun theSplashHoldsWhileStartupIsUnfinishedAndNamesItsPhase() = runComposeUiTest {
+        setContent { App(store = NeverAnswers) }
+        waitForIdle()
+
+        assertFalse(isVisible("Play"), "the menu was up although startup never finished")
+        onNodeWithTag(SPLASH_PHASE_TEST_TAG).assertTextEquals(SPLASH_LINES.first())
+    }
+
+    /** Every phase resolves to a real string, not an `APP_STARTUP_*` key leaking through. */
+    @Test
+    fun everyPhaseHasAStringRatherThanItsKey() {
+        val strings = runBlocking { loadStrings(AppLocale.EN_US) }
+        for (phase in StartupPhase.entries) {
+            val line = strings[phase.labelKey]
+            assertTrue(line in SPLASH_LINES, "$phase resolved to \"$line\"")
+        }
+    }
+
+    @Test
+    fun theSplashGivesWayToTheMenuOnItsOwn() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+
+        awaitMenu()
+
+        onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Play")
+        onNodeWithTag(MENU_OPTIONS_TEST_TAG).assertTextEquals("Options")
+        onNodeWithTag(MENU_QUIT_TEST_TAG).assertTextEquals("Quit")
+    }
+
+    @Test
+    fun playReachesABoardAndTheChevronComesBack() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
+
+        onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
+        waitForIdle()
+
+        onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Play")
+    }
+
+    @Test
+    fun optionsOpensAndBackReturnsToTheMenu() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        awaitMenu()
+
+        onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
+        waitForIdle()
+        assertTrue(isVisible("Language"), "the options screen did not open")
+
+        onNodeWithTag(OPTIONS_BACK_TEST_TAG).performClick()
+        waitForIdle()
+
+        onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Play")
+    }
+
+    /**
+     * The reason `onQuit` is a parameter at all: `:shared` cannot leave an app, and must not try.
+     */
+    @Test
+    fun quitCallsTheHostRatherThanDoingAnythingItself() = runComposeUiTest {
+        var quits = 0
+        setContent { App(store = settingsFor(AppLocale.EN_US), onQuit = { quits++ }) }
+        awaitMenu()
+
+        onNodeWithTag(MENU_QUIT_TEST_TAG).performClick()
+        waitForIdle()
+
+        assertEquals(1, quits)
+        onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Play")
+    }
+
+    /** A menu in the language the settings file names, not the machine's. */
+    @Test
+    fun theMenuIsInTheStoredLanguage() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.FR_FR)) }
+        awaitMenu()
+
+        onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Jouer")
+        onNodeWithTag(MENU_QUIT_TEST_TAG).assertTextEquals("Quitter")
+    }
+
+    /**
+     * A first run — no settings file — still reaches the menu.
+     *
+     * The language then comes from the machine, so nothing here asserts on wording; what is being
+     * pinned is that a missing file is not a stall on the splash.
+     */
+    @Test
+    fun aFirstRunWithNoSettingsFileStillStarts() = runComposeUiTest {
+        val store = InMemorySettingsStore()
+        setContent { App(store = store) }
+
+        awaitMenu()
+
+        assertEquals(1, store.writes, "the first run should have persisted a file")
+    }
+
+    /** An unreadable store must not be able to hang the splash. */
+    @Test
+    fun aStoreThatThrowsDoesNotStrandTheSplash() = runComposeUiTest {
+        setContent {
+            App(store = InMemorySettingsStore(failure = IllegalStateException("no permission")))
+        }
+
+        awaitMenu()
+    }
+
+    /**
+     * A store stuck on its first read, so the splash cannot leave `StartupPhase.SETTINGS`.
+     *
+     * Note this is *not* the same as a store that throws — `aStoreThatThrowsDoesNotStrandTheSplash`
+     * covers that, and the app must recover from it. This one models a read that simply never
+     * returns, which is the only way to observe the splash in a fixed phase.
+     */
+    private object NeverAnswers : SettingsStore {
+        override suspend fun read(): String? = awaitCancellation()
+
+        override suspend fun write(text: String) = awaitCancellation()
+    }
+
+    private companion object {
+        /** `app-en_US.json`, in `StartupPhase` order. */
+        val SPLASH_LINES = listOf(
+            "reading settings…",
+            "loading cards…",
+            "loading artwork…",
+            "ready",
+        )
+    }
+}

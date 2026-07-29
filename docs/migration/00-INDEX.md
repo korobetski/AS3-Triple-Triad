@@ -112,7 +112,7 @@ see its [licensing note](../../README.md#licensing-note). The risk was accepted 
 | Phase | Status | Start Date | End Date | Owner |
 |-------|--------|------------|----------|-------|
 | Phase 0: Preparation | ⚠️ NEARLY COMPLETE — 5 of 6 tasks delivered, CI green, all five blocking decisions resolved 2026-07-25. Training void (no team); iOS app needs a Mac. See [04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md) | - | - | - |
-| Phase 1: Infrastructure | 🔄 IN PROGRESS — the structure, build, models, data and CI were delivered during Phase 0's PoC; **Task 1.10 localisation** is done (4 locales, on device). Left: audio, file access, core utilities, coverage, setup guides. See [05-PHASE-1-INFRASTRUCTURE.md](./05-PHASE-1-INFRASTRUCTURE.md) | - | - | - |
+| Phase 1: Infrastructure | 🔄 IN PROGRESS — the structure, build, models, data and CI were delivered during Phase 0's PoC; **Tasks 1.6** (file access / user settings), **1.7** (logger), **1.10** (4 locales, on device) and **1.11** (coverage, 96.7% line, gated) are done. Left: audio, setup guides. See [05-PHASE-1-INFRASTRUCTURE.md](./05-PHASE-1-INFRASTRUCTURE.md) | - | - | - |
 | Phase 2: Data Layer | ⏳ NOT STARTED | - | - | - |
 | Phase 3: Core Logic | ⏳ NOT STARTED | - | - | - |
 | Phase 4: UI Layer | ⏳ NOT STARTED | - | - | - |

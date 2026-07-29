@@ -85,7 +85,7 @@
     "STR_NPC_Vorsaile_Heuloix":"Vorsaile Heuloix",
     "STR_NPC_Tataru":"Tataru Taru",
     "STR_NPC_PAPALYMO":"Papalymo",
-	
+
 	"STR_NPC_Lewena":"Lewena",
 	"STR_NPC_Okalkaya":"Okalkaya",
 	"STR_NPC_Mordyn":"Mordyn",
@@ -110,7 +110,7 @@
 	"STR_NPC_Mogmill":"Mogmill",
 	"STR_NPC_Midnight_Dew":"Midnight Dew",
 	"STR_NPC_Seika":"Seika",
-	
+
     "STR_NPC_KID":"Gamin",
     "STR_NPC_CHOCOBOY":"Chocoboy",
     "STR_NPC_UFO":"OVNI",
@@ -177,7 +177,6 @@
     "RULE_ROULETTE":"Roulette",
     "RULE_ROULETTE_HELP":"<i>FF14 uniquement</i>\nChoisit une règle de façon aléatoire.",
     "STR_MATCH_FEE":"Mise",
-    "STR_REGISTER_MATCH":"Défier",
     "STR_LEVEL":"Niveau",
     "STR_WINS":"Victoires",
     "STR_DEFEATS":"Défaites",
@@ -189,7 +188,7 @@
     "STR_CARD_INFOS":"Carte en détails",
     "STR_FF14_CARD_1":"Dodo",
     "STR_FF14_CARD_1_DESC":"D'abord introduits depuis l'île de Mazlaya pour leurs œufs par des Qiqirns, ces gros oiseaux incapables de voler sont désormais élevés par les Éorzéens pour leur délicieuse chair. Attention toutefois, un dodo crachera une substance soporifique s'il se sent menacé !",
-	"STR_FF14_CARD_2":"Tomberry", 
+	"STR_FF14_CARD_2":"Tomberry",
     "STR_FF14_CARD_2_DESC":"On sait peu de choses sur ces créatures qui hantent les ruines de Nym, une cité qui a connu son apogée à la 5e ère astrale, mais leurs vêtements et leurs outils laissent supposer qu'elles sont intelligentes. De vieilles tablettes de pierre indiqueraient que les tomberrys sont porteurs d'une terrible maladie.",
 	"STR_FF14_CARD_3":"Pampa",
     "STR_FF14_CARD_3_DESC":"S'étant adaptés pour survivre à leur habitat aride et dangereux, ces cactus ambulants ont la faculté de conserver de l'humidité dans leur organisme et peuvent se défendre d'éventuels prédateurs en lançant une multitude d'épines douloureuses.",
@@ -347,7 +346,7 @@
     "STR_FF14_CARD_79_DESC":"“Qui a parlé de force ? Tu vas réussir. Tu as de bons amis.”",
     "STR_FF14_CARD_80":"Lightning",
     "STR_FF14_CARD_80_DESC":"“Le problème n'est pas de savoir si on <i>peut</i>. Il y a des choses qu'on <i>doit</i> faire, c'est tout.”",
-	
+
 	"STR_FF14_CARD_81":"Gaélichat",
 	"STR_FF14_CARD_81_DESC":"Une créature mystérieuse dotée d'un corps de félin et d'ailes de chauve-souris. Certains savants avancent qu'elle appartiendrait au règne animal, tandis que d'autres affirment qu'il s'agit d'un démon appartenant au onzième rang de la hiérarchie du néant. La seule chose qui soit certaine, c'est qu'elle possède une intelligence fine et vive, qui lui permet d'agir rapidement.",
 	"STR_FF14_CARD_82":"Vanu Vanu",
@@ -494,7 +493,7 @@
 	"STR_FF14_CARD_152_DESC":"Cette créature a été placée par les sorciers mhachois au sommet de leur pyramide afin de garder la Clef de voûte, un artefact qui leur permettait de s'assurer les services des êtres du néant. Calofisteri était à l'origine une grande magicienne, qui aurait acquis un pouvoir incommensurable en s'injectant du sang de démon et grâce à un cristal recelant une importante source de mana.",
 	"STR_FF14_CARD_153":"Hraesvelgr",
 	"STR_FF14_CARD_153_DESC":"L'un des sept grands dragons engendrés par Midgardsormr. L'histoire d'amour qui a autrefois uni Hraesvelgr à l'humaine Shiva avait permis de rapprocher deux peuples qui jusque-là se livraient farouchement bataille. Hélas, l'amitié entre hommes et dragons fut de courte durée ; l'horrible trahison commise quelque deux cents ans plus tard par ces premiers marqua le début d'une guerre qui devait durer plus d'un millénaire. Par respect pour sa défunte bien-aimée, Hraesvelgr, lui, préféra se tenir à l'écart et vivre dans l'oubli.",
-	
+
 	"STR_FF8_CARD_1":"Bogomile",
 	"STR_FF8_CARD_2":"Fungus",
 	"STR_FF8_CARD_3":"Elmidea",
@@ -605,7 +604,7 @@
 	"STR_FF8_CARD_108":"Édéa",
 	"STR_FF8_CARD_109":"Seifer",
 	"STR_FF8_CARD_110":"Squall",
-	
+
     "STR_DECK":"Jeu",
     "STR_DECK_EDIT":"Edition du jeu",
     "STR_CHOOSE_DECK":"Choisir ce jeu",
@@ -647,7 +646,6 @@
     "STR_COMPETITION_2":"le grand prix de la Fileuse",
     "STR_COMPETITION_3":"le Jubilé Orran Durai",
     "STR_COMPETITION_4":"la Coupe Rowena",
-	"STR_GSGROUP":"Carré des cartes du Gold Saucer",
 	"STR_GSGROUP":"Carré des cartes du Gold Saucer",
 	"STR_ACHIEVEMENTS":"Succès",
 	"STR_Triple_Team_I":"En Cartes Et En Os I",
