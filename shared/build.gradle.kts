@@ -54,6 +54,9 @@ kotlin {
             api(compose.components.resources)
             api(libs.compose.backhandler)
             api(libs.kotlinx.serialization.json)
+            // `api` so :androidApp and :desktopApp get it for their `Dispatchers.IO` store
+            // implementations without re-declaring the same pinned version.
+            api(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

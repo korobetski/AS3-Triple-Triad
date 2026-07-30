@@ -75,6 +75,33 @@ enum class CardType {
 }
 
 /**
+ * Which of the two card tables a card belongs to, and which a profile plays with.
+ *
+ * The serial names are the raw AS3 strings, trailing underscore included, because they are three
+ * things at once: the texture-name prefix (`ff14_card_62`), the key `cards.as` selects a table with
+ * (`cards[MODE.toUpperCase() + "DATAS"]`), and the value stored as `Save.DATAS.MODE`. A save
+ * written by the original must still parse.
+ *
+ * [Card.collection] remains a `String` rather than this enum: it is populated by
+ * `tools/extract_cards.py` straight from the AS3 texture prefix, and `CardCatalog` keys its two
+ * lists by the same string. [prefix] is the bridge, and [forPrefix] the way back.
+ */
+@Serializable
+enum class CardCollection(val prefix: String) {
+    @SerialName("ff14_")
+    FF14("ff14_"),
+
+    @SerialName("ff8_")
+    FF8("ff8_"),
+    ;
+
+    companion object {
+        /** The collection for a `"ff14_"`-style prefix, or null if it names neither. */
+        fun forPrefix(prefix: String): CardCollection? = entries.firstOrNull { it.prefix == prefix }
+    }
+}
+
+/**
  * A Triple Triad card.
  *
  * Field-for-field the AS3 record in `sources/src/tto/datas/cards.as`, which stores

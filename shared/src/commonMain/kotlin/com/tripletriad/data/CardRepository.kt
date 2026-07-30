@@ -1,61 +1,155 @@
 package com.tripletriad.data
 
 import com.tripletriad.model.Card
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import org.jetbrains.compose.resources.ExperimentalResourceApi
-import tripletriad.shared.generated.resources.Res
+import com.tripletriad.model.CardCollection
+import com.tripletriad.model.CardType
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
- * The two card tables of `sources/src/tto/datas/cards.as`, as extracted by
- * `kotlin/tools/extract_cards.py`.
+ * Read access to the card tables.
  *
- * The AS3 picks one at runtime with
- * `cards[String(Game.PROFILE_DATAS.MODE).toUpperCase() + "DATAS"]`, so a profile is
- * in exactly one collection at a time; both are shipped and selected the same way
- * here.
+ * The interface exists so callers depend on the queries and not on where the 263 records came from:
+ * [BundledCardRepository] reads them through Compose resources, and a test hands over a list.
  */
-@Serializable
-data class CardCatalog(
-    val ff14: List<Card>,
-    val ff8: List<Card>,
-) {
-    /** All cards of both collections, ff14 first, in AS3 array order. */
-    val all: List<Card> get() = ff14 + ff8
+interface CardRepository {
+    suspend fun all(collection: CardCollection): List<Card>
+
+    suspend fun byId(id: Int, collection: CardCollection): Card?
+
+    suspend fun byIds(ids: List<Int>, collection: CardCollection): List<Card>
+
+    suspend fun byRarity(rarity: Int, collection: CardCollection): List<Card>
+
+    suspend fun byType(type: CardType?, collection: CardCollection): List<Card>
 
     /**
-     * The cards of one collection, keyed the way the AS3 keys them: `"ff14_"` /
-     * `"ff8_"`, the texture-name prefix.
+     * Cards whose [Card.name] contains [query], case-insensitively. Blank matches everything, which
+     * is what a search field with nothing typed in it should show.
      */
-    fun collection(prefix: String): List<Card> = when (prefix) {
-        "ff14_" -> ff14
-        "ff8_" -> ff8
-        else -> throw IllegalArgumentException("unknown collection '$prefix'")
-    }
+    suspend fun search(query: String, collection: CardCollection): List<Card>
+
+    /**
+     * The ids of every card of any of [rarities].
+     *
+     * `cards.getCardsByRarities` (`cards.as:308-317`), which `NPCs.as` uses to give two opponents a
+     * pool of every card at or below a rarity. Returns ids rather than cards because that is what
+     * [com.tripletriad.model.Npc.cards] holds.
+     */
+    suspend fun idsByRarities(rarities: Set<Int>, collection: CardCollection): List<Int>
 }
 
 /**
- * Parses the card catalog. Split out from [loadCardCatalog] so it can be tested in
- * `commonTest` without a resource loader or a Compose environment.
- */
-object CardCatalogParser {
-    // The extractor emits every field, but being lenient about unknown keys means a
-    // later field addition does not break older clients.
-    private val json = Json { ignoreUnknownKeys = true }
-
-    fun parse(text: String): CardCatalog = json.decodeFromString(text)
-}
-
-/** Path of the catalog inside `commonMain/composeResources`. */
-const val CARD_CATALOG_PATH: String = "files/cards.json"
-
-/**
- * Reads and parses `cards.json` out of the Compose Multiplatform resource bundle.
+ * The bundled card tables, loaded once and held in memory.
  *
- * Compose resources are the mechanism the real migration needs for the 263 card
- * images too, which is why the PoC loads through them rather than through a
- * platform-specific file API.
+ * ### Why there is no eviction
+ *
+ * `docs/migration/06-PHASE-2-DATA-LAYER.md` Task 2.6 asks for an LRU cache. There are **263 cards**
+ * in total, they are immutable bundled data, and the whole set is well under 100 KB — so the cache
+ * would never evict anything, and the eviction logic would be untested code guarding against a
+ * condition that cannot arise. The document's own margin note reaches the same conclusion. This
+ * loads everything on first use and keeps it.
+ *
+ * (It also could not have been an `android.util.LruCache`, which is Android-only and does not exist
+ * in `commonMain`. Card *images* are a separate matter and are handled by Compose Resources.)
+ *
+ * ### Loading
+ *
+ * [load] is called at most once even under concurrent first calls — the double-check around the
+ * mutex is the standard shape, and it matters here because [com.tripletriad.ui.rememberStartup] and
+ * a screen could plausibly both ask first. The suspend-friendly `kotlinx.coroutines.sync.Mutex` is
+ * used rather than a lock, since the loader itself suspends.
+ *
+ * @param load reads the catalog. Defaults to the bundled resource; a test passes a lambda.
  */
-@OptIn(ExperimentalResourceApi::class)
-suspend fun loadCardCatalog(): CardCatalog =
-    CardCatalogParser.parse(Res.readBytes(CARD_CATALOG_PATH).decodeToString())
+class BundledCardRepository(
+    private val load: suspend () -> CardCatalog = { loadCardCatalog() },
+) : CardRepository {
+    private val mutex = Mutex()
+    private var catalog: CardCatalog? = null
+
+    /** The whole catalog, loading it if this is the first call. */
+    suspend fun catalog(): CardCatalog =
+        catalog ?: mutex.withLock { catalog ?: load().also { catalog = it } }
+
+    /**
+     * Drops the loaded catalog, so the next call reads it again. For tests and for a mode switch.
+     */
+    suspend fun invalidate() {
+        mutex.withLock { catalog = null }
+    }
+
+    override suspend fun all(collection: CardCollection): List<Card> =
+        catalog().collection(collection.prefix)
+
+    /**
+     * Card [id] of [collection], or null if the table has no such index.
+     *
+     * The AS3 indexes `cards.DATAS[id]` directly and would return `undefined` for an id past the
+     * end; every caller there has an id that came out of the same table. Null here for the same
+     * situation, because a save file can name a card id this build's table does not have — a
+     * profile from a later version, or from the other collection.
+     */
+    override suspend fun byId(id: Int, collection: CardCollection): Card? =
+        all(collection).firstOrNull { it.id == id }
+
+    /**
+     * The cards for [ids], skipping any the table does not have.
+     *
+     * Order follows [ids], not the table, because callers pass a deck or a hand and the order is
+     * the point. Duplicated ids yield duplicated cards, which is what a hand of two identical cards
+     * needs.
+     */
+    override suspend fun byIds(ids: List<Int>, collection: CardCollection): List<Card> {
+        val byId = all(collection).associateBy { it.id }
+        return ids.mapNotNull { byId[it] }
+    }
+
+    override suspend fun byRarity(rarity: Int, collection: CardCollection): List<Card> =
+        all(collection).filter { it.rarity == rarity }
+
+    /** [type] of null selects the cards with no type, which is most of them. */
+    override suspend fun byType(type: CardType?, collection: CardCollection): List<Card> =
+        all(collection).filter { it.type == type }
+
+    override suspend fun search(query: String, collection: CardCollection): List<Card> {
+        val needle = query.trim()
+        if (needle.isEmpty()) return all(collection)
+        return all(collection).filter { it.name.contains(needle, ignoreCase = true) }
+    }
+
+    override suspend fun idsByRarities(rarities: Set<Int>, collection: CardCollection): List<Int> =
+        all(collection).filter { it.rarity in rarities }.map { it.id }
+}
+
+/**
+ * A [CardRepository] over a fixed list. For tests, and for previews that need three cards rather
+ * than a resource bundle.
+ */
+class InMemoryCardRepository(private val cards: List<Card>) : CardRepository {
+    override suspend fun all(collection: CardCollection): List<Card> =
+        cards.filter { it.collection == collection.prefix }
+
+    override suspend fun byId(id: Int, collection: CardCollection): Card? =
+        all(collection).firstOrNull { it.id == id }
+
+    override suspend fun byIds(ids: List<Int>, collection: CardCollection): List<Card> {
+        val byId = all(collection).associateBy { it.id }
+        return ids.mapNotNull { byId[it] }
+    }
+
+    override suspend fun byRarity(rarity: Int, collection: CardCollection): List<Card> =
+        all(collection).filter { it.rarity == rarity }
+
+    override suspend fun byType(type: CardType?, collection: CardCollection): List<Card> =
+        all(collection).filter { it.type == type }
+
+    override suspend fun search(query: String, collection: CardCollection): List<Card> {
+        val needle = query.trim()
+        if (needle.isEmpty()) return all(collection)
+        return all(collection).filter { it.name.contains(needle, ignoreCase = true) }
+    }
+
+    override suspend fun idsByRarities(rarities: Set<Int>, collection: CardCollection): List<Int> =
+        all(collection).filter { it.rarity in rarities }.map { it.id }
+}

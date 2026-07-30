@@ -1,0 +1,4198 @@
+{
+  "ff14": [
+    {
+      "id": 1,
+      "name": "STR_NPC_TT_Master",
+      "iconID": "tt-master",
+      "rules": [
+        "RULE_ALL_OPEN"
+      ],
+      "fetishesCards": [
+        2,
+        4,
+        5,
+        7,
+        13
+      ],
+      "cards": [],
+      "level": "STR_NPC_LEVEL_NOVICE",
+      "matchFee": 5,
+      "MGPReward": {
+        "w": 10,
+        "d": 4,
+        "l": 1
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.02
+        },
+        {
+          "card": 4,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 13,
+          "type": "card",
+          "rate": 0.2
+        }
+      ],
+      "difficulty": 1
+    },
+    {
+      "id": 2,
+      "name": "STR_NPC_Jonas",
+      "iconID": "jonas",
+      "rules": [
+        "RULE_ALL_OPEN",
+        "RULE_SAME"
+      ],
+      "fetishesCards": [
+        23,
+        3,
+        4
+      ],
+      "cards": [
+        11,
+        15,
+        20,
+        26
+      ],
+      "level": "STR_NPC_LEVEL_NOVICE",
+      "matchFee": 10,
+      "MGPReward": {
+        "w": 22,
+        "d": 8,
+        "l": 3
+      },
+      "itemRewards": [
+        {
+          "card": 15,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 20,
+          "type": "card",
+          "rate": 0.2
+        }
+      ],
+      "difficulty": 2
+    },
+    {
+      "id": 3,
+      "name": "STR_NPC_Guhtwint",
+      "iconID": "guhtwint",
+      "rules": [
+        "RULE_THREE_OPEN",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [
+        38,
+        26,
+        23
+      ],
+      "cards": [
+        41,
+        27,
+        13,
+        11
+      ],
+      "level": "STR_NPC_LEVEL_INITIATE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 32,
+        "d": 12,
+        "l": 4
+      },
+      "itemRewards": [
+        {
+          "card": 13,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 27,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 3
+    },
+    {
+      "id": 4,
+      "name": "STR_NPC_Aurifort",
+      "iconID": "aurifort",
+      "rules": [
+        "RULE_THREE_OPEN",
+        "RULE_RANDOM"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        51,
+        43,
+        24,
+        38,
+        33,
+        27,
+        12,
+        35
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 50,
+        "d": 20,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "card": 12,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 27,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 5
+    },
+    {
+      "id": 5,
+      "name": "STR_NPC_Ruhtwyda",
+      "iconID": "ruhtwyda",
+      "rules": [
+        "RULE_ASCENSION",
+        "RULE_SUDDEN_DEATH",
+        "RULE_ALL_OPEN"
+      ],
+      "fetishesCards": [
+        59,
+        56,
+        47
+      ],
+      "cards": [
+        58,
+        50,
+        57,
+        45
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 59,
+        "d": 0,
+        "l": 8
+      },
+      "itemRewards": [
+        {
+          "card": 45,
+          "type": "card",
+          "rate": 0.15
+        },
+        {
+          "card": 50,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 6
+    },
+    {
+      "id": 6,
+      "name": "STR_NPC_King_Elmer",
+      "iconID": "elmer",
+      "rules": [
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [
+        61,
+        50,
+        45
+      ],
+      "cards": [
+        62,
+        39,
+        49,
+        41
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 117,
+        "d": 46,
+        "l": 17
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 45,
+          "type": "card",
+          "rate": 0.125
+        },
+        {
+          "card": 61,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 12
+    },
+    {
+      "id": 7,
+      "name": "STR_NPC_Memeroon",
+      "iconID": "memeroon",
+      "rules": [
+        "RULE_ALL_OPEN",
+        "RULE_SAME"
+      ],
+      "fetishesCards": [
+        37,
+        14,
+        1
+      ],
+      "cards": [
+        21,
+        12,
+        7,
+        2
+      ],
+      "level": "STR_NPC_LEVEL_NOVICE",
+      "matchFee": 10,
+      "MGPReward": {
+        "w": 23,
+        "d": 9,
+        "l": 3
+      },
+      "itemRewards": [
+        {
+          "card": 2,
+          "type": "card",
+          "rate": 0.4
+        },
+        {
+          "card": 14,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 37,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 2
+    },
+    {
+      "id": 8,
+      "name": "STR_NPC_Trachtoum",
+      "iconID": "tratchoum",
+      "rules": [
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [
+        41,
+        49,
+        39
+      ],
+      "cards": [
+        38,
+        22,
+        47,
+        20
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 47,
+        "d": 18,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "card": 20,
+          "type": "card",
+          "rate": 0.4
+        },
+        {
+          "card": 41,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 5,
+      "availability": {
+        "begins": 20,
+        "ends": 8
+      }
+    },
+    {
+      "id": 9,
+      "name": "STR_NPC_Baderon",
+      "iconID": "baderon",
+      "rules": [
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [
+        28,
+        29,
+        30
+      ],
+      "cards": [
+        56,
+        38,
+        49,
+        27,
+        21
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 49,
+        "d": 19,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "card": 18,
+          "type": "card",
+          "rate": 0.4
+        },
+        {
+          "card": 29,
+          "type": "card",
+          "rate": 0.25
+        }
+      ],
+      "difficulty": 5
+    },
+    {
+      "id": 10,
+      "name": "STR_NPC_Mimidoa",
+      "iconID": "mimidoa",
+      "rules": [
+        "RULE_THREE_OPEN",
+        "RULE_ASCENSION"
+      ],
+      "fetishesCards": [
+        54,
+        50,
+        33
+      ],
+      "cards": [
+        37,
+        27,
+        25
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 47,
+        "d": 19,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "card": 21,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 27,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 33,
+          "type": "card",
+          "rate": 0.25
+        }
+      ],
+      "difficulty": 5
+    },
+    {
+      "id": 11,
+      "name": "STR_NPC_Rashaht_Rhiki",
+      "iconID": "rashaht-rhiki",
+      "rules": [
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [
+        65,
+        54,
+        41
+      ],
+      "cards": [
+        58,
+        38,
+        50,
+        49,
+        30,
+        24
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 44,
+        "l": 16
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.125
+        },
+        {
+          "card": 49,
+          "type": "card",
+          "rate": 0.33
+        },
+        {
+          "card": 54,
+          "type": "card",
+          "rate": 0.22
+        },
+        {
+          "card": 65,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 11,
+      "availability": {
+        "begins": 14,
+        "ends": 19
+      }
+    },
+    {
+      "id": 12,
+      "name": "STR_NPC_Gegeruju",
+      "iconID": "gegeruju",
+      "rules": [
+        "RULE_SWAP",
+        "RULE_SUDDEN_DEATH"
+      ],
+      "fetishesCards": [
+        63,
+        56,
+        49
+      ],
+      "cards": [
+        66,
+        65,
+        31,
+        30,
+        55
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 116,
+        "d": 0,
+        "l": 17
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.125
+        },
+        {
+          "card": 49,
+          "type": "card",
+          "rate": 0.125
+        },
+        {
+          "card": 56,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 12
+    },
+    {
+      "id": 13,
+      "name": "STR_NPC_Maisenta",
+      "iconID": "maisenta",
+      "rules": [
+        "RULE_ALL_OPEN",
+        "RULE_RANDOM"
+      ],
+      "fetishesCards": [
+        36,
+        7,
+        10
+      ],
+      "cards": [
+        24,
+        16,
+        8
+      ],
+      "level": "STR_NPC_LEVEL_NOVICE",
+      "matchFee": 10,
+      "MGPReward": {
+        "w": 22,
+        "d": 8,
+        "l": 3
+      },
+      "itemRewards": [
+        {
+          "card": 8,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 12,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 16,
+          "type": "card",
+          "rate": 0.2
+        }
+      ],
+      "difficulty": 2
+    },
+    {
+      "id": 14,
+      "name": "STR_NPC_Roger",
+      "iconID": "roger",
+      "rules": [
+        "RULE_ALL_OPEN"
+      ],
+      "fetishesCards": [
+        26,
+        9,
+        13
+      ],
+      "cards": [
+        25,
+        15,
+        6,
+        5
+      ],
+      "level": "STR_NPC_LEVEL_NOVICE",
+      "matchFee": 10,
+      "MGPReward": {
+        "w": 22,
+        "d": 8,
+        "l": 3
+      },
+      "itemRewards": [
+        {
+          "card": 5,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 9,
+          "type": "card",
+          "rate": 0.25
+        }
+      ],
+      "difficulty": 2
+    },
+    {
+      "id": 15,
+      "name": "STR_NPC_Mother_Miounne",
+      "iconID": "miounne",
+      "rules": [
+        "RULE_THREE_OPEN",
+        "RULE_REVERSE"
+      ],
+      "fetishesCards": [
+        30,
+        29,
+        28
+      ],
+      "cards": [
+        48,
+        12,
+        35,
+        11,
+        5
+      ],
+      "level": "STR_NPC_LEVEL_INITIATE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 32,
+        "d": 12,
+        "l": 4
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.05
+        },
+        {
+          "card": 12,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 16,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 30,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 3
+    },
+    {
+      "id": 16,
+      "name": "STR_NPC_Fhobhas",
+      "iconID": "fhobhas",
+      "rules": [
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [
+        45,
+        36,
+        14
+      ],
+      "cards": [
+        23,
+        25,
+        5,
+        34,
+        6
+      ],
+      "level": "STR_NPC_LEVEL_INITIATE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 33,
+        "d": 13,
+        "l": 4
+      },
+      "itemRewards": [
+        {
+          "card": 36,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 3
+    },
+    {
+      "id": 17,
+      "name": "STR_NPC_Wymond",
+      "iconID": "wymond",
+      "rules": [
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [
+        22,
+        28,
+        31
+      ],
+      "cards": [
+        40,
+        26,
+        8,
+        4,
+        7
+      ],
+      "level": "STR_NPC_LEVEL_INITIATE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 33,
+        "d": 13,
+        "l": 4
+      },
+      "itemRewards": [
+        {
+          "card": 8,
+          "type": "card",
+          "rate": 0.5
+        },
+        {
+          "card": 141,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 3
+    },
+    {
+      "id": 18,
+      "name": "STR_NPC_Momodi",
+      "iconID": "momodi",
+      "rules": [
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [
+        28,
+        29,
+        30
+      ],
+      "cards": [
+        46,
+        8,
+        36,
+        13,
+        10
+      ],
+      "level": "STR_NPC_LEVEL_INITIATE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 33,
+        "d": 13,
+        "l": 4
+      },
+      "itemRewards": [
+        {
+          "card": 12,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 28,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 29,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 3
+    },
+    {
+      "id": 19,
+      "name": "STR_NPC_Momo",
+      "iconID": "momo",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        20,
+        43
+      ],
+      "level": "STR_NPC_LEVEL_INITIATE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 33,
+        "d": 13,
+        "l": 4
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.05
+        },
+        {
+          "card": 20,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 43,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 4
+    },
+    {
+      "id": 20,
+      "name": "STR_NPC_Helmhart",
+      "iconID": "helmhart",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        60,
+        45,
+        34,
+        41,
+        27,
+        22
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 48,
+        "d": 19,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "card": 22,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 34,
+          "type": "card",
+          "rate": 0.25
+        }
+      ],
+      "difficulty": 5,
+      "availability": {
+        "begins": 10,
+        "ends": 20
+      }
+    },
+    {
+      "id": 21,
+      "name": "STR_NPC_Joellaut",
+      "iconID": "joellaut",
+      "rules": [
+        "RULE_THREE_OPEN",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [
+        38,
+        33,
+        27
+      ],
+      "cards": [
+        50,
+        26,
+        42,
+        15,
+        59
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 48,
+        "d": 19,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.05
+        },
+        {
+          "card": 15,
+          "type": "card",
+          "rate": 0.4
+        },
+        {
+          "card": 59,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 5
+    },
+    {
+      "id": 22,
+      "name": "STR_NPC_Fufulupa",
+      "iconID": "fufulupa",
+      "rules": [
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [
+        46,
+        28,
+        33
+      ],
+      "cards": [
+        20,
+        19,
+        67,
+        13
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 48,
+        "d": 19,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "card": 25,
+          "type": "card",
+          "rate": 0.4
+        },
+        {
+          "card": 46,
+          "type": "card",
+          "rate": 0.2
+        }
+      ],
+      "difficulty": 5
+    },
+    {
+      "id": 24,
+      "name": "STR_NPC_Piralnaut",
+      "iconID": "piralnaut",
+      "rules": [
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [
+        56,
+        44,
+        48
+      ],
+      "cards": [
+        38,
+        24,
+        35,
+        30
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 50,
+        "d": 20,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "card": 24,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 35,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 5,
+      "availability": {
+        "begins": 12,
+        "ends": 20
+      }
+    },
+    {
+      "id": 25,
+      "name": "STR_NPC_Sezul_Totoloc",
+      "iconID": "sezul-totoloc",
+      "rules": [
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [
+        58,
+        51,
+        33
+      ],
+      "cards": [
+        45,
+        47,
+        38
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 52,
+        "d": 20,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "card": 33,
+          "type": "card",
+          "rate": 0.15
+        },
+        {
+          "card": 38,
+          "type": "card",
+          "rate": 0.15
+        },
+        {
+          "card": 58,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 5
+    },
+    {
+      "id": 26,
+      "name": "STR_NPC_Landenel",
+      "iconID": "landenel",
+      "rules": [
+        "RULE_FALLEN_ACE",
+        "RULE_RANDOM"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        52,
+        41,
+        34,
+        61,
+        40,
+        45,
+        32,
+        13
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 53,
+        "d": 21,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.05
+        },
+        {
+          "card": 41,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 52,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 5
+    },
+    {
+      "id": 27,
+      "name": "STR_NPC_Buscarron",
+      "iconID": "buscarron",
+      "rules": [
+        "RULE_ORDER"
+      ],
+      "fetishesCards": [
+        66,
+        52,
+        43
+      ],
+      "cards": [
+        44,
+        48,
+        39,
+        42
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 59,
+        "d": 23,
+        "l": 8
+      },
+      "itemRewards": [
+        {
+          "card": 23,
+          "type": "card",
+          "rate": 0.4
+        },
+        {
+          "card": 48,
+          "type": "card",
+          "rate": 0.18
+        },
+        {
+          "card": 44,
+          "type": "card",
+          "rate": 0.2
+        }
+      ],
+      "difficulty": 6
+    },
+    {
+      "id": 28,
+      "name": "STR_NPC_Ourdilic",
+      "iconID": "ourdilic",
+      "rules": [
+        "RULE_ORDER"
+      ],
+      "fetishesCards": [
+        55,
+        51,
+        50
+      ],
+      "cards": [
+        44,
+        26,
+        38,
+        33
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 60,
+        "d": 24,
+        "l": 9
+      },
+      "itemRewards": [
+        {
+          "card": 11,
+          "type": "card",
+          "rate": 0.5
+        },
+        {
+          "card": 26,
+          "type": "card",
+          "rate": 0.4
+        },
+        {
+          "card": 38,
+          "type": "card",
+          "rate": 0.3
+        }
+      ],
+      "difficulty": 6
+    },
+    {
+      "id": 29,
+      "name": "STR_NPC_Marcette",
+      "iconID": "marcette",
+      "rules": [
+        "RULE_CHAOS"
+      ],
+      "fetishesCards": [
+        52,
+        53,
+        57
+      ],
+      "cards": [
+        47,
+        38,
+        44,
+        35,
+        42
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 60,
+        "d": 24,
+        "l": 9
+      },
+      "itemRewards": [
+        {
+          "card": 35,
+          "type": "card",
+          "rate": 0.3
+        },
+        {
+          "card": 42,
+          "type": "card",
+          "rate": 0.2
+        }
+      ],
+      "difficulty": 6,
+      "availability": {
+        "begins": 16,
+        "ends": 8
+      }
+    },
+    {
+      "id": 30,
+      "name": "STR_NPC_Hab",
+      "iconID": "hab",
+      "rules": [
+        "RULE_DESCENSION"
+      ],
+      "fetishesCards": [
+        62,
+        45
+      ],
+      "cards": [
+        67,
+        52,
+        46,
+        34,
+        3
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 104,
+        "d": 41,
+        "l": 15
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 1.0
+        },
+        {
+          "card": 45,
+          "type": "card",
+          "rate": 0.125
+        },
+        {
+          "card": 46,
+          "type": "card",
+          "rate": 0.125
+        },
+        {
+          "card": 62,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 10
+    },
+    {
+      "id": 31,
+      "name": "STR_NPC_Vorsaile_Heuloix",
+      "iconID": "vorsaile-heuloix",
+      "rules": [
+        "RULE_ASCENSION"
+      ],
+      "fetishesCards": [
+        66,
+        56,
+        53
+      ],
+      "cards": [
+        63,
+        58,
+        43,
+        48,
+        20
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 44,
+        "l": 16
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 1.0
+        },
+        {
+          "card": 43,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 48,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 53,
+          "type": "card",
+          "rate": 0.05
+        },
+        {
+          "card": 66,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 11,
+      "availability": {
+        "begins": 22,
+        "ends": 3
+      }
+    },
+    {
+      "id": 32,
+      "name": "STR_NPC_Swift",
+      "iconID": "swift",
+      "rules": [
+        "RULE_CHAOS"
+      ],
+      "fetishesCards": [
+        67,
+        60,
+        55
+      ],
+      "cards": [
+        63,
+        59,
+        46,
+        40
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 44,
+        "l": 16
+      },
+      "itemRewards": [
+        {
+          "card": 40,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 59,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 67,
+          "type": "card",
+          "rate": 0.05
+        },
+        {
+          "card": 113,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 11,
+      "availability": {
+        "begins": 6,
+        "ends": 11
+      }
+    },
+    {
+      "id": 33,
+      "name": "STR_NPC_Rowena",
+      "iconID": "rowena",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_ROULETTE"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        47,
+        46,
+        50,
+        34,
+        29,
+        61,
+        60,
+        45
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 118,
+        "d": 48,
+        "l": 17
+      },
+      "itemRewards": [
+        {
+          "card": 34,
+          "type": "card",
+          "rate": 0.5
+        },
+        {
+          "card": 60,
+          "type": "card",
+          "rate": 0.125
+        }
+      ],
+      "difficulty": 12
+    },
+    {
+      "id": 34,
+      "name": "STR_NPC_Indolent_Imperial",
+      "iconID": "indolent-imperial",
+      "rules": [
+        "RULE_ASCENSION"
+      ],
+      "fetishesCards": [
+        64,
+        61,
+        47
+      ],
+      "cards": [
+        42,
+        37,
+        27,
+        32,
+        31
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 120,
+        "d": 48,
+        "l": 18
+      },
+      "itemRewards": [
+        {
+          "card": 31,
+          "type": "card",
+          "rate": 0.16
+        },
+        {
+          "card": 32,
+          "type": "card",
+          "rate": 0.22
+        },
+        {
+          "card": 47,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 64,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 12
+    },
+    {
+      "id": 35,
+      "name": "STR_NPC_Tataru",
+      "iconID": "tataru",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_ROULETTE"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        19,
+        33,
+        46,
+        49,
+        50,
+        62,
+        80
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 35,
+      "MGPReward": {
+        "w": 165,
+        "d": 66,
+        "l": 24
+      },
+      "itemRewards": [
+        {
+          "card": 19,
+          "type": "card",
+          "rate": 0.4
+        },
+        {
+          "card": 50,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 80,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 16
+    },
+    {
+      "id": 36,
+      "name": "STR_NPC_PAPALYMO",
+      "iconID": "papalymo",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        21,
+        25,
+        28,
+        29,
+        30,
+        44,
+        45,
+        46,
+        48,
+        49,
+        50,
+        78
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 35,
+      "MGPReward": {
+        "w": 165,
+        "d": 66,
+        "l": 24
+      },
+      "itemRewards": [
+        {
+          "card": 21,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 25,
+          "type": "card",
+          "rate": 0.2
+        },
+        {
+          "card": 78,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 16
+    },
+    {
+      "id": 37,
+      "name": "STR_NPC_Lewena",
+      "iconID": "lewena",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_CHAOS"
+      ],
+      "fetishesCards": [
+        40,
+        41,
+        42,
+        52
+      ],
+      "cards": [
+        70,
+        73,
+        74
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 40,
+      "MGPReward": {
+        "w": 182,
+        "d": 72,
+        "l": 27
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 70,
+          "type": "card",
+          "rate": 0.05
+        },
+        {
+          "card": 72,
+          "type": "card",
+          "rate": 0.05
+        },
+        {
+          "card": 73,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 18,
+      "availability": {
+        "begins": 21,
+        "ends": 7
+      }
+    },
+    {
+      "id": 38,
+      "name": "STR_NPC_Okalkaya",
+      "iconID": "okalkaya",
+      "rules": [
+        "RULE_ROULETTE",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        12,
+        54,
+        65,
+        144,
+        149
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 67,
+        "d": 27,
+        "l": 10
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 65,
+          "type": "card",
+          "rate": 0.05
+        },
+        {
+          "card": 144,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 7,
+      "availability": {
+        "begins": 19,
+        "ends": 23
+      }
+    },
+    {
+      "id": 39,
+      "name": "STR_NPC_Mordyn",
+      "iconID": "mordyn",
+      "rules": [
+        "RULE_SWAP",
+        "RULE_SAME"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        65,
+        54,
+        149,
+        145,
+        126,
+        29,
+        7
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 73,
+        "d": 29,
+        "l": 10
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 65,
+          "type": "card",
+          "rate": 0.05
+        },
+        {
+          "card": 145,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 7,
+      "availability": {
+        "begins": 19,
+        "ends": 23
+      }
+    },
+    {
+      "id": 40,
+      "name": "STR_NPC_Wawalago",
+      "iconID": "wawalago",
+      "rules": [
+        "RULE_SWAP",
+        "RULE_CHAOS"
+      ],
+      "fetishesCards": [
+        63,
+        49,
+        28
+      ],
+      "cards": [
+        48,
+        89,
+        42,
+        73,
+        75
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 64,
+        "d": 25,
+        "l": 9
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 89,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 6,
+      "availability": {
+        "begins": 15,
+        "ends": 3
+      }
+    },
+    {
+      "id": 41,
+      "name": "STR_NPC_Noes",
+      "iconID": "noes",
+      "rules": [
+        "RULE_DESCENSION",
+        "RULE_RANDOM"
+      ],
+      "fetishesCards": [
+        42,
+        52
+      ],
+      "cards": [
+        36,
+        81,
+        35,
+        43,
+        30
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 64,
+        "d": 25,
+        "l": 9
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 81,
+          "type": "card",
+          "rate": 0.25
+        }
+      ],
+      "difficulty": 6,
+      "availability": {
+        "begins": 10,
+        "ends": 20
+      }
+    },
+    {
+      "id": 42,
+      "name": "STR_NPC_Yayake",
+      "iconID": "yayake",
+      "rules": [
+        "RULE_CHAOS",
+        "RULE_ROULETTE"
+      ],
+      "fetishesCards": [
+        55,
+        61
+      ],
+      "cards": [
+        22,
+        40,
+        46,
+        81,
+        96
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 123,
+        "d": 49,
+        "l": 18
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 96,
+          "type": "card",
+          "rate": 0.25
+        }
+      ],
+      "difficulty": 12,
+      "availability": {
+        "begins": 9,
+        "ends": 20
+      }
+    },
+    {
+      "id": 43,
+      "name": "STR_NPC_Yellow_Moon",
+      "iconID": "yellow-moon",
+      "rules": [
+        "RULE_ASCENSION",
+        "RULE_RANDOM"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        29,
+        32,
+        34,
+        55,
+        64,
+        77,
+        81,
+        84
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 64,
+        "d": 25,
+        "l": 9
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 84,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 6,
+      "availability": {
+        "begins": 22,
+        "ends": 6
+      }
+    },
+    {
+      "id": 44,
+      "name": "STR_NPC_House_Fortemps_Manservant",
+      "iconID": "manservant",
+      "rules": [
+        "RULE_ALL_OPEN",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        93,
+        95,
+        116,
+        121,
+        133,
+        134
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 48,
+        "d": 19,
+        "l": 7
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 121,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 133,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 134,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 5,
+      "availability": {
+        "begins": 2,
+        "ends": 9
+      }
+    },
+    {
+      "id": 45,
+      "name": "STR_NPC_Gibrillont",
+      "iconID": "gibrillont",
+      "rules": [
+        "RULE_ROULETTE"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        89,
+        56,
+        88,
+        62,
+        58,
+        50,
+        19
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 64,
+        "d": 25,
+        "l": 9
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 88,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 6,
+      "availability": {
+        "begins": 2,
+        "ends": 10
+      }
+    },
+    {
+      "id": 46,
+      "name": "STR_NPC_Elaisse",
+      "iconID": "elaisse",
+      "rules": [
+        "RULE_PLUS",
+        "RULE_CHAOS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        91,
+        67,
+        65,
+        66,
+        63,
+        102
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 112,
+        "d": 44,
+        "l": 16
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 102,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 142,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 11,
+      "availability": {
+        "begins": 2,
+        "ends": 6
+      }
+    },
+    {
+      "id": 47,
+      "name": "STR_NPC_Dominiac",
+      "iconID": "dominiac",
+      "rules": [
+        "RULE_ORDER"
+      ],
+      "fetishesCards": [
+        101,
+        96
+      ],
+      "cards": [
+        93,
+        89,
+        86,
+        88,
+        38
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 73,
+        "d": 29,
+        "l": 10
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 101,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 7,
+      "availability": {
+        "begins": 16,
+        "ends": 20
+      }
+    },
+    {
+      "id": 48,
+      "name": "STR_NPC_Klynthota",
+      "iconID": "klynthota",
+      "rules": [
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        140,
+        132,
+        135,
+        47,
+        33,
+        58
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 93,
+        "d": 37,
+        "l": 13
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 0.25
+        },
+        {
+          "card": 132,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 135,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 140,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 150,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 9,
+      "availability": {
+        "begins": 23,
+        "ends": 4
+      }
+    },
+    {
+      "id": 49,
+      "name": "STR_NPC_Linu_Vali",
+      "iconID": "linu-vali",
+      "rules": [
+        "RULE_REVERSE",
+        "RULE_CHAOS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        98,
+        81,
+        82,
+        123,
+        104,
+        86,
+        103
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 0,
+      "MGPReward": {
+        "w": 0,
+        "d": 0,
+        "l": 0
+      },
+      "itemRewards": [
+        {
+          "card": 98,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 123,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 4,
+      "availability": {
+        "begins": 17,
+        "ends": 23
+      }
+    },
+    {
+      "id": 50,
+      "name": "STR_NPC_Laniaitte",
+      "iconID": "laniaitte",
+      "rules": [
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [
+        98,
+        103
+      ],
+      "cards": [
+        58,
+        104,
+        93,
+        89,
+        96
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 44,
+        "l": 16
+      },
+      "itemRewards": [
+        {
+          "card": 103,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 104,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 11,
+      "availability": {
+        "begins": 23,
+        "ends": 2
+      }
+    },
+    {
+      "id": 51,
+      "name": "STR_NPC_Marielle",
+      "iconID": "marielle",
+      "rules": [
+        "RULE_ORDER"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        63,
+        86,
+        65,
+        93,
+        96
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 124,
+        "d": 49,
+        "l": 18
+      },
+      "itemRewards": [
+        {
+          "card": 93,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 143,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 12,
+      "availability": {
+        "begins": 2,
+        "ends": 10
+      }
+    },
+    {
+      "id": 52,
+      "name": "STR_NPC_Idle_Imperial",
+      "iconID": "idle-imperial",
+      "rules": [
+        "RULE_ASCENSION",
+        "RULE_RANDOM"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        91,
+        92,
+        47,
+        83,
+        97,
+        40,
+        32
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 124,
+        "d": 49,
+        "l": 18
+      },
+      "itemRewards": [
+        {
+          "card": 91,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 119,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 151,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 12,
+      "availability": {
+        "begins": 21,
+        "ends": 8
+      }
+    },
+    {
+      "id": 53,
+      "name": "STR_NPC_Vath_Deftarm",
+      "iconID": "vath-deftarm",
+      "rules": [
+        "RULE_ROULETTE"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        88,
+        90,
+        97,
+        59,
+        83,
+        105,
+        109
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 86,
+        "d": 34,
+        "l": 12
+      },
+      "itemRewards": [
+        {
+          "card": 97,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 109,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 85,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 9
+    },
+    {
+      "id": 54,
+      "name": "STR_NPC_Tapklix",
+      "iconID": "tapklix",
+      "rules": [
+        "RULE_SWAP",
+        "RULE_SAME"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        136,
+        117,
+        49,
+        107,
+        106
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 25,
+      "MGPReward": {
+        "w": 86,
+        "d": 34,
+        "l": 12
+      },
+      "itemRewards": [
+        {
+          "card": 117,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 136,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 9,
+      "availability": {
+        "begins": 14,
+        "ends": 18
+      }
+    },
+    {
+      "id": 55,
+      "name": "STR_NPC_Voracious_Vath",
+      "iconID": "voracious-vath",
+      "rules": [
+        "RULE_SWAP",
+        "RULE_ASCENSION"
+      ],
+      "fetishesCards": [
+        105,
+        97
+      ],
+      "cards": [
+        87,
+        109,
+        88,
+        90,
+        55,
+        59
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 98,
+        "d": 39,
+        "l": 14
+      },
+      "itemRewards": [
+        {
+          "card": 117,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 136,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 10,
+      "availability": {
+        "begins": 6,
+        "ends": 24
+      }
+    },
+    {
+      "id": 56,
+      "name": "STR_NPC_Master_Mogzin",
+      "iconID": "mogzin",
+      "rules": [
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        90,
+        153,
+        20,
+        124,
+        43,
+        99,
+        108
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 120,
+        "d": 48,
+        "l": 18
+      },
+      "itemRewards": [
+        {
+          "card": 43,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 146,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 153,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 12,
+      "availability": {
+        "begins": 21,
+        "ends": 3
+      }
+    },
+    {
+      "id": 57,
+      "name": "STR_NPC_Marcechamp",
+      "iconID": "marcechamp",
+      "rules": [
+        "RULE_REVERSE",
+        "RULE_RANDOM"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        81,
+        45,
+        55,
+        84,
+        14,
+        90,
+        3
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 124,
+        "d": 49,
+        "l": 18
+      },
+      "itemRewards": [
+        {
+          "card": 90,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 12,
+      "availability": {
+        "begins": 19,
+        "ends": 5
+      }
+    },
+    {
+      "id": 58,
+      "name": "STR_NPC_Mogmill",
+      "iconID": "mogmill",
+      "rules": [
+        "RULE_ROULETTE",
+        "RULE_ROULETTE"
+      ],
+      "fetishesCards": [
+        66,
+        98,
+        83
+      ],
+      "cards": [
+        100,
+        43,
+        97,
+        82
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 124,
+        "d": 49,
+        "l": 18
+      },
+      "itemRewards": [
+        {
+          "card": 82,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 83,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 108,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 115,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 12
+    },
+    {
+      "id": 59,
+      "name": "STR_NPC_Midnight_Dew",
+      "iconID": "midnight-dew",
+      "rules": [
+        "RULE_ROULETTE",
+        "RULE_RANDOM"
+      ],
+      "fetishesCards": [
+        88,
+        100,
+        86
+      ],
+      "cards": [
+        97,
+        99,
+        92,
+        49
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 124,
+        "d": 49,
+        "l": 18
+      },
+      "itemRewards": [
+        {
+          "card": 92,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 12
+    },
+    {
+      "id": 60,
+      "name": "STR_NPC_Seika",
+      "iconID": "seika",
+      "rules": [
+        "RULE_REVERSE",
+        "RULE_CHAOS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        18,
+        107,
+        14,
+        106,
+        117,
+        15,
+        17
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 35,
+      "MGPReward": {
+        "w": 82,
+        "d": 32,
+        "l": 12
+      },
+      "itemRewards": [
+        {
+          "card": 106,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 107,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 117,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 8
+    },
+    {
+      "id": 99,
+      "name": "STR_NPC_QUEEN_OF_CARDS",
+      "iconID": "queen-of-cards",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_ROULETTE"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 40,
+      "MGPReward": {
+        "w": 182,
+        "d": 72,
+        "l": 27
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 1.0
+        },
+        {
+          "card": 77,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 19
+    }
+  ],
+  "ff8": [
+    {
+      "id": 1,
+      "name": "STR_NPC_KID",
+      "iconID": "kid",
+      "rules": [
+        "RULE_ALL_OPEN"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        81
+      ],
+      "level": "STR_NPC_LEVEL_NOVICE",
+      "matchFee": 5,
+      "MGPReward": {
+        "w": 15,
+        "d": 7,
+        "l": 2
+      },
+      "itemRewards": [
+        {
+          "card": 10,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 13,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 81,
+          "type": "card",
+          "rate": 0.08
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 2,
+      "name": "STR_NPC_CHOCOBOY",
+      "iconID": "chocoboy",
+      "rules": [
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        78,
+        82
+      ],
+      "level": "STR_NPC_LEVEL_NOVICE",
+      "matchFee": 5,
+      "MGPReward": {
+        "w": 16,
+        "d": 8,
+        "l": 3
+      },
+      "itemRewards": [
+        {
+          "card": 16,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 20,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 78,
+          "type": "card",
+          "rate": 0.08
+        },
+        {
+          "card": 82,
+          "type": "card",
+          "rate": 0.08
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 2,
+      "name": "STR_NPC_UFO",
+      "iconID": "ufo",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME_WALL",
+        "RULE_THREE_OPEN"
+      ],
+      "fetishesCards": [
+        48
+      ],
+      "cards": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "level": "STR_NPC_LEVEL_NOVICE",
+      "matchFee": 5,
+      "MGPReward": {
+        "w": 18,
+        "d": 9,
+        "l": 4
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 1.0
+        },
+        {
+          "card": 11,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 21,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 48,
+          "type": "card",
+          "rate": 0.05
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 3,
+      "name": "STR_NPC_JACK",
+      "iconID": "jack",
+      "rules": [
+        "RULE_ALL_OPEN",
+        "RULE_ELEMENTAL"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        8,
+        11,
+        15,
+        17,
+        18,
+        19,
+        20,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        85
+      ],
+      "level": "STR_NPC_LEVEL_INITIATE",
+      "matchFee": 10,
+      "MGPReward": {
+        "w": 20,
+        "d": 11,
+        "l": 5
+      },
+      "itemRewards": [
+        {
+          "card": 29,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 30,
+          "type": "card",
+          "rate": 0.25
+        },
+        {
+          "card": 85,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 4,
+      "name": "STR_NPC_CLUB",
+      "iconID": "club",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_ELEMENTAL"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        8,
+        11,
+        15,
+        17,
+        18,
+        19,
+        20,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        86
+      ],
+      "level": "STR_NPC_LEVEL_INITIATE",
+      "matchFee": 10,
+      "MGPReward": {
+        "w": 25,
+        "d": 13,
+        "l": 6
+      },
+      "itemRewards": [
+        {
+          "card": 26,
+          "type": "card",
+          "rate": 0.33
+        },
+        {
+          "card": 27,
+          "type": "card",
+          "rate": 0.33
+        },
+        {
+          "card": 86,
+          "type": "card",
+          "rate": 0.02
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 5,
+      "name": "STR_NPC_MA_DINCHT",
+      "iconID": "ma-dincht",
+      "rules": [
+        "RULE_ALL_OPEN",
+        "RULE_RANDOM",
+        "RULE_ELEMENTAL"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        106
+      ],
+      "level": "STR_NPC_LEVEL_INITIATE",
+      "matchFee": 10,
+      "MGPReward": {
+        "w": 25,
+        "d": 13,
+        "l": 6
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 1.0
+        },
+        {
+          "card": 26,
+          "type": "card",
+          "rate": 0.33
+        },
+        {
+          "card": 27,
+          "type": "card",
+          "rate": 0.33
+        },
+        {
+          "card": 106,
+          "type": "card",
+          "rate": 0.005
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 6,
+      "name": "STR_NPC_WATTS",
+      "iconID": "watts",
+      "rules": [
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        79
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 32,
+        "d": 16,
+        "l": 8
+      },
+      "itemRewards": [
+        {
+          "card": 79,
+          "type": "card",
+          "rate": 0.02
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 7,
+      "name": "STR_NPC_ZONE",
+      "iconID": "zone",
+      "rules": [
+        "RULE_SAME"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        84
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 32,
+        "d": 16,
+        "l": 8
+      },
+      "itemRewards": [
+        {
+          "card": 84,
+          "type": "card",
+          "rate": 0.02
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 8,
+      "name": "STR_NPC_DIAMOND",
+      "iconID": "diamond",
+      "rules": [
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 36,
+        "d": 18,
+        "l": 9
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 1.0
+        },
+        {
+          "card": 67,
+          "type": "card",
+          "rate": 0.1
+        },
+        {
+          "card": 68,
+          "type": "card",
+          "rate": 0.1
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 9,
+      "name": "STR_NPC_SPADE",
+      "iconID": "spade",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        98
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 40,
+        "d": 20,
+        "l": 10
+      },
+      "itemRewards": [
+        {
+          "card": 98,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 10,
+      "name": "STR_NPC_TREPIES",
+      "iconID": "trepies",
+      "rules": [
+        "RULE_ALL_OPEN",
+        "RULE_RANDOM",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        104
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 44,
+        "d": 22,
+        "l": 11
+      },
+      "itemRewards": [
+        {
+          "card": 104,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 11,
+      "name": "STR_NPC_CARAWAY",
+      "iconID": "caraway",
+      "rules": [
+        "RULE_ELEMENTAL",
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        107
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 48,
+        "d": 24,
+        "l": 12
+      },
+      "itemRewards": [
+        {
+          "card": 107,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 12,
+      "name": "STR_NPC_MARTINE",
+      "iconID": "martine",
+      "rules": [
+        "RULE_ELEMENTAL",
+        "RULE_SUDDEN_DEATH"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30
+      ],
+      "level": "STR_NPC_LEVEL_AVERAGE",
+      "matchFee": 15,
+      "MGPReward": {
+        "w": 48,
+        "d": 24,
+        "l": 12
+      },
+      "itemRewards": [],
+      "difficulty": 0
+    },
+    {
+      "id": 13,
+      "name": "STR_NPC_PIET",
+      "iconID": "piet",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME",
+        "RULE_SAME_WALL",
+        "RULE_PLUS",
+        "RULE_ELEMENTAL"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        95
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 54,
+        "d": 27,
+        "l": 13
+      },
+      "itemRewards": [
+        {
+          "card": 95,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 13,
+      "name": "STR_NPC_ODINE",
+      "iconID": "odine",
+      "rules": [
+        "RULE_ELEMENTAL",
+        "RULE_SAME_WALL",
+        "RULE_SUDDEN_DEATH"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        100
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 54,
+        "d": 27,
+        "l": 13
+      },
+      "itemRewards": [
+        {
+          "card": 100,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 14,
+      "name": "STR_NPC_JOCKER",
+      "iconID": "jocker",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME",
+        "RULE_SAME_WALL",
+        "RULE_PLUS",
+        "RULE_SUDDEN_DEATH"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        91
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 54,
+        "d": 27,
+        "l": 13
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 1.0
+        },
+        {
+          "card": 91,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 15,
+      "name": "STR_NPC_FLO",
+      "iconID": "flo",
+      "rules": [
+        "RULE_SAME",
+        "RULE_PLUS",
+        "RULE_ELEMENTAL"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        105
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 54,
+        "d": 27,
+        "l": 13
+      },
+      "itemRewards": [
+        {
+          "card": 105,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 16,
+      "name": "STR_NPC_DOBE",
+      "iconID": "dobe",
+      "rules": [
+        "RULE_SAME",
+        "RULE_PLUS",
+        "RULE_ELEMENTAL"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        83
+      ],
+      "level": "STR_NPC_LEVEL_ADVANCED",
+      "matchFee": 20,
+      "MGPReward": {
+        "w": 54,
+        "d": 27,
+        "l": 13
+      },
+      "itemRewards": [
+        {
+          "card": 83,
+          "type": "card",
+          "rate": 0.02
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 17,
+      "name": "STR_NPC_EDEA",
+      "iconID": "edea",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        108
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 40,
+        "l": 20
+      },
+      "itemRewards": [
+        {
+          "card": 108,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 18,
+      "name": "STR_NPC_KING",
+      "iconID": "king",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME",
+        "RULE_SAME_WALL",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        108
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 40,
+        "l": 20
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 1.0
+        },
+        {
+          "card": 108,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 19,
+      "name": "STR_NPC_CID",
+      "iconID": "cid",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        109
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 40,
+        "l": 20
+      },
+      "itemRewards": [
+        {
+          "card": 109,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 20,
+      "name": "STR_NPC_HEART",
+      "iconID": "heart",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME",
+        "RULE_PLUS"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        89
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 40,
+        "l": 20
+      },
+      "itemRewards": [
+        {
+          "potion": "MGP_BOOST",
+          "type": "potion",
+          "rate": 1.0
+        },
+        {
+          "card": 89,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 21,
+      "name": "STR_NPC_ELLONE",
+      "iconID": "ellone",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_SAME",
+        "RULE_SAME_WALL",
+        "RULE_PLUS",
+        "RULE_ELEMENTAL"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        102
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 40,
+        "l": 20
+      },
+      "itemRewards": [
+        {
+          "card": 102,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 22,
+      "name": "STR_NPC_LAGUNA",
+      "iconID": "laguna",
+      "rules": [
+        "RULE_ELEMENTAL",
+        "RULE_SAME_WALL",
+        "RULE_SUDDEN_DEATH"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        110
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 110,
+        "d": 40,
+        "l": 20
+      },
+      "itemRewards": [
+        {
+          "card": 110,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    },
+    {
+      "id": 99,
+      "name": "STR_NPC_QUEEN_OF_CARDS",
+      "iconID": "queen-of-cards",
+      "rules": [
+        "RULE_RANDOM",
+        "RULE_ROULETTE"
+      ],
+      "fetishesCards": [],
+      "cards": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99
+      ],
+      "level": "STR_NPC_LEVEL_EXPERT",
+      "matchFee": 30,
+      "MGPReward": {
+        "w": 128,
+        "d": 56,
+        "l": 28
+      },
+      "itemRewards": [
+        {
+          "card": 110,
+          "type": "card",
+          "rate": 0.01
+        }
+      ],
+      "difficulty": 0
+    }
+  ]
+}

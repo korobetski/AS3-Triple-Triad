@@ -3,9 +3,13 @@
 ## 📋 Document Information
 
 - **Purpose**: Map all ActionScript 3 data classes to Kotlin data classes
-- **Status**: PLANNING COMPLETE
-- **Last Updated**: 2026-07-21
-- **Related**: [02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md)
+- **Status**: IMPLEMENTED (Phase 2, 2026-07-30). Six factual errors found against the AS3 source
+  while porting and corrected below; each is marked **CORRECTED 2026-07-30**. The Kotlin in this
+  document is the *plan*, not the code — where they differ the code is right and says why in its
+  KDoc.
+- **Last Updated**: 2026-07-30
+- **Related**: [02-CURRENT-SYSTEM-ANALYSIS.md](./02-CURRENT-SYSTEM-ANALYSIS.md),
+  [06-PHASE-2-DATA-LAYER.md](./06-PHASE-2-DATA-LAYER.md) § What was built
 
 ---
 
@@ -30,12 +34,12 @@
 | `CardItem` | `data/models/Item.kt` | HIGH | LOW | Inherits `Item` |
 | `BoosterItem` | `data/models/BoosterItem.kt` | HIGH | MEDIUM | Inherits `Item`; 9 kinds, each with a fixed card pool to transcribe |
 | `PotionItem` | `data/models/PotionItem.kt` | HIGH | LOW | Inherits `Item` |
-| `Save` | `data/models/Save.kt` | CRITICAL | HIGH | Save file structure |
-| `Achievements` | `data/models/Achievement.kt` | MEDIUM | LOW | Achievement tracking |
-| `NPC` | `data/models/NPC.kt` | HIGH | MEDIUM | NPC data |
-| `NPCs` | `data/models/NPC.kt` | HIGH | LOW | NPC collection |
-| `Rank` | `data/models/Rank.kt` | LOW | LOW | Rank definitions |
-| `Level` | `data/models/Level.kt` | LOW | LOW | Level data |
+| `Save` | `model/GameSave.kt` | CRITICAL | HIGH | Save file structure |
+| `Achievements` | `model/Achievement.kt` | MEDIUM | LOW | Achievement tracking. Split into a data catalogue plus `data/AchievementRepository.kt` — the AS3 class evaluates its conditions in its constructor and so cannot be re-run |
+| `NPC` | `model/Npc.kt` | HIGH | MEDIUM | NPC data |
+| `NPCs` | `data/NpcCatalog.kt` | HIGH | LOW | NPC collection, loaded from `npcs.json` (`tools/extract_npcs.py`) |
+| `Rank` | `model/XpTable.kt` | LOW | LOW | **Merged with `Level`** — the two AS3 classes are byte-identical apart from the class and method name |
+| `Level` | `model/XpTable.kt` | LOW | LOW | See `Rank`. The AS3 loop returns level **1** at maximum XP; fixed |
 
 ---
 
@@ -387,7 +391,7 @@ public class Save {
 }
 ```
 
-**Kotlin `data/models/Save.kt`**:
+**Kotlin `model/GameSave.kt`** — the plan below; see the notes after it for what changed.
 ```kotlin
 @Serializable
 data class GameSave(
@@ -435,6 +439,29 @@ data class Boons(
     val luck: Int = 0
 )
 ```
+
+> ⚠️ **CORRECTED 2026-07-30 — four things about this class were wrong.**
+>
+> 1. **`achievements` is `Map<String, Long>`, not `Map<String, Boolean>`.** `Achievements.check()`
+>    writes `ACHIEVEMENTS[id] = new Date().getTime()` (`Achievements.as:79`) — the instant it was
+>    earned, which is what lets the UI say when. A Boolean throws that away.
+> 2. **`npcWins` is keyed by the NPC's `iconID`, not its id.** Every write site does
+>    `NPC_W[this._NPC.iconID]` (`PVEMatchScreen.as:110`, `CCGroupMatchScreen.as:207`,
+>    `GSGroupMatchScreen.as:208`, `TutorialScreen.as:154`). This is not an eccentricity to normalise
+>    away: **NPC ids are not unique** — the ff8 table declares `id:2` (Chocoboy, UFO) and `id:13`
+>    twice each — so keying by id would silently merge two opponents' records.
+> 3. **`STATS.FORFEITS` must not be a stored field.** `Save.load()` overwrites whatever the file said
+>    with `STARTED_MATCHES - ENDED_MATCHES` on every load (`Save.as:59`), so a stored value never
+>    survives a round trip. It is a computed property (`GameSave.forfeits`).
+> 4. **`NPC_W_TOTAL` is in real save files** even though `setToDefaultValues()` never declares it:
+>    `PVEMatchScreen.as:172` assigns the sum onto `PROFILE_DATAS`, and `JSON.stringify(DATAS)` writes
+>    whatever is on that object. It is derived, so the port ignores it on load
+>    (`ignoreUnknownKeys`) and does not write it back.
+>
+> Also: card ids are `Int`, not `UInt`, matching `Card.id` — `UInt` buys a range no card comes near
+> and costs interoperability with every list API. `LEVEL` and `RANK` are kept as fields because they
+> are in the file, but `GameSave.sane()` recomputes them from XP on load, so a hand-edited or stale
+> value cannot disagree with the XP it claims to represent.
 
 ---
 
@@ -513,11 +540,21 @@ public class PotionItem extends Item {
 > 1. **`Item` is a display object.** It carries a child `ItemIcon` and a
 >    `TouchEvent` listener. Splitting it into a plain data model plus a composable
 >    is real work, not a rename.
-> 2. **Persistence is minimal.** `__toJSON()` writes only `{type, stack}`, so a
->    saved bag entry does not record which booster or potion kind it was — the type
->    string is the only discriminator. Verify against `Save.DATAS.BAG` handling in
->    `InventoryScreen.as` before designing the Kotlin `Item` hierarchy, and decide
->    whether to fix this data-loss bug or reproduce it.
+> 2. ~~**Persistence is minimal.** `__toJSON()` writes only `{type, stack}`...~~
+>    **CORRECTED 2026-07-30: there is no data-loss bug.** The base `Item.__toJSON()` writes
+>    `{type, stack}`, but **each subclass overrides it** to add its own discriminator:
+>    `CardItem.as:33-36` adds `card`, `BoosterItem.as:67-70` adds `booster`, `PotionItem.as:46-49`
+>    adds `potion` — which is exactly what `Item.itemize` (`Item.as:161-178`) reads back. Nothing is
+>    lost and nothing needed deciding.
+>
+> A third consequence that *is* real: **the flags are not state.** `_sellable`, `_stackable`,
+> `_useable`, `_dropable` and `_value` are assigned fixed values in each subclass constructor and
+> never change, so the port makes them computed properties per subtype. That makes a sellable
+> booster unconstructible, which the AS3 type system allowed and the AS3 code never did.
+>
+> And one bug worth naming here rather than in the model: **nothing in the AS3 ever merges stacks.**
+> `Achievements.check()` and `shopScreen` both `BAG.push(...)` unconditionally, so a second copy of a
+> stackable item becomes a second row showing "1". `data/Inventory.kt` merges in one place.
 
 **Kotlin `data/models/Item.kt`** — modelled on the fields that actually exist:
 
@@ -588,11 +625,29 @@ val BOOSTER_POOLS: Map<BoosterType, List<UInt>> = mapOf(
     // ... transcribe the remaining 8 pools verbatim; do not re-derive them
 )
 
-// Enumerate from PotionItem.as before finalising — placeholder names are not
-// acceptable here.
+// Transcribed 2026-07-30 from datas/PotionItem.as:11-23. Two boons, three tiers each; the
+// serial names are the raw AS3 strings, which are also the i18n key stems and the values stored
+// in Save.DATAS.BAG and named by NPCs.as reward tables (`potion:'MGP_BOOST'`).
 @Serializable
-enum class PotionType { /* TODO: transcribe from datas/PotionItem.as */ }
+enum class PotionType(val modifier: BoonModifier) {
+    @SerialName("SMALL_XP_BOOST")  SMALL_XP(BoonModifier(BoonType.XP, 2)),
+    @SerialName("SMALL_MGP_BOOST") SMALL_MGP(BoonModifier(BoonType.MGP, 2)),
+    @SerialName("XP_BOOST")        XP(BoonModifier(BoonType.XP, 5)),
+    @SerialName("MGP_BOOST")       MGP(BoonModifier(BoonType.MGP, 5)),
+    @SerialName("BIG_XP_BOOST")    BIG_XP(BoonModifier(BoonType.XP, 10)),
+    @SerialName("BIG_MGP_BOOST")   BIG_MGP(BoonModifier(BoonType.MGP, 10)),
+}
 ```
+
+> **`Save.DATAS.BOONS` has a third slot, `LUCK`, that no potion grants** — there is no
+> `LUCK_BOOST_MOD` and nothing ever writes it. `Boons.luck` exists so a profile round-trips;
+> `BoonType` has no member for it, because nothing can produce one.
+>
+> **All nine booster pools are transcribed verbatim** (`BoosterItem.as:19-27`) rather than re-derived
+> from rarity or type — several are inconsistent with any rule you might infer: card 51 is in Gold,
+> Platinum *and* Garlean, and Silver and Scion overlap on 19, 50 and 56. Note also that the pools
+> name ids without a collection, so opening a bronze booster on an `ff8_` profile yields *ff8* card 4;
+> that is the original's behaviour and `BoosterItem.open` preserves it by returning a bare id.
 
 > ⚠️ **Three corrections applied**:
 > 1. **`@SerializedName` is a Gson annotation.** With kotlinx.serialization the
@@ -812,24 +867,28 @@ data class GameState(
 - [ ] TurnState
 - [ ] Player
 
-### Data Models
-- [ ] Item (base)
-- [ ] BoosterItem
-- [ ] PotionItem
-- [ ] Save/GameSave
-- [ ] Achievements
-- [ ] NPC
-- [ ] Rank
-- [ ] Level
+### Data Models — done in Phase 2, 2026-07-30
+- [x] Item (base), plus `CardItem` and `MiscItem` (the `itemize` fallback)
+- [x] BoosterItem — nine pools transcribed, `open()` bias reproduced
+- [x] PotionItem — six kinds, modifiers transcribed
+- [x] Save/GameSave — with the four corrections noted above
+- [x] Achievements — all 22, as data + `AchievementRepository`
+- [x] NPC — plus `NpcCatalog` and `tools/extract_npcs.py` (85 opponents)
+- [x] Rank — merged into `XpTable`
+- [x] Level — merged into `XpTable`; the max-XP bug fixed
+- [x] MatchRecord — new, the `MatchHistory` row from
+  [06-PHASE-2-DATA-LAYER.md](./06-PHASE-2-DATA-LAYER.md)
 
 ### Utility Types
-- [ ] CardColor
-- [ ] Element
-- [ ] CardType
-- [ ] GameMode
-- [ ] GamePhase
-- [ ] Direction
-- [ ] CardCollection
+- [x] CardColor — Phase 1
+- [x] CardType — Phase 1. **`Element` is not a separate type**: `cards.as` has one `type` field
+  holding either an FF14 tribe or an FF8 element, and both are compared against `tile.element` by the
+  same two lines of `TTOCore.as:48-49`
+- [x] CardCollection — Phase 2, in `model/Card.kt`. Replaces `GameMode`, which was the same two
+  values under another name (`Save.DATAS.MODE` is `"ff14_"` / `"ff8_"`)
+- [x] Direction, and the turn/phase modelling — Phase 1, in `Board.kt` / `Match.kt` / `MatchState.kt`.
+  `GamePhase` as listed does not exist: five of its eleven members exist only to play an animation,
+  and `MatchState` models the match as a value with a monotonic placement count instead
 
 ---
 
@@ -843,4 +902,4 @@ data class GameState(
 ---
 
 *Generated: 2026-07-21*  
-*Status: PLANNING COMPLETE*
+*Status: IMPLEMENTED — Phase 2, 2026-07-30. See the CORRECTED notes above.*

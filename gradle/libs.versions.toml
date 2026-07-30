@@ -25,6 +25,11 @@ kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotl
 # `runTest`, so `commonTest` can exercise suspending code. `runBlocking` is not in
 # common code — it exists on JVM and Native but is not declared in commonMain.
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+# Declared explicitly rather than taken transitively from `compose.runtime`, which does bring it:
+# `commonMain` uses `sync.Mutex` (BundledCardRepository) and the host modules use `Dispatchers.IO`,
+# so it is a direct dependency and should say so. Leaving it implicit would mean a Compose upgrade
+# that reorganised its own dependencies could break this module's compilation for no visible reason.
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 # `androidx.compose.ui.backhandler.BackHandler`, which is multiplatform but ships in its own
 # artifact that `compose.ui` does not bring in. Needed so the Android system back gesture
 # returns to the menu instead of finishing the activity mid-match.

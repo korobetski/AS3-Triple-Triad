@@ -160,12 +160,13 @@ repository's own scripts.
 
 ## 7. Generated files, and the scripts that generate them
 
-Five directories are **imported or generated, never hand-edited**. Editing them by hand is a change
+Six paths are **imported or generated, never hand-edited**. Editing them by hand is a change
 that the next script run silently reverts.
 
 | Path | Regenerate with | When |
 |---|---|---|
 | `shared/…/composeResources/files/cards.json` | `python tools/extract_cards.py <dest>` | `sources/src/tto/datas/cards.as` changed |
+| `shared/…/composeResources/files/npcs.json` | `python tools/extract_npcs.py <dest>` | `sources/src/tto/datas/NPCs.as` changed, or `cards.as` (two pools are computed from it) |
 | `shared/…/composeResources/files/art/` | `python tools/import_card_art.py` | the catalog changed |
 | `shared/…/composeResources/files/locales/tto-*.json` | `python tools/import_locales.py` | `sources/bin/datas/locales/` changed |
 | `androidApp/src/main/res/` (icon) | `python tools/make_launcher_icons.py` | the source icon changed — needs Pillow |

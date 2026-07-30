@@ -48,6 +48,7 @@ Everything below has been executed; the results are in
 ├── gradle/libs.versions.toml    single source of truth for versions
 ├── gradle/wrapper/              Gradle 9.6.1
 ├── tools/extract_cards.py       regenerates cards.json from the AS3 source
+├── tools/extract_npcs.py        regenerates npcs.json — the 85 PvE opponents
 ├── tools/import_card_art.py     copies the card artwork into composeResources
 ├── tools/import_locales.py      normalises the four AS3 string bundles
 ├── tools/make_launcher_icons.py regenerates the Android launcher icon from the AIR art
@@ -193,6 +194,13 @@ Re-import the artwork after any change to the catalog — it fails if a card has
 
 ```bash
 python tools/import_card_art.py
+```
+
+Regenerate the PvE opponents after any change to `tto/datas/NPCs.as` — or to `cards.as`, since
+two opponents draw their pool from it via `getCardsByRarities`:
+
+```bash
+python tools/extract_npcs.py shared/src/commonMain/composeResources/files/npcs.json
 ```
 
 ## Card data

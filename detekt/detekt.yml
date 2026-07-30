@@ -43,6 +43,13 @@ style:
     ignorePropertyDeclaration: true
     ignoreCompanionObjectPropertyDeclaration: true
     ignoreNamedArgument: true
+    # Enum entries in this project carry data transcribed verbatim out of the AS3 source:
+    # the nine `BoosterType` card pools (`BoosterItem.as:19-27`), the `PotionType` boon
+    # values (`PotionItem.as:18-23`), the `NpcLevel` XP modifiers (`NPC.as:19`). Naming
+    # each of those numbers would mean 60-odd constants whose names could only restate
+    # the enum entry they sit in, and would make the transcription harder to diff against
+    # the original — which is the one thing that has to stay checkable.
+    ignoreEnums: true
   MaxLineLength:
     # Kept in step with .editorconfig so ktlint and detekt cannot disagree.
     maxLineLength: 100
