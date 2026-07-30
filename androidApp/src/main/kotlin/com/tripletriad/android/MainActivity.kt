@@ -13,6 +13,16 @@ import com.tripletriad.ui.App
 import android.util.Log as AndroidLog
 
 class MainActivity : ComponentActivity() {
+    /**
+     * Held so it can be released.
+     *
+     * `SoundPool` holds decoded PCM and `MediaPlayer` holds a codec; both are finite system
+     * resources that outlive a garbage collection, so leaving them to the collector leaks them for
+     * as long as the process lives. `lateinit` rather than nullable because `onCreate` always runs
+     * before `onDestroy`.
+     */
+    private lateinit var audio: AndroidAudioPlayer
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         goFullScreen()
@@ -20,10 +30,36 @@ class MainActivity : ComponentActivity() {
         // The store is built here because this is where the `Context` is. `:shared` deliberately
         // has no platform file access of its own — see `SettingsStore`.
         val settings = AndroidSettingsStore(applicationContext)
+        audio = AndroidAudioPlayer(applicationContext)
         // `finish()` and not `finishAffinity()` or `exitProcess`: this is the only activity, and
         // Android's own guidance is to leave the process alive for the system to reclaim. The
         // system back gesture is handled inside `App` and does not reach here except from the menu.
-        setContent { App(store = settings, onQuit = { finish() }) }
+        setContent { App(store = settings, audio = audio, onQuit = { finish() }) }
+    }
+
+    /**
+     * Silences the music while the app is not in front, and brings it back when it is.
+     *
+     * Not in the original, which had no notion of being backgrounded — AIR on a desktop never was.
+     * A game that keeps playing its theme over whatever the user switched to is a bug on a phone.
+     *
+     * **Pause, not stop.** Backgrounding does not change the composition, so the effect in `App`
+     * that starts the music would not fire again on the way back and the match would return silent.
+     * Pausing also keeps the position, so a return does not replay the sixteen-second intro.
+     */
+    override fun onStop() {
+        super.onStop()
+        audio.pauseMusic()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        audio.resumeMusic()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        audio.release()
     }
 
     /**

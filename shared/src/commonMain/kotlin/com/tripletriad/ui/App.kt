@@ -20,6 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.tripletriad.audio.AudioPlayer
+import com.tripletriad.audio.LocalAudio
+import com.tripletriad.audio.SilentAudioPlayer
+import com.tripletriad.audio.Sound
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.rememberStrings
@@ -54,6 +58,8 @@ internal enum class Screen {
  *   preview or a test needs no filesystem, and so that a test can pin the language by handing in
  *   `InMemorySettingsStore("""{"language":"en_US"}""")` rather than inheriting whatever locale the
  *   machine running it happens to be set to.
+ * @param audio plays the sounds. Silent by default, which is also what the desktop host
+ *   installs — see `AudioPlayer`.
  * @param onQuit what the Quit action does. Nothing, by default: a host that cannot express
  *   quitting (iOS) or does not want to (a preview) is a legitimate host, and the button being inert
  *   is better than `:shared` guessing.
@@ -64,6 +70,7 @@ internal enum class Screen {
 @Composable
 fun App(
     store: SettingsStore = InMemorySettingsStore(),
+    audio: AudioPlayer = SilentAudioPlayer,
     onQuit: () -> Unit = {},
 ) {
     MaterialTheme(colorScheme = darkColorScheme()) {
@@ -77,6 +84,14 @@ fun App(
             // then on the options screen owns the language.
             val locale = settings?.value?.locale ?: startup.settings?.locale ?: AppLocale.Default
             val strings = rememberStrings(locale)
+
+            // The player is told the volumes rather than reading the settings itself, so
+            // nothing under `AudioPlayer` knows what a `UserSettings` is. Keyed on the values so a
+            // slider drag reaches the running music immediately.
+            val settingsValue = settings?.value
+            LaunchedEffect(audio, settingsValue?.backgroundVolume, settingsValue?.noiseVolume) {
+                settingsValue?.let { audio.volumes(it.backgroundVolume, it.noiseVolume) }
+            }
 
             var screen by remember { mutableStateOf(Screen.SPLASH) }
             // Leaves the splash exactly once, when the last phase completes. Driven by an effect
@@ -95,7 +110,14 @@ fun App(
                 screen = Screen.MENU
             }
 
-            CompositionLocalProvider(LocalStrings provides strings) {
+            // The music belongs to the match, as in `BaseMatchScreen.as:114` — it starts when a
+            // match opens and stops when it is left. Nothing plays on the splash or the menu, which
+            // is also the original's behavior: `MenuScreen` never called `shuffleLoop`.
+            LaunchedEffect(screen, audio) {
+                if (screen == Screen.MATCH) audio.play(Sound.MATCH_MUSIC) else audio.stopMusic()
+            }
+
+            CompositionLocalProvider(LocalStrings provides strings, LocalAudio provides audio) {
                 // Only a hairline of padding: the board and ten cards want every dp there is.
                 Box(modifier = Modifier.fillMaxSize().padding(4.dp)) {
                     // Crossfade so the splash does not snap to the menu. 220 ms is short enough
@@ -113,7 +135,7 @@ fun App(
                             }
                             Screen.MATCH -> startup.catalog?.let { catalog ->
                                 // Deliberately provided even when null: a card composes correctly
-                                // with no textures at all — flat colour quad, empty layers — so a
+                                // with no textures at all — flat color quad, empty layers — so a
                                 // failed art load costs appearance, not playability.
                                 CompositionLocalProvider(LocalCardArt provides startup.art) {
                                     MatchScreen(

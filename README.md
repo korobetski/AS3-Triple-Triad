@@ -3,7 +3,7 @@
 Proof of concept for the migration described in
 [docs/migration/00-INDEX.md](docs/migration/00-INDEX.md).
 
-It does six things:
+It does seven things:
 
 1. **Loads all 263 cards** from a JSON resource extracted out of the AS3 source
    (`tto/datas/cards.as`), through the Compose Multiplatform resource bundle.
@@ -22,9 +22,11 @@ It does six things:
 6. **Starts like an app**: a splash that names each startup phase, a main menu (play / options /
    quit) and an options screen that changes the language on the spot and persists it. See
    [§ Screens and navigation](#screens-and-navigation).
+7. **Plays the original's audio** — the looping match theme and nine effects, on two channels with
+   the volumes from the settings file. See [§ Audio](#audio).
 
 Everything else (drag-and-drop, AI, network, save games, the collection and deck-builder
-screens, sound) is deliberately out of scope. See
+screens) is deliberately out of scope. See
 [§ What this PoC does and does not prove](#what-this-poc-does-and-does-not-prove).
 
 This replaces the earlier `poc/` directory, which was reported as validating the
@@ -38,6 +40,7 @@ Everything below has been executed; the results are in
 
 ```
 .
+├── CONTRIBUTING.md              the front door: the loop, and what this project holds you to
 ├── settings.gradle.kts          3 modules, repositories declared once
 ├── build.gradle.kts             plugin versions; applies ktlint + detekt to all modules
 ├── .editorconfig                formatting rules — read by both ktlint and the IDE
@@ -48,6 +51,7 @@ Everything below has been executed; the results are in
 ├── tools/import_card_art.py     copies the card artwork into composeResources
 ├── tools/import_locales.py      normalises the four AS3 string bundles
 ├── tools/make_launcher_icons.py regenerates the Android launcher icon from the AIR art
+├── tools/import_sounds.py       copies the ten sounds this port plays into res/raw
 ├── shared/                      KMP module: model + data + Compose UI
 │   └── src/
 │       ├── commonMain/
@@ -62,6 +66,7 @@ Everything below has been executed; the results are in
 │       │   │   ├── i18n/Strings.kt      AppLocale, lookup + fallback, LocalStrings
 │       │   │   ├── i18n/StringKeys.kt   every key the UI names, in one place
 │       │   │   ├── log/Log.kt           levels, lazy messages, pluggable sink
+│       │   │   ├── audio/AudioPlayer.kt Sound, the loop point, silent + recording players
 │       │   │   ├── settings/SettingsStore.kt   interface + in-memory implementation
 │       │   │   ├── settings/UserSettings.kt    UserSettings.json, load/save, first run
 │       │   │   └── ui/
@@ -80,14 +85,16 @@ Everything below has been executed; the results are in
 │       │       └── locales/      tto-<tag>.json imported ×4, app-<tag>.json authored ×4
 │       ├── commonTest/…         CardTest (5) + CardCatalogTest (8) + RulesEngineTest (37)
 │       │                        + MatchStateTest (27) + StringsTest (9)
-│       │                        + UserSettingsTest (12) + LogTest (7) = 105,
+│       │                        + UserSettingsTest (12) + LogTest (7)
+│       │                        + SoundTest (5) = 110,
 │       │                        run on desktop + androidHostTest
-│       ├── desktopTest/…        MatchUiTest (10) + NavigationTest (9) + StringsBundleTest (8)
-│       │                        + OptionsUiTest (7) + MatchLayoutTest (6)
-│       │                        + CardBundleTest (4) + CardFaceTest (2) = 46
+│       ├── desktopTest/…        MatchUiTest (10) + NavigationTest (9) + MatchAudioTest (9)
+│       │                        + StringsBundleTest (8) + OptionsUiTest (7)
+│       │                        + MatchLayoutTest (6) + CardBundleTest (4)
+│       │                        + CardFaceTest (2) = 55
 │       └── iosMain/…/MainViewController.kt
-├── androidApp/                  Android host + AndroidSettingsStore (Context.filesDir)
-│   └── src/main/res/            launcher icon only, all of it generated — see below
+├── androidApp/                  Android host: settings store, logcat sink, audio player
+│   └── src/main/res/            generated launcher icon + the ten sounds, in raw/
 ├── desktopApp/                  JVM host + DesktopSettingsStore — run the UI without an emulator
 └── iosApp/*.swift               SwiftUI host sources (see the iOS caveat below)
 ```
@@ -118,8 +125,11 @@ Compose compiler ships inside Kotlin and is applied as a plugin.
 
 ## Prerequisites
 
+Summarised here; [docs/development/project-setup.md](docs/development/project-setup.md) is the
+full version, including which host can build what and the first-run failures worth recognising.
+
 - JDK 17 on `PATH` or `JAVA_HOME`.
-- For the Android module only: an Android SDK with platform 36 and a `local.properties`
+- For the Android module only: an Android SDK with platform 37 (what `compileSdk` names) and a `local.properties`
   pointing at it. Copy `local.properties.sample` and fill in `sdk.dir`. On Windows
   **escape both the drive colon and the backslashes**, and end the file with a single
   `LF` — an unescaped colon or a `CRLF` makes `lintDebug` fail with `PropertyEscape`:
@@ -132,6 +142,10 @@ Compose compiler ships inside Kotlin and is applied as a plugin.
 - Python 3 only if you need to regenerate `cards.json`.
 
 ## Commands
+
+The ones used daily. What each task actually runs, where its output lands and how to reproduce a
+CI job locally: [docs/development/build-guide.md](docs/development/build-guide.md). Running,
+filtering and writing tests: [docs/development/testing-guide.md](docs/development/testing-guide.md).
 
 Run the UI without an emulator or Xcode:
 
@@ -152,7 +166,7 @@ and detekt:
 ./gradlew build
 ```
 
-Fast test loop (all 126 desktop tests, a few seconds warm):
+Fast test loop (all 165 tests, 22 s forced from scratch, instant when nothing changed):
 
 ```bash
 ./gradlew :shared:desktopTest
@@ -325,10 +339,10 @@ wired into `check`, so a coverage collapse fails the build rather than waiting t
 
 | Counter | Covered | Gate |
 |---|--:|--:|
-| line | **97.7%** (1208/1236) | 90% |
-| branch | **86.2%** (462/536) | 75% |
-| instruction | 95.6% (11 185/11 695) | — |
-| method | 93.0% (396/426) | — |
+| line | **97.8%** (1267/1296) | 90% |
+| branch | **85.9%** (486/566) | 75% |
+| instruction | 95.8% (11 731/12 242) | — |
+| method | 93.6% (424/453) | — |
 
 The gates are **floors, not targets**, set well under the measured figures on purpose: they
 exist to catch a test file being deleted or a whole area going untested, not to turn every
@@ -353,8 +367,8 @@ each tried and each fail identically.
 
 ### Measured on desktop only
 
-Not a shortcut. `commonMain` is the code under test; `desktopTest` runs all 105 common tests plus
-the 46 that need a UI; the Android host-test run executes *the same common sources* a second time.
+Not a shortcut. `commonMain` is the code under test; `desktopTest` runs all 110 common tests plus
+the 55 that need a UI; the Android host-test run executes *the same common sources* a second time.
 Instrumenting both would double-count identical lines rather than reach new ones. What is
 genuinely not measured is the two host modules — `AndroidSettingsStore`, `DesktopSettingsStore`,
 `MainActivity`, the logcat sink — which have no tests and are excluded rather than counted as 0%.
@@ -465,14 +479,127 @@ exists in all four bundles — is not used: on a phone, a pane you can leave wit
 not be able to lose what you just did, and picking a language redraws the screen in it, which *is*
 the confirmation.
 
-**The volume sliders admit they do nothing.** They persist, and the AS3 file has carried both
-fields all along, so hiding them would be worse; the caveat under them says `saved, but nothing
-plays yet` until Task 1.5 lands. Silent sliders with no explanation read as a bug.
+**The volume sliders work**, one per channel, and reach the running music as they are dragged —
+see [§ Audio](#audio). They were shipped before the audio was, with a caveat under them saying
+`saved, but nothing plays yet`; that string is now unused and stays in the bundles for the next
+thing that is half-built.
 
 Nearly every label came for free: `STR_PLAY`, `STR_SETTINGS`, `STR_QUIT`, `STR_LANGUAGE`, both
 volume labels and both headings are all in the imported bundles, translated four ways. Only five
 new `APP_*` keys were needed — `APP_BACK`, `APP_AUDIO_PENDING` and three `APP_STARTUP_*` — which is
 why the app-owned count went from 5 to 10 and not to 17.
+
+## Audio
+
+`SoundManager.as` is ported as
+[`audio/AudioPlayer.kt`](shared/src/commonMain/kotlin/com/tripletriad/audio/AudioPlayer.kt) — an
+interface plus a `Sound` enum — with
+[`AndroidAudioPlayer`](androidApp/src/main/kotlin/com/tripletriad/android/AndroidAudioPlayer.kt)
+behind it. Same seam as `SettingsStore`, and for a stronger reason: there is no multiplatform audio
+API at all.
+
+### The files are not converted, and this is the measurement that says so
+
+Every MPEG frame header in `sources/bin/sounds/` was parsed rather than assumed:
+
+| | |
+|---|---|
+| codec | MPEG-1 and MPEG-2 Layer III |
+| sample rates | 22 050 / 44 100 / 48 000 Hz |
+| channels | **21 of 22 mono**; only the music is stereo |
+| bitrate | 17 of 22 are VBR — all 22 carry a Xing header |
+| total | 22 files, 1.40 MB, 84.5 s |
+
+**No conversion is needed for Android**, which is the only target that plays anything today. Every
+one of those combinations is in Android's *mandatory* decoder set at every API level from 24 up, so
+`SoundPool` and `MediaPlayer` take the bytes as they are. The Xing headers matter for exactly one
+file — the music, which seeks back to its loop point — because a VBR seek without one is a bitrate
+guess.
+
+Converting would cost something and buy nothing here:
+
+| Target format | Verdict |
+|---|---|
+| **Ogg Vorbis / Opus** | Android supports both, so no gain. Would *lose* a future iOS: neither is decoded natively by AVFoundation, where MP3 is |
+| **WAV / PCM** | The only format the desktop JVM decodes out of the box — at 6–10× the size, for a host that exists so the UI can be run without an emulator |
+| **AAC / M4A** | Supported on Android and iOS, so no compatibility gain over MP3, and a re-encode of already-lossy audio |
+
+**One caveat, and it needs ears rather than a build.** MP3 cannot loop sample-exactly: every encoder
+adds decoder delay at the start and pads the end to a whole frame, so the seek back to 16.374 s
+lands a few milliseconds off and may click. Ogg Vorbis would fix that on Android. Whether it is
+audible over the loop point of this particular track is a judgement no test here can make — and the
+AS3 original was *worse*, since it polled the position every frame and could overshoot by a whole
+frame before restarting. If it turns out to click, the fix is to convert that **one** file.
+
+### What is played, and what is left out
+
+`Sound` names **ten** of the original's twenty-two files. The rest are accounted for rather than
+forgotten, by [`tools/import_sounds.py`](tools/import_sounds.py), which fails if a file is neither
+played nor explained:
+
+* **ten are referenced by no call site at all** in the AS3 source — including `flip`, whose only two
+  calls are commented out in favour of `se_ttriad.scd_157`, and `win`, which the win sounds are not;
+* **two belong to the coin flip** (`anims/PileOuFace.as`), which this port has not implemented.
+
+That is 0.31 MB of sounds nothing could play, left out of the APK.
+
+| Moment | AS3 id | From |
+|---|---|---|
+| match music, looping from 16.374 s | `shuffle_or_boogie` | `BaseMatchScreen.as:114` |
+| hands dealt | `se_ttriad.scd_2` | `:157`, `openPhase()` |
+| placed, captured nothing | `se_ttriad.scd_1` | `TTOCore.as:87` |
+| a card changes hands | `se_ttriad.scd_157` | `Card.as:229`, in `flipTo` |
+| a combo propagates | `se_ttriad.scd_15` | `TTOCore.as:125` |
+| turn changes | `se_ttriad.scd_4` | `BaseMatchScreen.as:374` |
+| blue / red wins | `se_ttriad.scd_7` / `_8` | `PVEMatchScreen.as:95` / `:139` |
+| any control tapped | `se_ui.scd_72` | `TouchLabel.as:31` |
+| next match | `se_gs.scd_162` | `RematchPanel.as:36` |
+
+A draw is silent, which is the original's behaviour: its draw branch plays nothing.
+
+### No Media3, and two engines rather than one
+
+Task 1.5 names Media3. It is not needed: `SoundPool` and `MediaPlayer` are platform classes older
+than `minSdk 24`, and between them they do everything `SoundManager` did. **No dependency was
+added.**
+
+The two are for different jobs, and the split is `SoundManager`'s own (`NOISE_CHANNEL` against
+`BACKGROUND_CHANNEL`): `SoundPool` keeps short sounds decoded and overlaps them, so three cards
+flipping in a combo do not cut each other off, but it would hold a 64-second track as ~11 MB of PCM
+and cannot loop to a point. `MediaPlayer` streams and seeks, and would add latency if constructed
+per tap.
+
+### Three deviations from the original, each deliberate
+
+1. **The cross-fade is not reproduced.** `fadeSoundChannel` was called with a 150 ms delay and
+   stepped the volume by 0.01, so fading out from 1.0 took a hundred steps — **fifteen seconds**,
+   not 150 ms — and it compared a float to `0` exactly. There is one track, so nothing cross-fades.
+2. **The capture sound plays once per placement, not once per card.** `Card.as` fires it inside
+   `flipTo`, so four simultaneous flips fired it four times; on `SoundPool` that is the same sample
+   four times in the same millisecond — a volume spike, not a richer sound.
+3. **The music pauses when the app is backgrounded** and resumes where it left off. AIR on a desktop
+   had no notion of being backgrounded. Pause rather than stop, because backgrounding does not change
+   the composition: the effect that starts the music would not fire again, and the match would come
+   back silent.
+
+### Verified on a device, because nothing else can verify it
+
+No test can hear anything. What the tests pin is the **mapping** — which moment asks for which
+sound — through the real UI with a recording player.
+
+On the phone, `dumpsys audio` during a match:
+
+```
+type:android.media.MediaPlayer  state:started  usage=USAGE_GAME content=CONTENT_TYPE_MUSIC
+    sampleRate=44100  channelMask=0x3        <- shuffle_or_boogie, stereo, decoding
+type:android.media.SoundPool    state:idle    usage=USAGE_GAME content=CONTENT_TYPE_SONIFICATION
+```
+
+The music is genuinely decoding from the unconverted MP3, and no `SoundPool` load failed — a failure
+logs a warning, and there were none.
+
+**What remains unverified**: whether the loop point clicks, and whether the mix sounds right. Both
+need someone to listen.
 
 ## Rules engine
 
@@ -594,17 +721,17 @@ Run on Windows 11, JDK 17 (Temurin), Android SDK platform 36.1 / build-tools 36.
 | Command | Result |
 |---------|--------|
 | `./gradlew clean` then `./gradlew build assembleRelease` | **BUILD SUCCESSFUL**, 264 tasks |
-| `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 17 933 KB |
-| `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 15 021 KB |
+| `./gradlew :androidApp:assembleDebug` | **BUILD SUCCESSFUL** — `androidApp-debug.apk`, 19 070 KB |
+| `./gradlew :androidApp:assembleRelease` | **BUILD SUCCESSFUL** — `androidApp-release-unsigned.apk`, 16 141 KB |
 | `./gradlew :desktopApp:build` | **BUILD SUCCESSFUL** — `desktopApp.jar` |
 | `./gradlew :shared:desktopTest` | **95 tests, 0 failures** |
 | `./gradlew :shared:build` (all targets) | **222 test executions, 0 failures** |
 | `./gradlew ktlintCheck detekt` | **BUILD SUCCESSFUL** — 0 findings, `maxIssues = 0` |
 | `./gradlew :shared:lint` | **0 errors**, warnings only ("a newer version is available") |
-| `./gradlew :desktopApp:run` | window opens, titled "Triple Triad — KMP PoC", nothing on stderr |
+| `./gradlew :desktopApp:run` | window opens, titled "Triple Triad", nothing on stderr |
 | `./gradlew :androidApp:installDebug` + launch | **runs on a physical device** — see below |
 
-Release APK note: `isMinifyEnabled = false`, so 15 021 KB is an **un-shrunk upper bound**,
+Release APK note: `isMinifyEnabled = false`, so 16 141 KB is an **un-shrunk upper bound**,
 not what a shipped build would weigh.
 
 ### On a physical device
@@ -681,10 +808,10 @@ desktopTest — real Compose tree on the JVM, plus the JVM-only bundle reads
 specification, case for case: basic capture and Reverse, Fallen Ace and its interactions,
 Same / Plus / Same Wall, combo propagation, the three type rules, turn order and scoring.
 
-151 distinct tests; **256 executions** — the 105 in `commonTest` run once per target
-(`desktopTest` and `testAndroidHostTest`) and the 46 in `desktopTest` once — 0 failures.
+165 distinct tests; **275 executions** — the 110 in `commonTest` run once per target
+(`desktopTest` and `testAndroidHostTest`) and the 55 in `desktopTest` once — 0 failures.
 
-Line coverage is **97.7%**, branch **86.2%**, measured on the desktop target and gated in
+Line coverage is **97.8%**, branch **85.9%**, measured on the desktop target and gated in
 `check` — see [§ Coverage](#coverage).
 
 It used to be 249, over three targets, and the drop is not a loss of coverage. AGP 9 stopped

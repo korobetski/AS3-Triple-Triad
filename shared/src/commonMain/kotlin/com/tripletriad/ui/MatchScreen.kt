@@ -40,6 +40,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tripletriad.audio.AudioPlayer
+import com.tripletriad.audio.LocalAudio
+import com.tripletriad.audio.Sound
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -96,6 +99,7 @@ fun handCardTestTag(owner: CardColor, slot: Int): String =
  */
 @Composable
 internal fun MatchScreen(catalog: CardCatalog, onExit: () -> Unit = {}) {
+    val audio = LocalAudio.current
     var matchIndex by remember { mutableStateOf(0) }
     // Seeded from the match index so a given match is reproducible, but "new match" deals a
     // different pair of hands.
@@ -105,6 +109,10 @@ internal fun MatchScreen(catalog: CardCatalog, onExit: () -> Unit = {}) {
     // Only the side to move can select, and only from its own hand.
     val selectable = state.currentHand
 
+    // `openPhase()` — `BaseMatchScreen.as:157`. Keyed on the match index so "next match" deals to
+    // the same sound the first one did.
+    LaunchedEffect(matchIndex, audio) { audio.play(Sound.MATCH_OPEN) }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -112,7 +120,12 @@ internal fun MatchScreen(catalog: CardCatalog, onExit: () -> Unit = {}) {
         StatusBar(
             state = state,
             selected = selected,
-            onNewMatch = { matchIndex++ },
+            onNewMatch = {
+                // `RematchPanel.as:36`. The panel itself is not ported; this control is what
+                // stands in for it.
+                audio.play(Sound.NEW_MATCH)
+                matchIndex++
+            },
             onExit = onExit,
         )
 
@@ -132,12 +145,46 @@ internal fun MatchScreen(catalog: CardCatalog, onExit: () -> Unit = {}) {
                 onPlace = { position ->
                     val card = selected
                     if (card != null && state.board.isEmpty(position)) {
-                        state = state.play(card, position)
+                        val next = state.play(card, position)
+                        state = next
                         selected = null
+                        sound(audio, next)
                     }
                 },
             )
         }
+    }
+}
+
+/**
+ * The sounds one placement makes, in the order the AS3 made them.
+ *
+ * The mapping is the part with decisions in it, so it is a function rather than four `if`s inside a
+ * click handler, and `MatchAudioTest` asserts it through the real UI with a recording player.
+ *
+ * * **nothing captured** → [Sound.CARD_PLACED]. `TTOCore.as:87` plays `se_ttriad.scd_1` in exactly
+ *   the branch that returns a power of 0, i.e. the placement that flips nothing.
+ * * **something captured** → [Sound.CARD_CAPTURED], **once**. `Card.as:229` plays it per flipped
+ *   card, inside `flipTo`; four cards flipping at once would fire it four times, which on
+ *   `SoundPool` is the same sample four times in the same millisecond — a volume spike, not a
+ *   richer sound. One is the faithful *result*.
+ * * **a combo** → [Sound.COMBO] over the top, from `TTOCore.as:125`'s `flipData.waveEffect`. A
+ *   capture with `wave >= 1` is by definition a combo generation.
+ * * **the match continues** → [Sound.TURN_CHANGE], `BaseMatchScreen.as:374`, which plays it for
+ *   either side.
+ * * **the match ends** → the winner's sound instead, `PVEMatchScreen.as:95`/`:139`. A draw is
+ *   silent, matching the original: its draw branch plays nothing.
+ */
+private fun sound(audio: AudioPlayer, state: MatchState) {
+    val captures = state.lastPlay?.captures.orEmpty()
+    audio.play(if (captures.isEmpty()) Sound.CARD_PLACED else Sound.CARD_CAPTURED)
+    if (captures.any { it.wave >= 1 }) audio.play(Sound.COMBO)
+
+    when (val outcome = state.outcome()) {
+        null -> audio.play(Sound.TURN_CHANGE)
+        is MatchOutcome.Win ->
+            audio.play(if (outcome.winner == CardColor.BLUE) Sound.BLUE_WINS else Sound.RED_WINS)
+        else -> Unit
     }
 }
 

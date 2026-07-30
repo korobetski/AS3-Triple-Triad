@@ -112,7 +112,7 @@ see its [licensing note](../../README.md#licensing-note). The risk was accepted 
 | Phase | Status | Start Date | End Date | Owner |
 |-------|--------|------------|----------|-------|
 | Phase 0: Preparation | ⚠️ NEARLY COMPLETE — 5 of 6 tasks delivered, CI green, all five blocking decisions resolved 2026-07-25. Training void (no team); iOS app needs a Mac. See [04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md) | - | - | - |
-| Phase 1: Infrastructure | 🔄 IN PROGRESS — the structure, build, models, data and CI were delivered during Phase 0's PoC; **Tasks 1.6** (file access / user settings), **1.7** (logger), **1.10** (4 locales, on device) and **1.11** (coverage, 96.7% line, gated) are done. Left: audio, setup guides. See [05-PHASE-1-INFRASTRUCTURE.md](./05-PHASE-1-INFRASTRUCTURE.md) | - | - | - |
+| Phase 1: Infrastructure | ✅ DONE — the structure, build, models, data and CI were delivered during Phase 0's PoC; **1.5** (audio, on device), **1.6** (file access / user settings), **1.7** (logger), **1.10** (4 locales, on device), **1.11** (coverage, 97.8% line, gated) and **1.13** (setup / build / testing guides + [CONTRIBUTING.md](../../CONTRIBUTING.md)) followed. **1.4** (iOS app) is void — Android only. Nothing is reviewed or approved. See [05-PHASE-1-INFRASTRUCTURE.md](./05-PHASE-1-INFRASTRUCTURE.md) | - | - | - |
 | Phase 2: Data Layer | ⏳ NOT STARTED | - | - | - |
 | Phase 3: Core Logic | ⏳ NOT STARTED | - | - | - |
 | Phase 4: UI Layer | ⏳ NOT STARTED | - | - | - |

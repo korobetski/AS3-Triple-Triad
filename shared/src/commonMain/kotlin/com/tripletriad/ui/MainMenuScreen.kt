@@ -24,6 +24,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tripletriad.audio.LocalAudio
+import com.tripletriad.audio.Sound
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import androidx.compose.foundation.Image as ComposeImage
@@ -94,8 +96,14 @@ internal fun MainMenuScreen(
  */
 @Composable
 private fun MenuButton(label: String, tag: String, onClick: () -> Unit) {
+    // `TouchLabel.as:31` played this on any tap on a control, so it belongs to the control and not
+    // to each caller — otherwise the next screen added is the one that forgets it.
+    val audio = LocalAudio.current
     Button(
-        onClick = onClick,
+        onClick = {
+            audio.play(Sound.UI_CLICK)
+            onClick()
+        },
         modifier = Modifier.fillMaxWidth().height(48.dp).testTag(tag),
         shape = RoundedCornerShape(4.dp),
         colors = ButtonDefaults.buttonColors(

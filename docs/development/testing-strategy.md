@@ -2,6 +2,9 @@
 
 Phase 0, Task 1.6 deliverable.
 
+*What* is tested and *why*. The procedures — running, filtering, writing, and breaking the code to
+prove a test can fail — are in [testing-guide.md](./testing-guide.md).
+
 ---
 
 ## 1. What exists today
@@ -17,15 +20,17 @@ Measured, not projected. `./gradlew build` at the repository root:
 | `commonTest` | `StringsTest` | 9 | desktop, androidHostTest |
 | `commonTest` | `UserSettingsTest` | 12 | desktop, androidHostTest |
 | `commonTest` | `LogTest` | 7 | desktop, androidHostTest |
+| `commonTest` | `SoundTest` | 5 | desktop, androidHostTest |
 | `desktopTest` | `MatchUiTest` | 10 | desktop |
 | `desktopTest` | `NavigationTest` | 9 | desktop |
+| `desktopTest` | `MatchAudioTest` | 9 | desktop |
 | `desktopTest` | `OptionsUiTest` | 7 | desktop |
 | `desktopTest` | `StringsBundleTest` | 8 | desktop |
 | `desktopTest` | `MatchLayoutTest` | 6 | desktop |
 | `desktopTest` | `CardBundleTest` | 4 | desktop |
 | `desktopTest` | `CardFaceTest` | 2 | desktop |
-| | **total** | **151 distinct / 256 executions** | 0 failures |
-| | coverage | **97.7% line / 86.2% branch** | gated at 90 / 75 in `check` |
+| | **total** | **165 distinct / 275 executions** | 0 failures |
+| | coverage | **97.8% line / 85.9% branch** | gated at 90 / 75 in `check` |
 
 `commonTest` runs on every target, which is the point of putting it there — the same 96
 tests execute twice, as `:shared:desktopTest` and `:shared:testAndroidHostTest`. It was three
@@ -157,6 +162,23 @@ The temp-file-and-rename in the Android store is likewise unasserted; it was ver
 file off a device with `adb shell run-as`. **When coverage stops, say where** — the alternative is a
 reader assuming the green suite means the file handling was exercised.
 
+### A test that cannot fail is worse than no test
+
+`MatchAudioTest` first asserted that each placement played *exactly one* of the two placement
+sounds. It passed. Then the mutation check — swap `CARD_PLACED` and `CARD_CAPTURED` in the source —
+**also passed**, because "one of the two" is true either way round.
+
+That is the whole value of running the mutation. The test looked thorough, it exercised the real UI
+through nine placements, and it could not detect the one bug it existed to detect. The fix was to
+make the test find out what the placement actually *did*: the score line gives it away, since the
+side that played gains one for its own card plus one per capture, so the other side's score falling
+is proof of a capture. With that, the swap fails.
+
+Mutating the source to check the test notices is the standard here — see
+[§ Verify the test is not vacuous](#verify-the-test-is-not-vacuous) — precisely because
+plausible-looking assertions like that first one are easy to write and impossible to spot by
+reading.
+
 ### Do not let the harness decide what you are testing
 
 The first version of `theSplashHoldsWhileStartupIsUnfinishedAndNamesItsPhase` asserted on the
@@ -224,20 +246,29 @@ Targets, once there is enough code for the number to mean anything:
 | `domain/` (rules) | 95% | the correctness core |
 | `ui/` | not measured | line coverage of composables measures nothing useful; measure *behaviours covered* instead |
 
-Use **Kover**, not JaCoCo: JaCoCo does not cover Kotlin/Native targets. Kover is **not yet
-in the build** — the CI workflow does not run it. Adding it is Phase 1 work.
+This section asked for **Kover** on the grounds that JaCoCo does not cover Kotlin/Native.
+**Kover turned out to be unusable here** — it aborts during plugin application under
+`com.android.kotlin.multiplatform.library`, in all three versions that exist. Coverage is
+measured with JaCoCo on the desktop target instead, and gated in `check` at 90% line / 75% branch
+against 97.8% / 85.9% measured. The reasoning, and why measuring one target is not a shortcut:
+[README § Coverage](../../README.md#coverage). How to run it and how to read it:
+[testing-guide.md § 5](./testing-guide.md#5-coverage).
 
-Do not gate on a coverage percentage before the rules engine exists; it will only encourage
-tests of getters.
+The advice not to gate before the rules engine existed has been overtaken — it exists, and the
+gates are floors set well below the measured figures precisely so they do not encourage tests of
+getters.
 
 ## 6. What running the tests looks like
 
 ```bash
 ./gradlew build                      # everything, including ktlint + detekt
-./gradlew :shared:desktopTest        # fast loop: all 95 tests, ~10 s warm
+./gradlew :shared:desktopTest        # fast loop: all 165 tests, 22 s forced from scratch
 ./gradlew :shared:allTests           # every target the host can build
 ./gradlew :androidApp:installDebug   # then drive it by hand on a device
 ```
+
+Filtering, report locations, and what to do when a UI test hangs:
+[testing-guide.md § 1](./testing-guide.md#1-running-them).
 
 `build` includes `check`, which includes `ktlintCheck` and `detekt` — a formatting failure
 fails the build, deliberately.

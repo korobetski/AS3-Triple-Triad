@@ -1,5 +1,6 @@
 package com.tripletriad.ui
 
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
@@ -65,6 +66,23 @@ internal fun ComposeUiTest.startMatch() {
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
         onAllNodesWithTag(BOARD_TEST_TAG).fetchSemanticsNodes().isNotEmpty()
     }
+}
+
+/**
+ * The score as (blue, red), read off the status bar.
+ *
+ * Lets a test work out what a placement actually *did*: the side that played gains one for its own
+ * card plus one per capture, and the other side loses one per capture. So the opponent's score
+ * falling is proof a capture happened — which is how `MatchAudioTest` can assert *which* placement
+ * sound is right rather than only that one of the two played.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.score(): Pair<Int, Int> {
+    val node = onNodeWithTag(SCORE_TEST_TAG).fetchSemanticsNode()
+    val text = node.config[SemanticsProperties.Text].joinToString("") { it.text }
+    val halves = text.split("—").map { it.trim() }
+    check(halves.size == 2) { "the score node does not read like a score: \"$text\"" }
+    return halves[0].toInt() to halves[1].toInt()
 }
 
 /**

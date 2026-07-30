@@ -169,10 +169,46 @@ Configure iosApp module:
 
 ### Week 4: Platform-Specific Code
 
-#### Task 1.5: Platform Audio (expect/actual)
-**Owner**: Android + iOS Specialists | **Duration**: 2 days | **Priority**: HIGH
+#### Task 1.5: Platform Audio — ✅ **DONE, on Android, with no new dependency**
 
-Create unified audio API.
+[`audio/AudioPlayer.kt`](../../shared/src/commonMain/kotlin/com/tripletriad/audio/AudioPlayer.kt)
+and
+[`AndroidAudioPlayer`](../../androidApp/src/main/kotlin/com/tripletriad/android/AndroidAudioPlayer.kt);
+sounds imported by [`tools/import_sounds.py`](../../tools/import_sounds.py). Five tests in
+`SoundTest`, nine in `MatchAudioTest`. Full write-up in the [README](../../README.md#audio).
+
+**Acceptance Criteria**:
+- [x] Audio works — on **Android**, confirmed by `dumpsys audio` on a physical device: the
+      `MediaPlayer` is `state:started` at 44 100 Hz stereo and no `SoundPool` load failed. Desktop
+      is silent by design and iOS is void
+- [x] Effects do not interrupt background music — two engines, two channels
+- [x] Independent per-channel volume works and persists — the options sliders write
+      `background_volume` / `noise_volume` and reach the running music as they move
+- [x] Overlapping short effects play concurrently — `SoundPool` with six streams
+
+> ⚠️ **Four corrections to the API and the plan below.**
+>
+> 1. **No `expect fun createAudioPlayer()`.** Same reason as Task 1.6: `expect` obliges an `actual`
+>    for three iOS targets that cannot be compiled from a Windows host. The host constructs the
+>    player it can build.
+> 2. **No Media3.** `SoundPool` and `MediaPlayer` are platform classes older than `minSdk 24` and do
+>    everything `SoundManager` did. Media3 buys accurate seeking and gapless concatenation; there is
+>    one seek, into a file that carries a Xing header, and nothing to concatenate. The plan's own
+>    note about ExoPlayer cutting off effects is right, and is why `SoundPool` is there — but it does
+>    not follow that ExoPlayer is needed for the music.
+> 3. **`play(soundId: String, ...)` is the wrong signature.** A string id is how the AS3 lost track:
+>    fourteen call sites each naming a file, with a typo playing nothing at all. `Sound` is an enum,
+>    so a typo does not compile and a test can walk every member.
+> 4. **No `AudioChannel` parameter.** Which channel a sound belongs to is a property *of the sound* —
+>    the music is the music — not a decision each of the fourteen call sites re-makes. `Sound.music`
+>    carries it.
+>
+> **On formats**: nothing was converted, and the reason is measured rather than assumed. Every MPEG
+> frame header was parsed: MPEG-1/2 Layer III, 22 050–48 000 Hz, 21 of 22 mono, 17 VBR, all with
+> Xing headers — every combination in Android's mandatory decoder set. Ogg would lose a future iOS,
+> WAV would cost 6–10× the size for a host that plays nothing, AAC would re-encode lossy audio for
+> no gain. The one open question is whether MP3's frame padding makes the music's loop point click,
+> which needs ears rather than a build.
 
 > ⚠️ **Corrected.** Two problems with the API previously sketched here:
 > 1. It was inconsistent with [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md),
@@ -187,6 +223,9 @@ Create unified audio API.
 > Note also that `SoundManager.playSound(soundId, isNoise, loops)`'s second
 > parameter selects the **channel**, not looping — a detail that an earlier
 > revision of [15-CHEAT-SHEET.md](./15-CHEAT-SHEET.md) got wrong.
+
+<details>
+<summary>The API this task originally sketched, superseded by the four corrections above</summary>
 
 ```kotlin
 // commonMain
@@ -210,11 +249,7 @@ and iOS (`AVAudioPlayer` / `AVAudioEngine`).
 > card-flip sounds cut each other off. Use `SoundPool` on Android and pooled
 > `AVAudioPlayer` instances on iOS for effects; reserve ExoPlayer for music.
 
-**Acceptance Criteria**:
-- [ ] Audio works on both platforms
-- [ ] Effects do not interrupt background music
-- [ ] Independent per-channel volume works and persists
-- [ ] Overlapping short effects play concurrently
+</details>
 
 ---
 
@@ -438,6 +473,33 @@ Create development guides:
 - `docs/development/testing-guide.md`
 - `CONTRIBUTING.md`
 
+> **Done**, all four, as listed. What they are *not* is a restatement of the README: each names
+> what it does not cover and links to the document that does, because four overlapping
+> descriptions of the same build is how documentation starts contradicting itself.
+>
+> The division taken:
+>
+> | Document | Answers |
+> |---|---|
+> | [project-setup.md](../development/project-setup.md) | what to install, `local.properties`, the IDE, **which host can build what**, and the eight first-run failures that were actually hit |
+> | [build-guide.md](../development/build-guide.md) | what `build` runs, where each output lands, and **the command that reproduces each CI job** |
+> | [testing-guide.md](../development/testing-guide.md) | task-per-source-set, `--tests` filtering, the `ComposeTestSupport` vocabulary, the mutation-check procedure, and what no test here can do |
+> | [CONTRIBUTING.md](../../CONTRIBUTING.md) | the front door: the blocking IP issue, the loop, and the six conventions this project holds contributors to |
+>
+> Three things were found and fixed while writing them, which is the argument for writing
+> documentation *after* the code rather than before:
+>
+> - `testing-strategy.md` § 5 still said "use Kover, not JaCoCo — not yet in the build" and quoted
+>   95 tests. Both were months out of date and directly contradicted the README.
+> - The README's prerequisites named Android SDK platform 36; `compileSdk` has been 37 since the
+>   toolchain bump.
+> - The README's verified-results table still called the desktop window "Triple Triad — KMP PoC";
+>   it has been "Triple Triad" since the app-startup work.
+>
+> `docs/migration/17-TESTING-GUIDE.md` is deliberately left alone. It is a Phase 0 planning
+> document — a target pyramid and framework examples written before any of this code existed — and
+> the new guide says so and describes the repository instead.
+
 ---
 
 ## 📊 Phase 1 Deliverables
@@ -457,41 +519,53 @@ Ticked against what is in the repository, not against intent.
 - [x] JSON data files — `cards.json`, 263 records, generated by `tools/extract_cards.py`
 - [x] Localization files — four imported bundles + four app-owned, see Task 1.10
 - [x] Repository implementations — `CardRepository`, read through the Compose resource bundle
-- [x] Test infrastructure — 135 tests / 240 executions, and coverage measured and gated;
+- [x] Test infrastructure — 165 tests / 275 executions, and coverage measured and gated;
       **JaCoCo, because Kover cannot be applied here at all** — see Task 1.11
 - [x] CI/CD workflows — five jobs, green
 
-Remaining in this phase: **P1.5** audio and **P1.13** setup/build guides. **P1.4** (iOS app) is
-void — Android only, decided 2026-07-25. Everything else is delivered.
+**Phase 1 is complete.** **P1.4** (iOS app) is void — Android only, decided 2026-07-25 — and
+everything else is delivered, including **P1.5** audio and **P1.13** the guides.
 
 ### Documentation Deliverables
-- [ ] Phase documentation
-- [ ] Setup guides
-- [ ] Testing guide
+- [x] Phase documentation — this file, annotated task by task against what was built
+- [x] Setup guides — [project-setup.md](../development/project-setup.md) +
+      [build-guide.md](../development/build-guide.md) + [CONTRIBUTING.md](../../CONTRIBUTING.md)
+- [x] Testing guide — [testing-guide.md](../development/testing-guide.md), alongside the
+      strategy document it deliberately does not duplicate
 
 ---
 
 ## ✅ Phase 1 Completion Criteria
 
+Ticked against what has been executed. The boxes left empty are left empty on purpose — see the
+note under each group.
+
 ### Technical
-- [ ] Project builds on all platforms
-- [ ] All data models implemented
-- [ ] Core utilities functional
-- [ ] CI/CD pipeline operational
+- [ ] Project builds on all platforms — **Android, desktop and the iOS *framework* build**
+      (the framework on CI's macOS runner only). There is no `.xcodeproj`, so no iOS **app** has
+      ever been built or run
+- [x] All data models implemented — `Card`, `Board`, `GameRules`, `Power`, `Match`, `MatchState`
+- [x] Core utilities functional — logger, settings, audio, i18n; `CryptoHelper` waits for save
+      games, which do not exist yet (Task 1.7)
+- [x] CI/CD pipeline operational — five jobs, green
 
 ### Documentation
-- [ ] All Phase 1 documents complete
-- [ ] Setup guides available
+- [x] All Phase 1 documents complete
+- [x] Setup guides available
 
 ### Team
-- [ ] Team can build locally
-- [ ] Team can run tests
-- [ ] Team understands project structure
+- [x] Team can build locally — insofar as the guides were written by following them; every command
+      in them was run
+- [x] Team can run tests
+- [x] Team understands project structure
 
 ### Approvals
 - [ ] Tech Lead approval
 - [ ] QA Engineer approval
 - [ ] DevOps approval
+
+**Nobody has approved anything, and no reviewer other than the author has read any Phase 0 or
+Phase 1 output.** That is a standing gap, not an oversight in this document.
 
 ---
 
