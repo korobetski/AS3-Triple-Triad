@@ -45,6 +45,7 @@ class NavigationTest {
     @Test
     fun everyPhaseHasAStringRatherThanItsKey() {
         val strings = runBlocking { loadStrings(AppLocale.EN_US) }
+        assertEquals(SPLASH_LINES.size, StartupPhase.entries.size, "one line per phase")
         for (phase in StartupPhase.entries) {
             val line = strings[phase.labelKey]
             assertTrue(line in SPLASH_LINES, "$phase resolved to \"$line\"")
@@ -62,15 +63,57 @@ class NavigationTest {
         onNodeWithTag(MENU_QUIT_TEST_TAG).assertTextEquals("Quit")
     }
 
+    /**
+     * With no character, Play leads to the character list — the original's Load Game.
+     *
+     * Asserted on the empty-list message rather than on the list node: an empty `LazyColumn`
+     * renders nothing, so "the list exists" would be the weaker claim of the two.
+     */
+    @Test
+    fun playWithNoCharacterAsksForOne() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        awaitMenu()
+        onNodeWithTag(
+            MENU_PROFILE_TEST_TAG,
+        ).assertTextEquals("No character yet — create one to play.")
+
+        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_EMPTY_TEST_TAG) }
+
+        onNodeWithTag(PROFILE_NEW_TEST_TAG).assertTextEquals("New Game")
+    }
+
+    /** The whole line: menu → characters → new → opponents → board, and back out again. */
     @Test
     fun playReachesABoardAndTheChevronComesBack() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         startMatch()
 
         onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
-        waitForIdle()
+        awaitOpponents()
+
+        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
+
+        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        awaitMenu()
 
         onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Play")
+    }
+
+    /** Once a character is loaded, Play skips the list — the original's Continue. */
+    @Test
+    fun playWithACharacterLoadedGoesStraightToTheOpponents() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+
+        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
+        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
+        awaitMenu()
+
+        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        awaitOpponents()
     }
 
     @Test
@@ -159,6 +202,7 @@ class NavigationTest {
             "reading settings…",
             "loading cards…",
             "loading artwork…",
+            "loading opponents…",
             "ready",
         )
     }

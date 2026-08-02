@@ -28,6 +28,21 @@ data class Stats(
      * only the caller knows which side the profile was on.
      */
     fun recordingDefeat(): Stats = copy(defeats = defeats + 1)
+
+    /**
+     * Records [result] from the profile's point of view — the counter each `endGame` branch bumps
+     * (`PVEMatchScreen.as:71`, `:100`, `:141`).
+     *
+     * [recording] and [recordingDefeat] take an outcome and cannot tell a win from a loss without
+     * knowing which side the profile played; this takes the already-resolved result, which is what
+     * a caller holding a [MatchResult] has. Both are kept: the outcome pair is what a PvP screen
+     * has, and the sudden-death case has to be unrepresentable in this one.
+     */
+    fun recordingStats(result: MatchResult): Stats = when (result) {
+        MatchResult.WIN -> copy(wins = wins + 1)
+        MatchResult.DRAW -> copy(draws = draws + 1)
+        MatchResult.LOSE -> copy(defeats = defeats + 1)
+    }
 }
 
 /**
@@ -46,6 +61,19 @@ data class Boons(
     fun raised(modifier: BoonModifier): Boons = when (modifier.type) {
         BoonType.XP -> copy(xp = xp + modifier.value)
         BoonType.MGP -> copy(mgp = mgp + modifier.value)
+    }
+
+    /**
+     * Consumes one boon of [type] — `Game.PROFILE_DATAS.BOONS.MGP -= 1` (`PVEMatchScreen.as:76`).
+     *
+     * So a boon is a **count of boosted matches**, not a permanent multiplier: a small MGP potion
+     * ([PotionType.SMALL_MGP], value 2) buys two matches paying 20% more. Clamped at zero, because
+     * the AS3 stores these as `uint` arithmetic on an untyped object and a negative count has no
+     * meaning either way.
+     */
+    fun spending(type: BoonType): Boons = when (type) {
+        BoonType.XP -> copy(xp = (xp - 1).coerceAtLeast(0))
+        BoonType.MGP -> copy(mgp = (mgp - 1).coerceAtLeast(0))
     }
 }
 

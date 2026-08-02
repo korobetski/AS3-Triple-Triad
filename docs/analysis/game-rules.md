@@ -16,6 +16,9 @@ places where the AS3 behaviour differs from the published Triple Triad rules, so
 faithfully" and "port it correctly" are not the same instruction and you have to choose per
 item.
 
+**Status: fully ported as of 2026-08-02.** § 15b records how each item was resolved, three
+corrections to this document found while porting, and the § 16 matrix as it now stands.
+
 ---
 
 ## 1. Method and confidence
@@ -429,8 +432,21 @@ cards against the AS3 reading, and treat wave grouping as new work rather than a
 
 ## 11. Roulette
 
-`tripleTriadRules.roulette(mode, gameRules)` (`tripleTriadRules.as:36-114`) generates a random
-rule set. Two candidate pools:
+> ⚠️ **CORRECTED 2026-08-02: it augments a rule set rather than generating one.** The only live
+> call is `RULES = tripleTriadRules.roulette(Game.PROFILE_DATAS.MODE, RULES)`, gated on
+> `RULES.ROULETTE` (`BaseMatchScreen.as:64-66`) — so an opponent declaring `RULE_ROULETTE` plays
+> with everything it already declared **plus** the draw, and the roulette can never take a rule
+> away. Eleven of the 85 shipped opponents use it. The `gameRules = null` branch, which builds a
+> default set and is the only place `ROULETTE:true` is assigned, is never reached.
+>
+> **And the two pools below are the legal rule set per collection**, not merely roulette
+> candidates: no `ff14` opponent declares Elemental or Same Wall, and no `ff8` one declares
+> Ascension, Descension, Reverse, Fallen Ace, Order, Chaos or Swap. All 85 agree with the pools
+> exactly, which is what makes the asymmetry a rule of the game rather than an accident of two array
+> literals.
+
+`tripleTriadRules.roulette(mode, gameRules)` (`tripleTriadRules.as:36-114`) adds one to three random
+rules to a rule set. Two candidate pools:
 
 - **`ff14_`** — 13 rules (`:56`): All Open, Ascension, Chaos, Descension, Fallen Ace, Order,
   Plus, Random, Reverse, Same, Sudden Death, Swap, Three Open
@@ -646,29 +662,49 @@ because the obvious refactor breaks it.
 
 ## 15b. Implementation status
 
-**The engine described here is implemented**, in
+**Everything described here is implemented**, in
 [`shared/src/commonMain/kotlin/com/tripletriad/model/`](../../shared/src/commonMain/kotlin/com/tripletriad/model/)
-— `GameRules`, `Board`, `Power`, `RulesEngine`, `Match` — with the § 16 matrix as
-[`RulesEngineTest`](../../shared/src/commonTest/kotlin/com/tripletriad/model/RulesEngineTest.kt).
-`RulesEngineTest` alone is 37 tests, run on both targets (`desktopTest` and
-`testAndroidHostTest`) for 74 executions, 0 failures.
+— `GameRules`, `Board`, `Power`, `RulesEngine`, `Match`, `MatchState` from Phase 1, and `Roulette`,
+`MatchSetup`, `MatchAi` from **Phase 3, 2026-08-02** — with the § 16 matrix as
+[`RulesEngineTest`](../../shared/src/commonTest/kotlin/com/tripletriad/model/RulesEngineTest.kt),
+`MatchSetupTest`, `MatchAiTest` and `RouletteTest`. `RulesEngineTest` alone is 37 tests; all run on
+both targets (`desktopTest` and `testAndroidHostTest`), 0 failures.
 
 How each § 15 item was resolved:
 
 | Item | Resolution in the port |
 |---|---|
-| 15.1 Sudden Death dispatch | Not implemented yet — belongs to the match state machine |
+| 15.1 Sudden Death dispatch | **Resolved as a return value**, not an event: `MatchState.outcome()` returns `MatchOutcome.SuddenDeath` and `MatchPreparation.prepareRematch` builds the follow-up match. § 16 item 32 covers it |
 | 15.2 Same Wall one-neighbour gate | **Fixed** by default; `RulesEngineOptions.FAITHFUL` restores the AS3 behaviour |
 | 15.3 Combo wave grouping | **Rewritten** as breadth-first propagation with an explicit visited set and wave index |
 | 15.4 Same/Plus power basis | **Fixed** by default (effective powers); switchable via `RulesEngineOptions.specialPowerBasis`, and both behaviours are pinned by a test |
 | 15.5 Untyped cards under Elemental | **Reproduced** (−1) — confirmed correct by the project owner, not a compromise |
-| 15.6 Non-uniform `tools.rand` | Not applicable yet — no randomness in the engine; use `Random.nextInt(size)` when roulette lands |
-| 15.7 Random deck duplicates | Not implemented yet — pre-match phase |
+| 15.6 Non-uniform `tools.rand` | **Fixed** everywhere randomness landed: the roulette draw and its iteration count, Three Open's three slots, the Random hand, the Swap picks and `Board.elements`. All use a uniform `Random`, so **no test asserts a distribution** — see § 11 |
+| 15.7 Random deck duplicates | **Refused rather than reproduced**: `MatchPreparation.randomHand` requires at least five cards and draws without replacement. It also drops the `length == 5` special case, which left the hand in collection order and so decided which card `RULE_ORDER` forces |
 | 15.8 Three modifier write paths | **Cannot arise**: effective power is one pure function |
 | 15.9 Strict comparisons both ways | **Reproduced**, and it is the case the mutation test proves is covered |
 
-Not implemented: roulette generation, the pre-match phase chain, Order/Chaos enforcement,
-Sudden Death, the AI, and the match state machine. The engine resolves one placement.
+All of it is now implemented. What was outstanding when this section was first written — roulette
+generation, the pre-match phase chain, Order/Chaos enforcement, Sudden Death, the AI and the match
+state machine — landed in Phase 1 (`MatchState`, Order, Chaos, scoring, outcome) and Phase 3
+(`Roulette`, `MatchSetup`, `MatchAi`).
+
+Three things this document says are worth correcting or extending against the source:
+
+1. **§ 11 describes the roulette as generating a rule set. It augments one.** The only live call
+   passes the opponent's own rules in and reassigns the result (`BaseMatchScreen.as:64-66`), so an
+   opponent declaring `RULE_ROULETTE` plays with everything it declared *plus* one to three draws.
+   The `gameRules = null` branch that builds a fresh set is never reached.
+2. **The two roulette pools are the legal rule set per collection**, not merely candidate lists. No
+   `ff14` opponent declares Elemental or Same Wall and no `ff8` one declares Ascension, Descension,
+   Reverse, Fallen Ace, Order, Chaos or Swap — all 85 agree with the pools exactly.
+3. **§ 17 says "AI strategy" is not covered, and the AI turns out to be one function.**
+   `PVEMatchScreen.AI` (`:182-254`) scores every remaining card against every free cell by capture
+   count and a defensive `cover` sum, then picks at random among the best. `NPC.difficulty` never
+   reaches it. `BaseMatchScreen.opponentPhase()` is an empty stub, and `autoPlay()` — a uniformly
+   random move — is the human's timer-expiry fallback, not the opponent. See
+   [07-PHASE-3-CORE-LOGIC.md](../migration/07-PHASE-3-CORE-LOGIC.md) § What was built for the one
+   place `MatchAi` departs from it.
 
 ---
 
@@ -722,20 +758,45 @@ renders.
 30. Score counts unplayed cards for their owner; the total is always 10
 31. A 5-5 result is a draw
 32. Sudden Death rebuilds hands from final ownership: each side takes the cards it owned at
-    the 5-5 draw, and the turn order carries over unchanged
+    the 5-5 draw, and the turn order carries over unchanged — `MatchSetupTest`
 
-**Rule generation**
-33. Roulette produces 1 to 3 rules from the correct per-mode pool
+**Rule generation** — all three in `RouletteTest`
+33. Roulette produces 1 to 3 rules from the correct per-mode pool. Note *draws*, not rules: the
+    pool is sampled with replacement, so a repeat or a slot collision yields fewer
 34. Roulette never produces an FF14-only rule in `ff8_` mode, or vice versa
 35. Rules sharing a slot overwrite rather than accumulate
+
+**Pre-match chain** — `MatchSetupTest`
+36. A Random hand is five distinct cards from the collection, not from the deck
+37. Swap exchanges exactly one card each way, and the swapped card takes its receiver's colour
+38. Three Open reveals exactly three, and the same three stay revealed as the hand empties
+39. The coin flip decides who moves first; a rematch has none and keeps the previous order
+40. Board elements are rolled only under Elemental
+41. Every applicable announcement runs, in source order — not just the first
+
+**AI** — `MatchAiTest`
+42. Cover counts open flanks only: a wall or an occupied neighbour contributes 10
+43. Cover reads effective powers, and Reverse inverts what counts as safe
+44. Evaluating a candidate does not mutate the state — the defect § 14 describes cannot arise
+45. The placement capturing the most is chosen; a tie is broken at random
+46. With nothing to capture, the safest square from the sixth placement on, a coin toss between
+    safest and most exposed before that
+47. Two AIs play any rule set the roulette can produce to a complete, legal match
 
 ---
 
 ## 17. What this document does not cover
 
-- **AI strategy.** Only the evaluation hook (§ 14) is specified. `PVEMatchScreen`'s move
-  selection, NPC difficulty and the per-NPC rule sets in `NPCs.as` (1,100+ lines of data) are
-  untouched.
+- ~~**AI strategy.**~~ **Covered as of 2026-08-02**, and it is one function.
+  `PVEMatchScreen.AI` (`:182-254`) scores every remaining card against every free cell by capture
+  count plus a defensive `cover` sum, sorts by both, and picks at random among those matching the
+  best capture count — so the cover sort has no effect except when nothing captures. It looks one
+  move ahead. **`NPC.difficulty` never reaches it**: the field is read only to order the opponent
+  list, so every opponent plays identically. `BaseMatchScreen.opponentPhase()` is an empty stub with
+  its body commented out, and `autoPlay()` — a uniformly random move — is what a *human* gets when
+  their clock runs out, not what the opponent does. The per-NPC rule sets in `NPCs.as` are extracted
+  by `tools/extract_npcs.py` (Phase 2). See
+  [07-PHASE-3-CORE-LOGIC.md](../migration/07-PHASE-3-CORE-LOGIC.md) § What was built.
 - **Rewards, achievements, statistics.** `endGame()` mutates `Game.PROFILE_DATAS` extensively.
   Out of scope, and a coupling worth breaking in the port.
 - **Three Open's selection logic**, which lives in `playerPanel` rather than the rule chain.

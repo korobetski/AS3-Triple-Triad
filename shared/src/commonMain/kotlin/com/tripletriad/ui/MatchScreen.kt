@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,16 +45,28 @@ import com.tripletriad.audio.AudioPlayer
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.Sound
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.MatchReward
+import com.tripletriad.data.MatchRewards
+import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
 import com.tripletriad.model.CardType
+import com.tripletriad.model.GameRules
+import com.tripletriad.model.GameSave
 import com.tripletriad.model.HAND_SIZE
+import com.tripletriad.model.HandVisibility
+import com.tripletriad.model.MatchAi
 import com.tripletriad.model.MatchOutcome
+import com.tripletriad.model.MatchPreparation
+import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
+import com.tripletriad.model.Npc
 import com.tripletriad.model.PlacedCard
+import com.tripletriad.time.Clock
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
@@ -64,8 +77,33 @@ const val SCORE_TEST_TAG: String = "score"
 const val OUTCOME_TEST_TAG: String = "outcome"
 const val NEW_MATCH_TEST_TAG: String = "new-match"
 
+/** The active-rule strip above the board. Absent when no special rule is in force. */
+const val MATCH_RULES_TEST_TAG: String = "match-rules"
+
+/** The end-of-match panel. Its presence is the signal that the match is over and credited. */
+const val MATCH_RESULT_TEST_TAG: String = "match-result"
+
+/** The MGP and XP the finished match paid. */
+const val MATCH_PAYOUT_TEST_TAG: String = "match-payout"
+
+/** The control that leaves the board for the opponent list. */
+const val MATCH_DONE_TEST_TAG: String = "match-done"
+
 /** The chevron back to the main menu. */
 const val MATCH_EXIT_TEST_TAG: String = "match-exit"
+
+/** The opponent's name in the status bar. */
+const val MATCH_OPPONENT_TEST_TAG: String = "match-opponent"
+
+/**
+ * `turn-blue` / `turn-red` — present only while that side is to move.
+ *
+ * A tag rather than the wording of [TURN_TEST_TAG], which is what the tests used to read. That
+ * coupled every match test to `en_US`: the line says "blue to play" in English and "au bleu de
+ * jouer" in French, so a test that wanted to know whose turn it was could only run in one language
+ * — and the two tests that deliberately run in French and German had to avoid asking.
+ */
+fun turnTestTag(player: CardColor): String = "turn-${player.name.lowercase()}"
 
 /** `tile-0` … `tile-8`, row-major, matching `Board.cells`. */
 fun tileTestTag(position: Int): String = "tile-$position"
@@ -82,36 +120,119 @@ fun handCardTestTag(owner: CardColor, slot: Int): String =
     "hand-${owner.name.lowercase()}-$slot"
 
 /**
- * A playable match: the 3×3 board, both hands, and turn-by-turn placement.
+ * A match against an opponent: the 3×3 board, both hands, and the opponent playing itself.
  *
- * All game logic lives in [MatchState] — this composable holds one `var state` and calls
- * `state.play(card, position)`. Nothing here knows a rule. That separation is the point of
- * the port: the AS3 equivalent (`BaseMatchScreen`, 437 lines) *is* the rules engine, the
- * board, the score and the turn sequencer at once.
+ * All game logic lives below this file — the composable holds a `var state`, calls
+ * `state.play(card, position)` for the player and `MatchAi.play(state)` for the opponent, and hands
+ * the finished match to [MatchRewards]. Nothing here knows a rule. That separation is the point of
+ * the port: the AS3 equivalent (`BaseMatchScreen` + `PVEMatchScreen`, 700 lines between them) *is*
+ * the rules engine, the board, the score, the turn sequencer, the AI and the save writer at once.
  *
- * Only the basic capture rule is active by default ([MatchState.rules] is `GameRules()`), so
- * a card flips when its facing power loses the comparison. Same, Plus, Same Wall, combo and
- * the type rules are implemented and tested but not yet exposed in this UI.
+ * ### The opponent plays itself
  *
- * The arrangement follows the FFXIV board: the board centred, the player's hand (blue) on the
- * player's side and the opponent's (red) opposite — left/right in landscape, bottom/top in
- * portrait. See [matchLayout].
+ * `BaseMatchScreen.opponentPhase()` is an empty stub with its body commented out and
+ * `PVEMatchScreen` overrides it with `setTimeout(AI, 1000 + rand(4) * 1000)` — one to five seconds
+ * of thinking time. That delay covered a `setTimeout` cascade of turn announcements; with no
+ * cascade to cover, five seconds of staring at a static board is dead time, so [OPPONENT_PAUSE_MS]
+ * is short and fixed. Pacing is Phase 6's business and this is the one number it will want to
+ * revisit.
+ *
+ * ### Everything a match needs is a parameter
+ *
+ * The original reads the profile out of the global `Game.PROFILE_DATAS`, the opponent off a screen
+ * property, and the clock off `new Date()`. All three arrive here instead, which is what lets a
+ * test play a whole match against a chosen opponent with a pinned clock.
+ *
+ * @param profile the character playing. Read once, at assembly: the copy this screen holds is
+ *   deliberately *not* updated as [onPersist] writes, because re-reading it mid-match would re-deal
+ *   the hands.
+ * @param onPersist writes the profile. Called at the start of the match — so abandoning it counts
+ *   as a forfeit — and again once it is credited.
  */
 @Composable
-internal fun MatchScreen(catalog: CardCatalog, onExit: () -> Unit = {}) {
+internal fun MatchScreen(
+    catalog: CardCatalog,
+    profile: GameSave,
+    npc: Npc,
+    clock: Clock,
+    onPersist: suspend (GameSave) -> Unit,
+    onExit: () -> Unit,
+) {
     val audio = LocalAudio.current
-    var matchIndex by remember { mutableStateOf(0) }
-    // Seeded from the match index so a given match is reproducible, but "new match" deals a
-    // different pair of hands.
-    var state by remember(matchIndex) { mutableStateOf(deal(catalog, matchIndex)) }
-    var selected by remember(matchIndex) { mutableStateOf<Card?>(null) }
+    val strings = LocalStrings.current
+    var matchIndex by remember(npc.iconId) { mutableStateOf(0) }
 
-    // Only the side to move can select, and only from its own hand.
-    val selectable = state.currentHand
+    // One mutable generator for the whole match: the deal, the coin flip and every AI tie-break
+    // draw from it. Seeded from the clock so successive matches differ, which also makes a test
+    // with a `FixedClock` fully deterministic.
+    val random = remember(matchIndex, npc.iconId) { Random(clock.nowMillis() + matchIndex) }
+    val match = remember(matchIndex, npc.iconId) {
+        PveMatches.assemble(profile, npc, catalog, random)
+    }
+    val ai = remember { MatchAi() }
 
-    // `openPhase()` — `BaseMatchScreen.as:157`. Keyed on the match index so "next match" deals to
-    // the same sound the first one did.
-    LaunchedEffect(matchIndex, audio) { audio.play(Sound.MATCH_OPEN) }
+    /*
+     * The profile this match is played by, captured **once** when the match is assembled.
+     *
+     * Not `profile` read inside the effects below: that parameter tracks `session.active`, which
+     * changes the moment `onPersist` returns, so the crediting effect would see a profile that had
+     * already had `startingMatch` applied and apply it a second time — one match counted as two
+     * started. Capturing it here is also what makes the two effects agree on which profile they are
+     * amending.
+     */
+    val playing = remember(match) { profile.startingMatch(againstNpc = true) }
+    var state by remember(match) { mutableStateOf(match.setup.state) }
+    var visibility by remember(match) { mutableStateOf(match.setup.opponentVisibility) }
+    var selected by remember(match) { mutableStateOf<Card?>(null) }
+    var reward by remember(match) { mutableStateOf<MatchReward?>(null) }
+
+    // `PVEScreen.as:244` — the match is counted as started when it is launched, not when it ends,
+    // which is what makes `STATS.FORFEITS` (`STARTED_MATCHES - ENDED_MATCHES`) mean anything.
+    //
+    // Written here, unlike the original: the AS3 increments the counter on a global and only saves
+    // in `endGame`, so a match abandoned before the last placement loses the increment and forfeits
+    // can never be anything but zero. Persisting at the start is what the field was designed for.
+    LaunchedEffect(match) {
+        audio.play(Sound.MATCH_OPEN)
+        onPersist(playing)
+    }
+
+    // The opponent's turn. Keyed on the placement count, so it fires once per turn and again
+    // after a sudden-death rematch resets it — and never while the player is to move.
+    LaunchedEffect(match, state.placement, state.isFinished) {
+        if (state.isFinished || state.currentPlayer != CardColor.RED) return@LaunchedEffect
+        delay(OPPONENT_PAUSE_MS)
+        val next = ai.play(state, random)
+        if (next.placement > state.placement) {
+            state = next
+            sound(audio, next)
+        }
+    }
+
+    // Crediting, once, when the match resolves. A sudden-death draw credits nothing and plays on
+    // (`PVEMatchScreen.as:63-68`), so the same effect handles both by branching on the outcome.
+    LaunchedEffect(match, state.isFinished, state.placement) {
+        val outcome = state.outcome() ?: return@LaunchedEffect
+        if (reward != null) return@LaunchedEffect
+        val result = MatchResult.of(outcome, CardColor.BLUE)
+        if (result == null) {
+            val rematch = MatchPreparation.prepareRematch(state, random)
+            state = rematch.state
+            visibility = rematch.opponentVisibility
+            selected = null
+            return@LaunchedEffect
+        }
+        val credit = MatchRewards.credit(
+            save = playing,
+            npc = npc,
+            result = result,
+            rules = match.rules,
+            at = clock.nowMillis(),
+            random = random,
+        )
+        reward = credit.reward
+        onPersist(credit.save)
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -120,14 +241,10 @@ internal fun MatchScreen(catalog: CardCatalog, onExit: () -> Unit = {}) {
         StatusBar(
             state = state,
             selected = selected,
-            onNewMatch = {
-                // `RematchPanel.as:36`. The panel itself is not ported; this control is what
-                // stands in for it.
-                audio.play(Sound.NEW_MATCH)
-                matchIndex++
-            },
+            opponentName = strings[npc.nameKey],
             onExit = onExit,
         )
+        RulesStrip(match.rules)
 
         // The play area takes whatever the status bar leaves and sizes every card to what it
         // actually got. Nothing below this line guesses at a screen size or a "chrome"
@@ -140,11 +257,14 @@ internal fun MatchScreen(catalog: CardCatalog, onExit: () -> Unit = {}) {
             PlayArea(
                 state = state,
                 selected = selected,
+                visibility = visibility,
                 layout = matchLayout(maxWidth, maxHeight),
-                onSelect = { if (it in selectable) selected = it },
+                onSelect = { if (it in playable(state)) selected = it },
                 onPlace = { position ->
                     val card = selected
-                    if (card != null && state.board.isEmpty(position)) {
+                    if (card != null && state.currentPlayer == CardColor.BLUE &&
+                        state.board.isEmpty(position)
+                    ) {
                         val next = state.play(card, position)
                         state = next
                         selected = null
@@ -152,6 +272,149 @@ internal fun MatchScreen(catalog: CardCatalog, onExit: () -> Unit = {}) {
                     }
                 },
             )
+            reward?.let {
+                OutcomePanel(
+                    reward = it,
+                    opponentName = strings[npc.nameKey],
+                    onRematch = {
+                        audio.play(Sound.NEW_MATCH)
+                        matchIndex++
+                    },
+                    onDone = onExit,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Which of the player's cards may be played this turn — Order and Chaos.
+ *
+ * Not `state.currentHand`: [MatchState.playableCards] narrows it to the first card under
+ * `RULE_ORDER` and to one random card under `RULE_CHAOS`. The generator is derived from the
+ * placement count rather than shared with the match, so Chaos picks the *same* card for the whole
+ * of one turn — a fresh draw on every recomposition would move the playable card while the player
+ * was reaching for it.
+ */
+private fun playable(state: MatchState): List<Card> =
+    if (state.currentPlayer != CardColor.BLUE) {
+        emptyList()
+    } else {
+        state.playableCards(Random(CHAOS_SEED + state.placement))
+    }
+
+/**
+ * The rules in force, named.
+ *
+ * `RulesDigest.as` did the same job on the board, and it matters more than it looks: Reverse or
+ * Fallen Ace silently changes which card beats which, and a player who has not been told is playing
+ * a different game from the one they think. The keys are the AS3 rule constants, which are also
+ * their own i18n keys — so this is `activeRuleKeys()` looked up, with no mapping table in between.
+ */
+@Composable
+private fun RulesStrip(rules: GameRules) {
+    val keys = rules.activeRuleKeys()
+    if (keys.isEmpty()) return
+    val strings = LocalStrings.current
+    Text(
+        text = keys.joinToString(DOT_SEPARATOR) { strings[it] },
+        color = RuleStripText,
+        fontSize = 11.sp,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .testTag(MATCH_RULES_TEST_TAG)
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 2.dp),
+    )
+}
+
+/**
+ * What the match paid, over the board it was won on.
+ *
+ * Stands in for `RematchPanel.as`, which the original opened over the finished board with the same
+ * contents: the result, the MGP, the XP, any dropped items and any achievement just earned. Two
+ * actions, as it had: play the same opponent again, or leave.
+ */
+@Composable
+private fun OutcomePanel(
+    reward: MatchReward,
+    opponentName: String,
+    onRematch: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val strings = LocalStrings.current
+
+    Column(
+        modifier = Modifier
+            .testTag(MATCH_RESULT_TEST_TAG)
+            .widthIn(max = ContentMaxWidth)
+            .padding(16.dp)
+            .clip(RowShape)
+            .background(PanelBackground)
+            .border(1.dp, RowBorder, RowShape)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = when (reward.result) {
+                MatchResult.WIN -> strings[StringKeys.YOU_WIN]
+                MatchResult.LOSE -> strings[StringKeys.YOU_LOSE]
+                MatchResult.DRAW -> strings[StringKeys.DRAW]
+            },
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = opponentName,
+            color = Color.White.copy(alpha = 0.6f),
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        // Always shown, and always positive: every result pays in this game — see `MatchRewards`.
+        Text(
+            text = buildList {
+                add("+${reward.mgp} ${strings[StringKeys.MGP]}")
+                if (reward.xp > 0) add("+${reward.xp} ${strings[StringKeys.XP]}")
+            }.joinToString(DOT_SEPARATOR),
+            color = PayoutText,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.testTag(MATCH_PAYOUT_TEST_TAG),
+        )
+
+        if (reward.items.isNotEmpty()) {
+            Text(
+                text = "${strings[StringKeys.REWARDS]}: ${reward.items.size}",
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 12.sp,
+            )
+        }
+        for (achievement in reward.achievements) {
+            Text(
+                text = strings[StringKeys.ACHIEVEMENT_EARNED] + " — " +
+                    strings[achievement.labelKey],
+                color = RuleStripText,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                WideButton(strings[StringKeys.REMATCH], NEW_MATCH_TEST_TAG, onClick = onRematch)
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                WideButton(strings[StringKeys.BACK], MATCH_DONE_TEST_TAG, onClick = onDone)
+            }
         }
     }
 }
@@ -198,6 +461,7 @@ private fun sound(audio: AudioPlayer, state: MatchState) {
 private fun PlayArea(
     state: MatchState,
     selected: Card?,
+    visibility: HandVisibility,
     layout: MatchLayout,
     onSelect: (Card) -> Unit,
     onPlace: (Int) -> Unit,
@@ -207,6 +471,7 @@ private fun PlayArea(
             state = state,
             owner = owner,
             selected = selected,
+            visibility = visibility,
             layout = layout,
             onSelect = onSelect,
         )
@@ -250,7 +515,7 @@ private fun PlayArea(
 private fun StatusBar(
     state: MatchState,
     selected: Card?,
-    onNewMatch: () -> Unit,
+    opponentName: String,
     onExit: () -> Unit,
 ) {
     Row(
@@ -280,19 +545,27 @@ private fun StatusBar(
         // "blue to play — pick a card", and the extra 14 characters pushed "Match suivant" onto a
         // second line on a 1080 px screen. A row sized for one language is the oldest
         // localisation bug there is, so the *sentence* is the part that gives, not the controls.
-        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                // Absent once the board is full, which is what makes `turn-blue` mean "the player
+                // may move" rather than "the player moved last".
+                .then(state.currentPlayer?.let { Modifier.testTag(turnTestTag(it)) } ?: Modifier),
+            contentAlignment = Alignment.Center,
+        ) {
             TurnLine(state = state, selected = selected)
         }
+        // The opponent's name where the "next match" control used to be. Abandoning a match is the
+        // back chevron; restarting one is the end-of-match panel's business, and a reset control
+        // beside a live board is one mis-tap away from discarding a game in progress.
         Text(
-            text = "${strings[StringKeys.NEXT_MATCH]} ▸",
-            color = Color.White.copy(alpha = 0.7f),
+            text = opponentName,
+            color = CardColor.RED.edge,
             fontSize = 12.sp,
             maxLines = 1,
             softWrap = false,
-            modifier = Modifier
-                .testTag(NEW_MATCH_TEST_TAG)
-                .clickable(onClick = onNewMatch)
-                .padding(4.dp),
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.testTag(MATCH_OPPONENT_TEST_TAG).padding(4.dp),
         )
     }
 }
@@ -349,10 +622,12 @@ private fun TurnLine(state: MatchState, selected: Card?) {
     val player = state.currentPlayer ?: return
     val side = strings[if (player == CardColor.BLUE) StringKeys.SIDE_BLUE else StringKeys.SIDE_RED]
     Text(
-        text = if (selected == null) {
-            strings.format(StringKeys.TURN_PICK_CARD, side)
-        } else {
-            strings.format(StringKeys.TURN_PICK_CELL, side, selected.name)
+        // "red to play — pick a card" was right when a human moved both sides. With an opponent
+        // playing itself, the red turn is something to wait for, not an instruction.
+        text = when {
+            player == CardColor.RED -> strings.format(StringKeys.OPPONENT_TURN, side)
+            selected == null -> strings.format(StringKeys.TURN_PICK_CARD, side)
+            else -> strings.format(StringKeys.TURN_PICK_CELL, side, selected.name)
         },
         color = player.edge,
         fontSize = 13.sp,
@@ -479,6 +754,7 @@ private fun HandArea(
     state: MatchState,
     owner: CardColor,
     selected: Card?,
+    visibility: HandVisibility,
     layout: MatchLayout,
     onSelect: (Card) -> Unit,
 ) {
@@ -519,6 +795,11 @@ private fun HandArea(
                                     slot = slot,
                                     isSelected = active && selected?.id == card.id,
                                     active = active,
+                                    // The player always sees their own hand whatever the Open rule
+                                    // says — `openPhase` assigns `RULE_ALL_OPEN` to `bluePlayer` on
+                                    // both of its branches (`BaseMatchScreen.as:172`, `:176`), so
+                                    // Open is only ever about the opponent.
+                                    faceUp = owner == CardColor.BLUE || visibility.isVisible(card),
                                     scale = layout.scale,
                                     onSelect = onSelect,
                                 )
@@ -538,12 +819,14 @@ private fun HandArea(
  * frame would have to grow the slot, and a growing slot moves every card beside it.
  */
 @Composable
+@Suppress("LongParameterList")
 private fun HandCard(
     card: Card,
     owner: CardColor,
     slot: Int,
     isSelected: Boolean,
     active: Boolean,
+    faceUp: Boolean,
     scale: Float,
     onSelect: (Card) -> Unit,
 ) {
@@ -552,7 +835,7 @@ private fun HandCard(
             .testTag(handCardTestTag(owner, slot))
             .clickable(enabled = active) { onSelect(card) },
     ) {
-        CardFace(card = card, scale = scale)
+        CardFace(card = card, scale = scale, showBack = !faceUp)
         if (isSelected) {
             Box(
                 modifier = Modifier
@@ -561,24 +844,6 @@ private fun HandCard(
             )
         }
     }
-}
-
-/**
- * Deals two hands out of the catalog.
- *
- * A stand-in for the pre-match phase the port does not model: `RANDOM` builds a hand from the
- * player's collection and `SWAP` exchanges a card, both of which belong to whatever assembles
- * hands rather than to the match itself. Seeded by [index] so a given match is reproducible
- * while "new match" deals something different.
- */
-private fun deal(catalog: CardCatalog, index: Int): MatchState {
-    val random = Random(DEAL_SEED + index)
-    val pool = catalog.all.shuffled(random)
-    return MatchState.start(
-        blueHand = pool.take(HAND_SIZE),
-        redHand = pool.drop(HAND_SIZE).take(HAND_SIZE),
-        first = if (random.nextBoolean()) CardColor.BLUE else CardColor.RED,
-    )
 }
 
 /**
@@ -667,7 +932,25 @@ private const val FLIP_LEG_MS = 100
 
 /** `scaleX: 1.2` / `scaleY: 1.2` -- the overshoot each leg tweens to. */
 private const val FLIP_STRETCH = 1.2f
-private const val DEAL_SEED = 20260726
+
+/**
+ * How long the opponent appears to think.
+ *
+ * `PVEMatchScreen.as:42` waits `1000 + tools.rand(4) * 1000` — one to five seconds — which covered
+ * a `setTimeout` cascade of turn announcements this port does not have. Long enough that a
+ * placement reads as the opponent's move rather than as part of the player's, and short enough not
+ * to be a wait.
+ */
+private const val OPPONENT_PAUSE_MS = 700L
+
+/**
+ * Seeds the per-turn generator that Chaos draws its card from.
+ *
+ * Derived from the placement count rather than taken from the match's own generator, so the same
+ * card stays playable for the whole of one turn: `playableCards` draws on every call, and a call
+ * per recomposition would move the target while the player reached for it.
+ */
+private const val CHAOS_SEED = 20260802
 
 /*
  * `Transitions.EASE_IN` / `EASE_OUT`, per the mapping in
@@ -682,6 +965,9 @@ private val TileShape = RoundedCornerShape(6.dp)
 private val EmptyTile = Color(0xFF1E2230)
 private val TileBorder = Color(0xFF3A4152)
 private val SelectionRing = Color(0xFFF2C14E)
+private val RuleStripText = Color(0xFFF2C14E)
+private val PayoutText = Color(0xFF7FD18B)
+private val PanelBackground = Color(0xFF11141C)
 private val SelectionRingWidth = 2.dp
 private val ElementFontSize = 9.sp
 private val HandGap = 3.dp

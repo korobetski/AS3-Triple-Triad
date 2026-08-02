@@ -8,9 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,32 +21,40 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tripletriad.audio.LocalAudio
-import com.tripletriad.audio.Sound
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.model.GameSave
 import androidx.compose.foundation.Image as ComposeImage
 
 const val MENU_PLAY_TEST_TAG: String = "menu-play"
+const val MENU_PROFILES_TEST_TAG: String = "menu-profiles"
 const val MENU_OPTIONS_TEST_TAG: String = "menu-options"
 const val MENU_QUIT_TEST_TAG: String = "menu-quit"
 
+/** The line naming the loaded character, or saying there is none. */
+const val MENU_PROFILE_TEST_TAG: String = "menu-profile"
+
 /**
- * The main menu: logo, then one button per action.
+ * The main menu: logo, the active character, then one button per action.
  *
  * Follows `MenuScreen.as` in shape — the `logo_white_512` wordmark centred above a vertical stack
- * with an 8 px gap — but not in contents. The original offered Continue / New Game / Load Game /
- * Options / Quit, and four of those need save games, which do not exist here yet. So: **Play,
- * Options, Quit**, which is what was asked for. When saves land, this list grows the way the
- * original's did, and `MenuScreen.as:52-58` is the order to grow it in.
+ * with an 8 px gap — and now in contents too. The original offered Continue / New Game / Load Game
+ * / Options / Quit; with profiles in place this shows **Play** (which is Continue when a character
+ * is loaded and Load Game when none is), **Characters**, Options and Quit. `MenuScreen.as:52-58` is
+ * the order it grows in.
  *
+ * @param active the loaded character, or null. Shown as a line under the logo rather than folded
+ *   into the Play label: "Play" has to stay one short word in four languages, and *which*
+ *   character is about to be played is the thing a player needs to see before pressing it.
  * @param onQuit supplied by the host, because leaving is platform business: `finish()` on Android,
  *   `exitApplication` on desktop, and on iOS nothing at all — Apple's guidelines have no "quit".
  *   `:shared` has no way to express any of that, and should not pretend to.
  */
 @Composable
 internal fun MainMenuScreen(
+    active: GameSave?,
     onPlay: () -> Unit,
+    onProfiles: () -> Unit,
     onOptions: () -> Unit,
     onQuit: () -> Unit,
 ) {
@@ -75,51 +80,30 @@ internal fun MainMenuScreen(
             }
         }
 
+        Text(
+            text = active?.let {
+                listOf(
+                    it.username,
+                    collectionLabel(it.mode),
+                    "${strings[StringKeys.LEVEL]} ${it.level}",
+                ).joinToString(DOT_SEPARATOR)
+            } ?: strings[StringKeys.NO_PROFILE],
+            color = Color.White.copy(alpha = if (active == null) 0.5f else 0.8f),
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.testTag(MENU_PROFILE_TEST_TAG).padding(top = 16.dp),
+        )
+
         Column(
-            modifier = Modifier.padding(top = 40.dp).widthIn(max = ButtonMaxWidth).fillMaxWidth(),
+            modifier = Modifier.padding(top = 24.dp).widthIn(max = ButtonMaxWidth).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            MenuButton(strings[StringKeys.PLAY], MENU_PLAY_TEST_TAG, onPlay)
-            MenuButton(strings[StringKeys.SETTINGS], MENU_OPTIONS_TEST_TAG, onOptions)
-            MenuButton(strings[StringKeys.QUIT], MENU_QUIT_TEST_TAG, onQuit)
+            WideButton(strings[StringKeys.PLAY], MENU_PLAY_TEST_TAG, onClick = onPlay)
+            WideButton(strings[StringKeys.PROFILE], MENU_PROFILES_TEST_TAG, onClick = onProfiles)
+            WideButton(strings[StringKeys.SETTINGS], MENU_OPTIONS_TEST_TAG, onClick = onOptions)
+            WideButton(strings[StringKeys.QUIT], MENU_QUIT_TEST_TAG, onClick = onQuit)
         }
-    }
-}
-
-/**
- * One row of the stack.
- *
- * `softWrap = false` with ellipsis rather than a second line: `STR_BACKGROUND_VOLUME` in German is
- * `Hintergrundlautstärke`, and a menu whose rows change height by language is a menu that jumps
- * when the language does. A truncated label is a visible problem; a stack that changes height
- * between languages is a subtle one.
- */
-@Composable
-private fun MenuButton(label: String, tag: String, onClick: () -> Unit) {
-    // `TouchLabel.as:31` played this on any tap on a control, so it belongs to the control and not
-    // to each caller — otherwise the next screen added is the one that forgets it.
-    val audio = LocalAudio.current
-    Button(
-        onClick = {
-            audio.play(Sound.UI_CLICK)
-            onClick()
-        },
-        modifier = Modifier.fillMaxWidth().height(48.dp).testTag(tag),
-        shape = RoundedCornerShape(4.dp),
-        colors = ButtonDefaults.buttonColors(
-            // The card edge blue, so the menu belongs to the same palette as the board rather
-            // than to Material's default purple.
-            containerColor = BlueCard,
-            contentColor = Color.White,
-        ),
-    ) {
-        Text(
-            text = label,
-            fontSize = 16.sp,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 

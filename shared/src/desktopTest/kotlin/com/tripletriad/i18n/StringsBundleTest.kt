@@ -82,8 +82,8 @@ class StringsBundleTest {
     }
 
     /**
-     * German and Japanese have no translation for the five `APP_*` strings this port wrote, so
-     * they resolve through English. That is the intended behaviour and not an oversight — see
+     * German and Japanese have no translation for the `APP_*` strings this port wrote, so they
+     * resolve through English. That is the intended behaviour and not an oversight — see
      * [loadStrings] — and it is asserted rather than merely documented so that translating them
      * later has to come past this test and update it.
      */
@@ -134,25 +134,30 @@ class StringsBundleTest {
         const val CONTINUE = "STR_CONTINUE"
         const val REGISTER_MATCH = "STR_REGISTER_MATCH"
 
-/**
+        /**
          * Keys defined by any of the four bundles: `import_locales.py`'s reported union of 691
-         * plus the 10 `APP_*` strings this port authored.
+         * plus the 17 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 701
+        const val UNION_KEYS = 708
 
         /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 10,
-         * 688 + 10, then 647 and 680 with no app-owned strings at all.
+         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 17,
+         * 688 + 17, then 647 and 680 with no app-owned strings at all.
          *
-         * The splash and the options screen added five app-owned keys — `APP_BACK`,
-         * `APP_AUDIO_PENDING` and three `APP_STARTUP_*`. Everything else those screens show comes
-         * out of the AS3 bundles (`STR_PLAY`, `STR_SETTINGS`, `STR_QUIT`, `STR_LANGUAGE`, the two
-         * volume labels, both section headings), so it is translated in all four languages for
-         * free — which is why these two numbers moved by 5 and not by 12.
+         * The characters, opponents and match screens added seven app-owned keys on top of the
+         * splash's and the options screen's ten. **Almost everything those screens show is already
+         * translated in four languages**, because the AS3 bundles have it: `STR_PROFILE`,
+         * `STR_LOAD_GAME`, `STR_NEW_GAME`, `STR_USERNAME`, `STR_MODE`, `STR_LEVEL`, `STR_MGP`,
+         * `STR_WINS`, `STR_DRAWS`, `STR_DEFEATS`, `STR_DELETE`, `STR_START`, `STR_OPPONENTS`,
+         * `STR_MATCH_FEE`, `STR_REWARDS`, `STR_REMATCH`, every `RULE_*` name and every
+         * `STR_NPC_LEVEL_*`. The seven that had to be written are the ones the original never
+         * needed a sentence for: an empty character list, an empty opponent list, `XP` (there is a
+         * `STR_MGP` but no `STR_XP`), a difficulty label, "the opponent is playing", "achievement
+         * unlocked", and one more splash phase.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 697,
-            AppLocale.FR_FR to 698,
+            AppLocale.EN_US to 704,
+            AppLocale.FR_FR to 705,
             AppLocale.DE_DE to 647,
             AppLocale.JA_JA to 680,
         )
@@ -169,9 +174,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 10 app-owned; and 11 short, plus the 10.
-            AppLocale.DE_DE to 54,
-            AppLocale.JA_JA to 21,
+            // 44 imported keys short, plus all 17 app-owned; and 11 short, plus the 17.
+            AppLocale.DE_DE to 61,
+            AppLocale.JA_JA to 28,
         )
     }
 }

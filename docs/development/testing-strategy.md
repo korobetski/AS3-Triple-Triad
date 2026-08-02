@@ -11,32 +11,59 @@ prove a test can fail — are in [testing-guide.md](./testing-guide.md).
 
 Measured, not projected. `./gradlew build` at the repository root:
 
-| Source set | Suite | Tests | Runs on |
-|---|---|--:|---|
-| `commonTest` | `CardTest` | 5 | desktop, androidHostTest |
-| `commonTest` | `CardCatalogTest` | 8 | desktop, androidHostTest |
-| `commonTest` | `RulesEngineTest` | 37 | desktop, androidHostTest |
-| `commonTest` | `MatchStateTest` | 27 | desktop, androidHostTest |
-| `commonTest` | `StringsTest` | 9 | desktop, androidHostTest |
-| `commonTest` | `UserSettingsTest` | 12 | desktop, androidHostTest |
-| `commonTest` | `LogTest` | 7 | desktop, androidHostTest |
-| `commonTest` | `SoundTest` | 5 | desktop, androidHostTest |
-| `desktopTest` | `MatchUiTest` | 10 | desktop |
-| `desktopTest` | `NavigationTest` | 9 | desktop |
-| `desktopTest` | `MatchAudioTest` | 9 | desktop |
-| `desktopTest` | `OptionsUiTest` | 7 | desktop |
-| `desktopTest` | `StringsBundleTest` | 8 | desktop |
-| `desktopTest` | `MatchLayoutTest` | 6 | desktop |
-| `desktopTest` | `CardBundleTest` | 4 | desktop |
-| `desktopTest` | `CardFaceTest` | 2 | desktop |
-| | **total** | **165 distinct / 275 executions** | 0 failures |
-| | coverage | **97.8% line / 85.9% branch** | gated at 90 / 75 in `check` |
+Refreshed 2026-08-02, with the playable loop of Phase 4.
 
-`commonTest` runs on every target, which is the point of putting it there — the same 96
-tests execute twice, as `:shared:desktopTest` and `:shared:testAndroidHostTest`. It was three
-times under AGP 8: AGP 9 dropped the release unit-test variant for library modules, and the
-module has since moved to `com.android.kotlin.multiplatform.library`, which runs the Android
-unit tests once, from an `androidHostTest` source set. They would also run on iOS via
+| Source set | Package | Suite | Tests |
+|---|---|---|--:|
+| `commonTest` | `audio` | `SoundTest` | 5 |
+| `commonTest` | `data` | `AchievementRepositoryTest` | 12 |
+| `commonTest` | `data` | `CardCatalogTest` | 8 |
+| `commonTest` | `data` | `CardRepositoryTest` | 13 |
+| `commonTest` | `data` | `InventoryTest` | 19 |
+| `commonTest` | `data` | `MatchHistoryRepositoryTest` | 18 |
+| `commonTest` | `data` | `MatchRewardsTest` | 22 |
+| `commonTest` | `data` | `NpcCatalogTest` | 9 |
+| `commonTest` | `data` | `PveMatchTest` | 20 |
+| `commonTest` | `data` | `SaveRepositoryTest` | 19 |
+| `commonTest` | `i18n` | `StringsTest` | 9 |
+| `commonTest` | `log` | `LogTest` | 7 |
+| `commonTest` | `model` | `AchievementTest` | 13 |
+| `commonTest` | `model` | `CardTest` | 5 |
+| `commonTest` | `model` | `GameSaveTest` | 20 |
+| `commonTest` | `model` | `ItemTest` | 16 |
+| `commonTest` | `model` | `MatchAiTest` | 26 |
+| `commonTest` | `model` | `MatchRecordTest` | 8 |
+| `commonTest` | `model` | `MatchSetupTest` | 40 |
+| `commonTest` | `model` | `MatchStateTest` | 27 |
+| `commonTest` | `model` | `NpcTest` | 22 |
+| `commonTest` | `model` | `RouletteTest` | 14 |
+| `commonTest` | `model` | `RulesEngineTest` | 37 |
+| `commonTest` | `model` | `XpTableTest` | 10 |
+| `commonTest` | `settings` | `UserSettingsTest` | 12 |
+| `commonTest` | `storage` | `DocumentStoreTest` | 9 |
+| `commonTest` | `storage` | `SaveCodecTest` | 12 |
+| `desktopTest` | `data` | `CardBundleTest` | 4 |
+| `desktopTest` | `data` | `NpcBundleTest` | 12 |
+| `desktopTest` | `i18n` | `StringsBundleTest` | 8 |
+| `desktopTest` | `model` | `EnginePerformanceTest` | 4 |
+| `desktopTest` | `ui` | `CardFaceTest` | 2 |
+| `desktopTest` | `ui` | `MatchAudioTest` | 10 |
+| `desktopTest` | `ui` | `MatchLayoutTest` | 6 |
+| `desktopTest` | `ui` | `MatchUiTest` | 14 |
+| `desktopTest` | `ui` | `NavigationTest` | 11 |
+| `desktopTest` | `ui` | `OpponentUiTest` | 8 |
+| `desktopTest` | `ui` | `OptionsUiTest` | 7 |
+| `desktopTest` | `ui` | `ProfileUiTest` | 11 |
+| | | **total** | **529 distinct / 961 executions**, 0 failures |
+| | | coverage | **96.8% line / 86.7% branch**, gated at 90 / 75 in `check` |
+
+`commonTest` runs on every target, which is the point of putting it there — **432** of the 529
+execute twice, as `:shared:desktopTest` and `:shared:testAndroidHostTest`. The 97 in `desktopTest`
+are there because they need something the JVM has and the Android host source set does not: a
+Compose test harness, the packaged resource bundle, or a nanosecond clock. It was three times over
+under AGP 8: AGP 9 dropped the release unit-test variant for library modules, and the module has
+since moved to `com.android.kotlin.multiplatform.library`, which runs the Android unit tests once,
+from an `androidHostTest` source set. They would also run on iOS via
 `:shared:iosSimulatorArm64Test`, which the CI workflow invokes but which has **never been
 executed**, because Kotlin/Native cannot target Apple platforms from a Windows host.
 
@@ -69,9 +96,24 @@ and where property-based testing earns its keep:
 // Reverse applied twice is the identity.
 ```
 
-None of this exists yet. It is Phase 3 work and it should be planned as
-test-first — the AS3 is the specification, and the only way to know the port matches is to
-run both against the same cases.
+**This exists as of 2026-08-02** — `RulesEngineTest`, `MatchStateTest`, `MatchSetupTest`,
+`MatchAiTest` and `RouletteTest`, structured as the
+[game-rules.md](../analysis/game-rules.md) § 16 matrix.
+
+Two things this section got wrong, worth correcting rather than deleting:
+
+- **No property-based library was added, and none is planned.** The three invariants sketched above
+  are all pinned, but by direct assertion: the card total and the never-flip-to-own-colour rule fall
+  out of the § 16 matrix, and "Reverse applied twice is the identity" is *false* here — both
+  comparisons are strict, so a tie captures under neither, and § 15.9 explains why the obvious
+  double-negation refactor is a bug. A generator would have explored board states that cannot occur
+  while adding a dependency and a shrinking algorithm to debug. Where behaviour is randomised — the
+  roulette draw, Chaos, the coin flip, the AI's tie-break — the tests sweep seeds instead.
+- **"Run both against the same cases" is not possible.** The AIR client is unrunnable, so there is
+  no oracle to diff against. What replaces it is the line-referenced reading of the source in
+  [game-rules.md](../analysis/game-rules.md) and tests that cite the line they encode. Where
+  faithful and correct diverge, `RulesEngineOptions` and `MatchAiOptions` hold **both** behaviours
+  and a test pins each.
 
 ## 3. Rules by layer
 
@@ -79,12 +121,12 @@ run both against the same cases.
 |---|---|---|
 | `model/` | `kotlin.test` in `commonTest` | every invariant in an `init` block has a test that trips it |
 | `data/` | `kotlin.test` in `commonTest` | parse a known-good payload, a payload with unknown fields, and an invalid one |
-| `domain/` (rules) | `kotlin.test` + property tests | every rule in isolation, plus every documented interaction |
+| `model/` (rules) | `kotlin.test` in `commonTest` | every rule in isolation, plus every documented interaction. **No property-based framework** — see §2 |
 | `ui/` | `compose.uiTest` in `desktopTest` | behaviour, not pixels — see §4 |
 | platform | instrumented / manual | only what cannot run on the JVM |
 
 **`commonTest` by default.** Put a test in a platform source set only if it needs that
-platform. The 96 common tests here run twice for free; the same tests in
+platform. The 432 common tests here run twice for free; the same tests in
 `desktopTest` would run once. `StringsTest` is the pattern: the lookup and fallback *logic* needs
 no resource bundle, so it lives in `commonTest`; what the shipped bundles *contain* is
 `StringsBundleTest`, in `desktopTest`, for the same reason `CardBundleTest` is.
@@ -262,7 +304,7 @@ getters.
 
 ```bash
 ./gradlew build                      # everything, including ktlint + detekt
-./gradlew :shared:desktopTest        # fast loop: all 165 tests, 22 s forced from scratch
+./gradlew :shared:desktopTest        # fast loop: all 529 tests, ~60 s forced from scratch
 ./gradlew :shared:allTests           # every target the host can build
 ./gradlew :androidApp:installDebug   # then drive it by hand on a device
 ```

@@ -5,8 +5,8 @@ package com.tripletriad.i18n
  *
  * Not just tidiness: `Strings[key]` falls back to returning the key, so a typo in a literal is
  * invisible in review and shows up as `STR_NEXT_MACTH` on a device. Naming them here means
- * [`StringsBundleTest`](../../../../../desktopTest/kotlin/com/tripletriad/i18n/StringsBundleTest.kt)
- * can walk [all] and assert each one resolves in each locale — a check that is worth more than
+ * [`StringsBundleTest`](../../../../../desktopTest/kotlin/com/tripletriad/i18n/StringsBundleTest.kt
+ * ) can walk [all] and assert each one resolves in each locale — a check that is worth more than
  * the constants are.
  *
  * `STR_*` and `RULE_*` come from the AS3 bundles; `APP_*` are this port's own. See [loadStrings].
@@ -66,7 +66,60 @@ object StringKeys {
     // ---- Splash. One key per `StartupPhase`, in the same order.
     const val STARTUP_SETTINGS: String = "APP_STARTUP_SETTINGS"
     const val STARTUP_ART: String = "APP_STARTUP_ART"
+    const val STARTUP_OPPONENTS: String = "APP_STARTUP_OPPONENTS"
     const val STARTUP_READY: String = "APP_STARTUP_READY"
+
+    // ---- Profiles. `STR_PROFILE` is "Character" in en_US, which is the original's word for a
+    // save: `LoadScreen` lists characters, not files. Kept, rather than substituting "profile".
+    const val PROFILE: String = "STR_PROFILE"
+    const val PROFILES: String = "STR_LOAD_GAME"
+    const val NEW_PROFILE: String = "STR_NEW_GAME"
+    const val USERNAME: String = "STR_USERNAME"
+
+    /** `Collection` — the AS3's own label for the `ff14_` / `ff8_` choice. */
+    const val COLLECTION: String = "STR_MODE"
+    const val LEVEL: String = "STR_LEVEL"
+    const val MGP: String = "STR_MGP"
+    const val WINS: String = "STR_WINS"
+    const val DEFEATS: String = "STR_DEFEATS"
+    const val DRAWS: String = "STR_DRAWS"
+    const val DELETE: String = "STR_DELETE"
+
+    /** `Do you really wants to delete this game ?` — the original's wording, typo included. */
+    const val DELETE_CONFIRM: String = "STR_DELETE_SAVE_CONFIRMATION_MESSAGE"
+    const val CANCEL: String = "STR_CANCEL"
+    const val START: String = "STR_START"
+
+    /** No AS3 key: nothing in the original ever said a save list was empty. */
+    const val NO_PROFILE: String = "APP_NO_PROFILE"
+
+    // ---- Opponents.
+    const val OPPONENTS: String = "STR_OPPONENTS"
+    const val RULES: String = "STR_RULES"
+    const val MATCH_FEE: String = "STR_MATCH_FEE"
+    const val REWARDS: String = "STR_REWARDS"
+
+    /** `Defy` — the AS3's verb for challenging an opponent. */
+    const val CHALLENGE: String = "STR_REGISTER_MATCH"
+
+    /** No AS3 key: its opponent list simply omitted whoever was unavailable, saying nothing. */
+    const val NO_OPPONENT: String = "APP_NO_OPPONENT"
+
+    /** `XP` — no `STR_XP` exists, though `STR_MGP` does. */
+    const val XP: String = "APP_XP"
+
+    /** `Difficulty` — the field is in the data, but the AS3 never labelled it. */
+    const val DIFFICULTY: String = "APP_DIFFICULTY"
+
+    // ---- Match.
+    /** `{0}` is the side. Replaces the "pick a card" line while the opponent moves. */
+    const val OPPONENT_TURN: String = "APP_OPPONENT_TURN"
+
+    /** Heading over the newly-earned achievements in the end-of-match panel. */
+    const val ACHIEVEMENT_EARNED: String = "APP_ACHIEVEMENT_EARNED"
+
+    /** `Rematch` — the control that plays the same opponent again. */
+    const val REMATCH: String = "STR_REMATCH"
 
     /** Every key above, for the tests that assert each resolves. */
     val all: List<String> = listOf(
@@ -75,7 +128,12 @@ object StringKeys {
         PLAY, SETTINGS, QUIT,
         GENERAL_SETTINGS, AUDIO_SETTINGS, LANGUAGE, BACKGROUND_VOLUME, NOISE_VOLUME,
         BACK, AUDIO_PENDING,
-        STARTUP_SETTINGS, STARTUP_ART, STARTUP_READY,
+        STARTUP_SETTINGS, STARTUP_ART, STARTUP_OPPONENTS, STARTUP_READY,
+        PROFILE, PROFILES, NEW_PROFILE, USERNAME, COLLECTION,
+        LEVEL, MGP, WINS, DEFEATS, DRAWS,
+        DELETE, DELETE_CONFIRM, CANCEL, START, NO_PROFILE,
+        OPPONENTS, RULES, MATCH_FEE, REWARDS, CHALLENGE, NO_OPPONENT,
+        XP, DIFFICULTY, OPPONENT_TURN, ACHIEVEMENT_EARNED, REMATCH,
     )
 
     /** The subset this port authored, which is the subset that may be untranslated. */

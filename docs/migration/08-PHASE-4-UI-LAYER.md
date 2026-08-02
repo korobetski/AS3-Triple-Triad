@@ -4,10 +4,134 @@
 
 - **Phase**: 4 - UI Layer
 - **Duration**: 8 weeks (Weeks 13-20)
-- **Status**: NOT STARTED
+- **Status**: IN PROGRESS — 2026-08-02. The **playable loop is complete**: characters, opponents,
+  a match against an AI, and the profile written back. Six of the 32 screens exist; see
+  § What was built for what is done, what is deliberately not, and what is left.
 - **Version**: 1.0
-- **Last Updated**: 2026-07-21
+- **Last Updated**: 2026-08-02
 - **Prerequisites**: Phases 1-3
+
+---
+
+## 🔨 What was built
+
+**2026-08-02 — the game is playable end to end.** A player creates a character, picks its card
+collection, chooses an opponent from that collection, plays a match under the opponent's own rules
+against the Phase 3 AI, and the result is written to disk. That was the thing missing after Phase 3:
+the logic all existed and none of it was reachable.
+
+This is **not** all of Phase 4. Six of the 32 screens exist. What is done is the vertical slice that
+makes the other twenty-six worth writing.
+
+### Files
+
+| File | What it is | AS3 counterpart |
+|---|---|---|
+| `time/Clock.kt` | Instant + local hour, injected. `FixedClock` for tests | `new Date()` |
+| `ui/ProfileSession.kt` | The loaded character, and the only thing that writes it | the global `Game.PROFILE_DATAS` |
+| `ui/ProfileScreen.kt` | Character list and creation, with the collection choice | `LoadScreen` + `NewGameScreen` |
+| `ui/OpponentScreen.kt` | Who can be challenged, filtered by collection and by hour | `PVEScreen` |
+| `ui/Controls.kt` | `WideButton`, `ScreenScaffold`, the shared row palette | `TouchLabel`, `MainButton` |
+| `data/PveMatch.kt` | Profile + opponent + catalog → a playable match | `Game.prepareMatch` + a global read |
+| `data/MatchRewards.kt` | End-of-match crediting: MGP, XP, boons, stats, drops, achievements | `PVEMatchScreen.endGame` |
+| `androidApp/AndroidClock.kt`, `desktopApp/JvmClock.kt` | The real clock, per host | — |
+
+Reworked: `ui/App.kt` (seven destinations, routing split out of the shell), `ui/MatchScreen.kt` (an
+opponent that plays itself, Open visibility, the rules strip, the result panel),
+`ui/MainMenuScreen.kt` (names the loaded character), `ui/Startup.kt` (loads `npcs.json`).
+
+### Screens, against the plan's tiers
+
+| Screen | State |
+|---|---|
+| `MenuScreen` | ✅ Tier 1. Four actions, and it names the loaded character |
+| `SettingsScreen` | ✅ Tier 1, as `OptionsScreen` (Phase 1) |
+| `LoadScreen` | ✅ Tier 1, as `ProfileListScreen` — a *character* list, which is what the original's was |
+| `NewGameScreen` | ✅ Tier 2, as `ProfileCreateScreen`, **plus the collection choice the original never offered** |
+| `PVEScreen` | ✅ Tier 4, as `OpponentScreen` — the one item of that tier that needs no network |
+| `BaseMatchScreen` + `PVEMatchScreen` + `Board` + `RulesDigest` + `RematchPanel` | ✅ Tier 2, as `MatchScreen` and its result panel |
+| `HelpScreen` | ⏳ Tier 1 |
+| `playerPanel`, `cardPanel` | ⏳ Tier 2 — the hand and the board card are composables inside `MatchScreen`, not screens; a card *detail* view does not exist |
+| `DeckSelector` | ⏳ Tier 2 — the first complete deck is played; see below |
+| `dashboardScreen` | ⏳ Tier 2 |
+| `DecksScreen`, `InventoryScreen`, `cardListScreen`, `profileScreen`, `shopScreen` | ⏳ Tier 3 — all five have their data layer from Phase 2 and no screen |
+| `PVPScreen` and the six group / rematch screens | ⏳ Tier 4, and blocked on Phase 5 |
+| `TutorialScreen`, `BackstageScreen`, `EmptyScreen` | ⏳ Tier 5 |
+
+### The collection choice is new, not ported
+
+`Save.setToDefaultValues()` hard-codes `DATAS.MODE = 'ff14_'` and **nothing in the original ever
+changes it**. So the entire `ff8_` card table and its 25 opponents shipped with the game and were
+unreachable. Offering the choice at creation is the smallest change that makes them playable, and it
+is put at creation rather than in a settings pane because `MODE` decides which table a profile's card
+ids index — switching it later would silently reinterpret every card the profile owns.
+
+### Six decisions worth naming
+
+1. **No navigation library.** Seven destinations, a linear flow, one `up` per screen. `Screen.up` and
+   one `when` are what Compose Navigation would replace. The point to reconsider is a screen reachable
+   from two places with a different back destination from each; the original's fourteen have several.
+
+2. **`ProfileSession` owns the profile, and it is the only thing that writes.** `SaveRepository.save`
+   stamps `LAST_SAVE` and increments `SAVE_NUMBER`, so a caller that keeps the copy it passed in stops
+   advancing the save number and rewrites a stale timestamp. Every mutation goes through `persist` and
+   adopts what came back. The AS3 has the same hazard from the other end: `Game.PROFILE_DATAS` is a
+   global that eleven screens mutate and four save, so "what is on disk" and "what is on screen" are
+   equal only by convention.
+
+3. **The opponent's thinking time is 700 ms, not one to five seconds.**
+   `PVEMatchScreen.as:42` waits `1000 + tools.rand(4) * 1000`, which covered a `setTimeout` cascade of
+   turn announcements this port does not have. Five seconds of a static board is dead time. Pacing is
+   Phase 6's business and this is the number it will want.
+
+4. **A match is persisted when it *starts*, which the original never did.** `PVEScreen.as:244`
+   increments `STARTED_MATCHES` at launch but only `endGame` saves, so an abandoned match loses the
+   increment and `STATS.FORFEITS` — defined as `STARTED_MATCHES - ENDED_MATCHES` — can never be
+   anything but zero. Writing at the start is what the field was designed for.
+
+5. **Deck selection is not offered; the first complete deck is played.** With a fallback the original
+   lacks: `DeckSelector` refuses to start on a partial deck and offers nothing else, so a player whose
+   only deck is half-built cannot play at all. Five owned cards is a better answer than a dead end.
+   A real deck screen needs the collection browser to be worth having — Tier 3.
+
+6. **The clock is host-supplied, and `kotlinx-datetime` was tried and dropped.** The local hour is
+   needed because 27 of the 60 `ff14` opponents declare an availability window. Reading the instant
+   through `kotlin.time.Clock` and the zone through `kotlinx-datetime` **compiles as common metadata
+   and fails on every platform target**: as of 0.6.2 `kotlinx.datetime.Instant` is a deprecated
+   typealias onto the stdlib's in the metadata view and a distinct type in the platform views, so
+   `toLocalDateTime` accepts a stdlib instant in one and refuses it in the other. Rather than carry a
+   dependency that disagrees with the stdlib about its own types, the two JVM hosts supply three lines
+   each — which also avoids an iOS `actual` that cannot be built from this machine.
+
+### Two AS3 facts corrected in the data layer
+
+| Where | What | Decision |
+|---|---|---|
+| `NPC.matchFee` | Declared for all 85 opponents, exposed by a getter, and **read by nothing**. `endGame` pays `MGPReward.w + rand(20)` on a win and `MGPReward.l + rand(5)` on a loss and subtracts nothing, so every result is a net gain. `Npc.mgpFor` had been ported as `reward - fee`, inventing a deduction | **Fixed to match the source.** The fee is carried as data and shown in the opponent list. Charging it would turn an economy that only grows into one with real downside — a design change, not a migration |
+| `PVEMatchScreen.endGame` | Its three near-identical branches **disagree on purpose**: only the win branch records `NPC_W`, loops `RULES_W` and rolls the drop table | **Reproduced, and stated once** rather than implied by which of three duplicated blocks a line sits in. It matters because `RULES_W` is what the Wheel-of-Fortune achievements count |
+
+### Verification
+
+| | |
+|---|---|
+| Build | `./gradlew clean build` — ktlint, detekt at `maxIssues: 0`, all tests, `coverageVerify` |
+| Tests | **529** in `:shared` on desktop (up from 458), **432** on the Android host source set. New: `MatchRewardsTest`, `PveMatchTest`, `ProfileUiTest`, `OpponentUiTest` |
+| Coverage | 96.8% line / 86.7% branch against a 90/75 gate. Line is down 0.5 points on Phase 3 and branch up 0.1: the new UI is 49 uncovered lines, almost all of them error and empty-state branches a happy-path test does not reach |
+| The UI suite | **Reworked, which was the debt Phase 3 recorded.** `playOut` and `sideToPlay` assumed a human drove both hands. Now `awaitPlayer` waits for the turn and `playOneCard` probes for a free cell and confirms by watching the hand shrink. Whose turn it is is read off a `turn-blue` tag rather than the words "blue to play" — that scraping pinned every match test to `en_US` and stopped the French and German ones from asking |
+
+### What is not done, and is not hidden
+
+- **Twenty-six screens**, listed in the table above. The collection browser, the deck editor, the
+  inventory and the shop all have their Phase 2 data layer and no UI.
+- **Drag and drop** (Task 4.7). Placement is tap-a-card-then-tap-a-cell. The original dragged, and
+  `Tile.CARD_DROPED_ON_TILE_EVENT` is what that maps to.
+- **The theme system** (Task 4.1) as a system. Colours and shapes are `Controls.kt` constants and
+  `CardColors.kt`; there is no `TTOTheme` equivalent and no typography scale.
+- **The pre-match animations.** `MatchIntroStep` is computed and handed to the UI, which ignores it.
+  Those are the twenty-three `anims/` classes, and they are Phase 6.
+- **`DesktopDocumentStore` and `AndroidDocumentStore` have no tests.** Neither host module has a test
+  source set. The `DocumentStore` *contract* is covered by `InMemoryDocumentStore` and the whole
+  profile flow runs against it, but the two real file implementations are exercised only by hand.
 
 ---
 
@@ -1133,6 +1257,9 @@ data class AnimationJob(val id: String) {
 - [ ] UI/UX Designer approval
 - [ ] QA Engineer approval
 
+**Nothing here is reviewed or approved**, as in Phases 1-3. The work is done and self-verified;
+sign-off is a separate step and has not happened.
+
 ---
 
 ## 🎯 Next Phase: Phase 5 - Network
@@ -1160,4 +1287,4 @@ data class AnimationJob(val id: String) {
 ---
 
 *Generated: 2026-07-21*  
-*Status: PLANNING COMPLETE*
+*Status: IN PROGRESS — 2026-08-02. The playable loop is done; 26 of 32 screens are not. See § What was built.*

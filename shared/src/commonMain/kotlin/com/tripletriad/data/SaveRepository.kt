@@ -1,6 +1,7 @@
 package com.tripletriad.data
 
 import com.tripletriad.log.Log
+import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
 import com.tripletriad.storage.DocumentStore
 import com.tripletriad.storage.SaveCodec
@@ -154,13 +155,22 @@ class SaveRepository(
     /**
      * Creates and stores a fresh profile.
      *
+     * @param mode which card collection this profile plays with. Chosen once, at creation, and not
+     *   changed afterwards: it decides which of the two card tables the profile's card ids index,
+     *   which opponents it can meet ([NpcCatalog.collection]) and which rules those opponents may
+     *   impose ([Roulette.pools][com.tripletriad.model.Roulette.pools]). The AS3 sets
+     *   `DATAS.MODE = 'ff14_'` in `setToDefaultValues()` and offers no way to change it either.
      * @param createdAt used for both `CREATION_DATE` and `LAST_SAVE`, so the two agree on a new
      *   profile as they do in `setToDefaultValues()`.
      */
     suspend fun create(
         username: String = GameSave.DEFAULT_USERNAME,
+        mode: CardCollection = CardCollection.FF14,
         createdAt: Long,
-    ): GameSave = save(GameSave.new(username = username, createdAt = createdAt), createdAt)
+    ): GameSave = save(
+        GameSave.new(username = username, mode = mode, createdAt = createdAt),
+        createdAt,
+    )
 
     companion object {
         private const val TAG = "Save"

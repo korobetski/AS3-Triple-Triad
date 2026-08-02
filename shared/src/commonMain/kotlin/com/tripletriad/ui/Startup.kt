@@ -6,7 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.NpcCatalog
 import com.tripletriad.data.loadCardCatalog
+import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.i18n.rememberDeviceLocale
 import com.tripletriad.settings.SettingsStore
@@ -33,6 +35,9 @@ enum class StartupPhase(val labelKey: String) {
     /** The nineteen shared textures — card back, digit atlas, rarity rows, type icons. */
     ART(StringKeys.STARTUP_ART),
 
+    /** `npcs.json`: the 85 PvE opponents of both collections. */
+    OPPONENTS(StringKeys.STARTUP_OPPONENTS),
+
     /** Nothing left to wait for. Terminal. */
     READY(StringKeys.STARTUP_READY),
     ;
@@ -47,12 +52,14 @@ enum class StartupPhase(val labelKey: String) {
  * @property settings null until [StartupPhase.SETTINGS] completes.
  * @property catalog null until [StartupPhase.CARDS] completes. Non-null once [isReady].
  * @property art may be null even when [isReady] — see [rememberStartup].
+ * @property opponents null until [StartupPhase.OPPONENTS] completes. Non-null once [isReady].
  */
 data class StartupState(
     val phase: StartupPhase = StartupPhase.SETTINGS,
     val settings: UserSettings? = null,
     val catalog: CardCatalog? = null,
     val art: CardArt? = null,
+    val opponents: NpcCatalog? = null,
 ) {
     val isReady: Boolean get() = phase == StartupPhase.READY
 }
@@ -84,7 +91,10 @@ fun rememberStartup(store: SettingsStore): StartupState {
         value = StartupState(StartupPhase.ART, settings, catalog)
 
         val art = loadCardArt()
-        value = StartupState(StartupPhase.READY, settings, catalog, art)
+        value = StartupState(StartupPhase.OPPONENTS, settings, catalog, art)
+
+        val opponents = loadNpcCatalog()
+        value = StartupState(StartupPhase.READY, settings, catalog, art, opponents)
     }
     return state
 }

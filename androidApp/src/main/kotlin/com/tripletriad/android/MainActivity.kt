@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.tripletriad.data.SaveRepository
 import com.tripletriad.log.Log
 import com.tripletriad.log.LogLevel
 import com.tripletriad.ui.App
@@ -30,11 +31,22 @@ class MainActivity : ComponentActivity() {
         // The store is built here because this is where the `Context` is. `:shared` deliberately
         // has no platform file access of its own — see `SettingsStore`.
         val settings = AndroidSettingsStore(applicationContext)
+        // `SaveRepository.COLLECTION` rather than the literal "saves": the shared module owns the
+        // directory name, so the two hosts cannot drift apart on where a profile lives.
+        val documents = AndroidDocumentStore(applicationContext, SaveRepository.COLLECTION)
         audio = AndroidAudioPlayer(applicationContext)
         // `finish()` and not `finishAffinity()` or `exitProcess`: this is the only activity, and
         // Android's own guidance is to leave the process alive for the system to reclaim. The
         // system back gesture is handled inside `App` and does not reach here except from the menu.
-        setContent { App(store = settings, audio = audio, onQuit = { finish() }) }
+        setContent {
+            App(
+                store = settings,
+                documents = documents,
+                clock = AndroidClock,
+                audio = audio,
+                onQuit = { finish() },
+            )
+        }
     }
 
     /**

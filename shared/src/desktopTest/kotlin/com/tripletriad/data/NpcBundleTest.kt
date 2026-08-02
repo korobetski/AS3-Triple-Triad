@@ -72,6 +72,46 @@ class NpcBundleTest {
      * Every rule key in the data must be one `gameRules()` maps; an unmapped one is silently
      * dropped.
      */
+    /**
+     * Every card an opponent can field exists in that opponent's own collection.
+     *
+     * `PveMatches.assemble` refuses a hand it cannot resolve rather than quietly playing four
+     * cards, so this is what keeps that refusal unreachable by playing. It also catches the cross-
+     * collection mistake the data invites: card ids are per-table indices, so an `ff8` opponent
+     * listing an `ff14` id would resolve to the wrong card rather than to none.
+     */
+    @Test
+    fun everyOpponentCardExistsInItsOwnCollection() {
+        val cards = runBlocking { loadCardCatalog() }
+        for (collection in CardCollection.entries) {
+            val ids = cards.collection(collection.prefix).map { it.id }.toSet()
+            for (npc in catalog.collection(collection)) {
+                val missing = (npc.fetishCards + npc.cards).filterNot { it in ids }
+                assertTrue(
+                    missing.isEmpty(),
+                    "${npc.iconId} names $missing, absent from $collection",
+                )
+            }
+        }
+    }
+
+    /** And a full hand resolves to five real cards, which is what a match actually needs. */
+    @Test
+    fun everyOpponentResolvesToAFullHandOfRealCards() {
+        val cards = runBlocking { loadCardCatalog() }
+        for (collection in CardCollection.entries) {
+            val ids = cards.collection(collection.prefix).map { it.id }.toSet()
+            for (npc in catalog.collection(collection)) {
+                val hand = npc.randomHand(Random(1)).filter { it in ids }
+                assertEquals(
+                    HAND_SIZE,
+                    hand.size,
+                    "${npc.iconId} cannot field a hand from $collection",
+                )
+            }
+        }
+    }
+
     @Test
     fun everyRuleKeyInTheDataIsMapped() {
         for (npc in catalog.all) {

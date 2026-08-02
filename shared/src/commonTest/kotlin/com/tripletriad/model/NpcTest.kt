@@ -137,15 +137,34 @@ class NpcTest {
         assertEquals(10, expert.xpFor(MatchResult.LOSE))
     }
 
-    /** The fee is charged whatever happens, so a loss against a pricey NPC is a net loss. */
+    /**
+     * **The match fee is not charged**, and an earlier revision of this test asserted that it was.
+     *
+     * `NPC.matchFee` is declared for all 85 opponents and read by nothing:
+     * `PVEMatchScreen.endGame` pays `MGPReward.w + rand(20)` on a win and `MGPReward.l + rand(5)`
+     * on a loss and subtracts nothing, so **every result is a net gain**. See [Npc.mgpFor] for why
+     * that is reproduced rather than corrected into the entry cost it looks like.
+     */
     @Test
-    fun mgpIsNetOfTheMatchFee() {
+    fun theMatchFeeIsNotDeductedFromTheReward() {
         val reward = MgpReward(win = 47, draw = 18, lose = 7)
         val opponent = npc().copy(matchFee = 20, mgpReward = reward)
 
-        assertEquals(27, opponent.mgpFor(MatchResult.WIN))
-        assertEquals(-2, opponent.mgpFor(MatchResult.DRAW))
-        assertEquals(-13, opponent.mgpFor(MatchResult.LOSE))
+        assertEquals(47, opponent.mgpFor(MatchResult.WIN))
+        assertEquals(18, opponent.mgpFor(MatchResult.DRAW))
+        assertEquals(7, opponent.mgpFor(MatchResult.LOSE))
+    }
+
+    /** And a fee-free opponent pays exactly the same, which is the point. */
+    @Test
+    fun theFeeChangesNothingAboutThePayout() {
+        val reward = MgpReward(win = 47, draw = 18, lose = 7)
+        val free = npc().copy(matchFee = 0, mgpReward = reward)
+        val pricey = npc().copy(matchFee = 30, mgpReward = reward)
+
+        for (result in MatchResult.entries) {
+            assertEquals(free.mgpFor(result), pricey.mgpFor(result), result.name)
+        }
     }
 
     @Test

@@ -9,7 +9,6 @@ import androidx.compose.ui.test.runComposeUiTest
 import com.tripletriad.audio.RecordingAudioPlayer
 import com.tripletriad.audio.Sound
 import com.tripletriad.i18n.AppLocale
-import com.tripletriad.model.CardColor
 import com.tripletriad.model.PLACEMENTS_PER_MATCH
 import com.tripletriad.settings.InMemorySettingsStore
 import kotlin.test.Test
@@ -37,7 +36,12 @@ class MatchAudioTest {
         // `MenuScreen` never called `shuffleLoop` — nothing plays on the menu but the tap.
         assertFalse(Sound.MATCH_MUSIC in audio, "the music started before a match")
 
-        onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
+        // Play now leads to the character list, so reaching a board is the whole flow — and the
+        // music must not start on any screen along the way.
+        newCharacter()
+        assertFalse(Sound.MATCH_MUSIC in audio, "the music started before a board was up")
+
+        challenge()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { Sound.MATCH_MUSIC in audio }
         val stopsDuringMatch = audio.musicStops
 
@@ -67,58 +71,83 @@ class MatchAudioTest {
     }
 
     /**
-     * Each placement plays the sound that matches **what it did**, not merely one of the two.
+     * Each of the player's placements plays the sound that matches **what it did**, not merely one
+     * of the two.
      *
      * Whether a capture happened is read off the score rather than trusted: the side that played
      * gains one for its own card plus one per capture, so the *other* side's score falling is
-     * proof. An earlier version asserted only "exactly one of the two played", and swapping the
-     * two sounds in the source did not fail it — a mutation check caught that, so the score
-     * comparison is here because the weaker assertion was shown to be worthless.
+     * proof. An earlier version asserted only "exactly one of the two played", and swapping the two
+     * sounds in the source did not fail it — a mutation check caught that, so the score comparison
+     * is here because the weaker assertion was shown to be worthless.
      *
-     * The whole match is played out, so both branches are covered in whatever order this deal
-     * produces them rather than by contriving the case that was easy to set up.
+     * ### Only the player's placements, now that the opponent plays itself
+     *
+     * The opponent's turn happens on its own after a pause, so a per-placement window that covered
+     * both sides would race: the recorder would sometimes hold two placements' sounds and sometimes
+     * one. What is asserted instead is every *blue* placement, which is the whole of the mapping —
+     * `sound()` is one function called from one place and does not know whose turn it was.
+     * `anOpponentPlacementAlsoSounds` covers that red goes through it too.
      */
     @Test
-    fun eachPlacementPlaysTheSoundThatMatchesWhatItDid() = runComposeUiTest {
+    fun eachPlayerPlacementPlaysTheSoundThatMatchesWhatItDid() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
         startMatch()
-        waitForIdle()
 
         var withCaptures = 0
         var without = 0
-        for (position in 0 until PLACEMENTS_PER_MATCH) {
+        while (!isFinished()) {
+            awaitPlayer()
+            if (isFinished()) break
             audio.clear()
-            val mover = sideToPlay()
             val before = score()
-            onNodeWithTag(handCardTestTag(mover, 0)).performClick()
-            onNodeWithTag(tileTestTag(position)).performClick()
-            waitForIdle()
+            playOneCard()
             val after = score()
 
-            val opponentLost = if (mover == CardColor.BLUE) {
-                before.second - after.second
-            } else {
-                before.first - after.first
-            }
-            val captures = opponentLost > 0
+            // Blue played, so red losing a card is the capture.
+            val captures = before.second - after.second > 0
             if (captures) withCaptures++ else without++
 
             assertEquals(
                 captures,
                 Sound.CARD_CAPTURED in audio,
-                "placement $position captured=$captures but played ${audio.played} " +
-                    "(score $before -> $after, $mover to play)",
+                "a placement that captured=$captures played ${audio.played} " +
+                    "(score $before -> $after)",
             )
-            assertEquals(!captures, Sound.CARD_PLACED in audio, "placement $position")
+            assertEquals(!captures, Sound.CARD_PLACED in audio, "played ${audio.played}")
+
+            waitUntil(timeoutMillis = UI_TIMEOUT_MS) { isPlayerTurn() || isFinished() }
         }
 
-        assertEquals(PLACEMENTS_PER_MATCH, withCaptures + without)
-        assertTrue(withCaptures > 0, "no capture in a whole match — this deal exercises one branch")
-        assertTrue(without > 0, "every placement captured — this deal exercises one branch")
+        val placements = withCaptures + without
+        assertTrue(placements >= PLAYER_PLACEMENTS_MIN, "blue played only $placements times")
+        assertTrue(withCaptures > 0, "no capture in a whole match — one branch went unexercised")
+    }
+
+    /** The opponent's placements go through the same mapping, unprompted. */
+    @Test
+    fun anOpponentPlacementAlsoSounds() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
+        startMatch()
+
+        playOneCard()
+        audio.clear()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            Sound.CARD_PLACED in audio || Sound.CARD_CAPTURED in audio
+        }
+
+        assertTrue(
+            Sound.CARD_PLACED in audio || Sound.CARD_CAPTURED in audio,
+            "the opponent's own placement was silent: ${audio.played}",
+        )
     }
 
     /**
      * The last placement ends the match, so it plays a winner rather than a turn change.
+     *
+     * Stated as a count over the whole match rather than by clearing the recorder before the final
+     * move: with an autonomous opponent, which placement is last depends on the coin flip, and a
+     * test that had to know would be asserting the flip. Eight turn changes and one winner is the
+     * same claim, and a stronger one — it also catches a turn change fired *after* the result.
      *
      * A draw plays neither, matching the original: `PVEMatchScreen.as`'s draw branch is silent.
      */
@@ -126,19 +155,18 @@ class MatchAudioTest {
     fun theLastPlacementPlaysTheOutcomeInsteadOfATurnChange() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
         startMatch()
-        waitForIdle()
-
-        for (position in 0 until PLACEMENTS_PER_MATCH - 1) {
-            onNodeWithTag(handCardTestTag(sideToPlay(), 0)).performClick()
-            onNodeWithTag(tileTestTag(position)).performClick()
-            waitForIdle()
-        }
+        // The opponent may already have played, if the coin flip favoured it — so the window this
+        // test measures starts at whatever is on the board, not at zero.
+        val alreadyPlaced = placementsMade()
         audio.clear()
-        onNodeWithTag(handCardTestTag(sideToPlay(), 0)).performClick()
-        onNodeWithTag(tileTestTag(PLACEMENTS_PER_MATCH - 1)).performClick()
-        waitForIdle()
 
-        assertFalse(Sound.TURN_CHANGE in audio, "the match was over: ${audio.played}")
+        playOut()
+
+        assertEquals(
+            PLACEMENTS_PER_MATCH - 1 - alreadyPlaced,
+            audio.played.count { it == Sound.TURN_CHANGE },
+            "one turn change per placement except the last: ${audio.played}",
+        )
         val outcomeSounds = audio.played.filter { it == Sound.BLUE_WINS || it == Sound.RED_WINS }
         val drawn = !isVisible("You win") && !isVisible("You lose")
         if (drawn) {
@@ -153,23 +181,21 @@ class MatchAudioTest {
     fun anUnfinishedMatchPlaysATurnChange() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
         startMatch()
-        waitForIdle()
 
         audio.clear()
-        onNodeWithTag(handCardTestTag(sideToPlay(), 0)).performClick()
-        onNodeWithTag(tileTestTag(0)).performClick()
-        waitForIdle()
+        playOneCard()
 
         assertTrue(Sound.TURN_CHANGE in audio, "played: ${audio.played}")
         assertFalse(Sound.BLUE_WINS in audio)
         assertFalse(Sound.RED_WINS in audio)
     }
 
+    /** The rematch control, which now lives in the end-of-match panel rather than on the board. */
     @Test
-    fun theNewMatchControlSoundsAndDealsAgain() = runComposeUiTest {
+    fun theRematchControlSoundsAndDealsAgain() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), audio = audio) }
         startMatch()
-        waitForIdle()
+        playOut()
         audio.clear()
 
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
@@ -208,6 +234,14 @@ class MatchAudioTest {
     }
 
     private companion object {
+        /**
+         * The fewest placements the player makes in a match.
+         *
+         * Four, not five: `TurnOrder` gives the first mover five of the nine placements and the
+         * coin flip decides who that is, so a test that expected five would be asserting the flip.
+         */
+        const val PLAYER_PLACEMENTS_MIN = 4
+
         const val STORED_BACKGROUND = 0.25f
         const val STORED_NOISE = 0.5f
 

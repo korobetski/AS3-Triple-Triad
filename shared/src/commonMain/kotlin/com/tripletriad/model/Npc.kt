@@ -231,8 +231,19 @@ data class Npc(
     fun gameRules(): GameRules =
         ruleKeys.fold(GameRules()) { rules, key -> rules.withRuleKey(key) }
 
-    /** MGP for [result], net of [matchFee] — which is charged win or lose. */
-    fun mgpFor(result: MatchResult): Int = mgpReward[result] - matchFee
+    /**
+     * MGP for [result], before the random top-up and any boon — see
+     * [MatchRewards][com.tripletriad.data.MatchRewards].
+     *
+     * **[matchFee] is not deducted, and an earlier revision of this method wrongly deducted it.**
+     * The field is declared for all 85 opponents and exposed by a getter that **nothing calls**:
+     * `PVEMatchScreen.endGame` pays `MGPReward.w + rand(20)` on a win and `MGPReward.l + rand(5)`
+     * on a loss without subtracting anything, so a loss still pays. It reads like an intended entry
+     * cost — it rises with difficulty — but charging it turns an economy that only grows into one
+     * with real downside, which is a design change and not a migration. Carried as data and
+     * displayed in the opponent list instead.
+     */
+    fun mgpFor(result: MatchResult): Int = mgpReward[result]
 
     /**
      * XP for [result].
