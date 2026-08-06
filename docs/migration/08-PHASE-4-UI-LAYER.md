@@ -4,11 +4,12 @@
 
 - **Phase**: 4 - UI Layer
 - **Duration**: 8 weeks (Weeks 13-20)
-- **Status**: IN PROGRESS — 2026-08-02. The **playable loop is complete**: characters, opponents,
-  a match against an AI, and the profile written back. Six of the 32 screens exist; see
+- **Status**: IN PROGRESS — 2026-08-06. The playable loop was completed on 2026-08-02; **Tier 3 is
+  now complete too** — the dashboard and the six screens behind it, so the collection, the decks,
+  the bag, the shop and the record are all reachable. Thirteen of the 32 screens exist; see
   § What was built for what is done, what is deliberately not, and what is left.
-- **Version**: 1.0
-- **Last Updated**: 2026-08-02
+- **Version**: 1.1
+- **Last Updated**: 2026-08-06
 - **Prerequisites**: Phases 1-3
 
 ---
@@ -20,8 +21,121 @@ collection, chooses an opponent from that collection, plays a match under the op
 against the Phase 3 AI, and the result is written to disk. That was the thing missing after Phase 3:
 the logic all existed and none of it was reachable.
 
-This is **not** all of Phase 4. Six of the 32 screens exist. What is done is the vertical slice that
-makes the other twenty-six worth writing.
+**2026-08-06 — the character now has somewhere to live.** The dashboard and the six screens behind
+it: the collection browser, the deck editor, the bag, the shop, the record with its achievements,
+and the rules. Everything Phase 2 built a data layer for is now reachable, and everything those
+screens change is written through `ProfileSession` like the match result already was.
+
+Thirteen of the 32 screens exist. What is left is Tier 4's multiplayer (blocked on Phase 5), Tier 5,
+drag-and-drop, and the theme system — all listed under § What is not done.
+
+---
+
+## 🔨 Tier 3, and the dashboard that makes it reachable (2026-08-06)
+
+### Why the dashboard came first
+
+It is the piece the first pass left out, and its absence is what made the six screens behind it
+impossible to place. `dashboardScreen.as:49-59` builds exactly this stack, and **every one of the
+screens it opens returns to it** — `dispatchEventWith('gotoScreen', false, 'DASHBOARD')` appears in
+all seven. So the original's flow is Menu → Load → *Dashboard* → everything, and putting Play on the
+main menu — which is what this port did while it had one destination — gives the collection, the
+decks, the bag and the shop nowhere to hang.
+
+The flow is now menu → characters → dashboard → one of seven, a tree of depth three. `Screen` has
+fourteen members and the routing is three functions: `Destination` for the five screens ahead of a
+loaded character, `CharacterDestination` for the nine behind one, and `CollectionDestination` for
+the four of those that read the card table. Still no navigation library — see § Six decisions, which
+named "a screen reachable from two places with a different back destination from each" as the point
+to reconsider, and the dashboard is what keeps that from happening: every screen behind it has
+exactly one way in.
+
+### Files
+
+| File | What it is | AS3 counterpart |
+|---|---|---|
+| `ui/DashboardScreen.kt` | The nine entries, Multiplayer drawn disabled | `dashboardScreen` |
+| `ui/CardListScreen.kt` | The whole card table, owned and not | `cardListScreen` |
+| `ui/DecksScreen.kt` | Five slots, and an editor behind each | `DecksScreen` |
+| `ui/InventoryScreen.kt` | The bag: Use, Sell, Discard | `InventoryScreen` |
+| `ui/ShopScreen.kt` | The two shelves, and buying from them | `shopScreen` |
+| `ui/StatsScreen.kt` | The record and all 22 achievements | `profileScreen` |
+| `ui/HelpScreen.kt` | The seventeen rules, as an accordion | `HelpScreen` |
+| `ui/ItemRow.kt` | Naming, keying and refusing a bag item | `Item` + `InventoryItem` |
+| `data/ShopCatalog.kt` | The two price tables, and an atomic purchase | `shopScreen`'s statics |
+| `ui/Controls.kt` | `CharacterBar`, `CharacterScaffold`, `rowSurface`, `EmptyNote` | `UserBar` |
+
+`model/GameSave.kt` grew `withDeck`, `clearingDeck` and `Deck.plusCard` / `minusCardAt` /
+`emptied`; `data/Inventory.kt`'s `use` now returns `ItemUse.PackOpened`.
+
+### Six AS3 defects fixed, each stated where it lives
+
+| Where | What the original does | What this does |
+|---|---|---|
+| `shopScreen.as:144-146` | **Deducts the price, then checks it could be paid.** The check only ever decided whether the button stayed lit | `ShopCatalog.buy` is one operation that either happens or does not |
+| `shopScreen.as:149` | Ends on a commented-out `//Save.save(…)`, so **a purchase was never written** — the MGP and the item were both gone on quit | Persisted through `ProfileSession`, like every other mutation |
+| `DecksScreen.as:342-362` | `resetDeckHandler` pushes five zeroes onto the deck's *existing* list, then calls `slice` where `splice` was meant. The list is rebuilt empty, the file is not, and **the deck comes back on the next load** | `GameSave.clearingDeck` empties the cards and keeps the slot, which is what the button claims |
+| `InventoryScreen.as:220-234` | Discard opens on `// TODO : afficher une Alert` and destroys the item on the first tap | Two taps, in the shape the character list already uses for deletion |
+| Three `push` sites | The bag grew a **new row per item**, so two of the same potion showed two rows of "1" | `Inventory.add` stacks and sorts on every insert, so the state `sortBag()` repaired is unreachable — and the Sort button with it |
+| `profileScreen.as:181-184` | `_total` is 0 on a fresh profile, so the pie chart's three ratios are `NaN` | `Stats.winRate` returns 0f, and the chart is a number — see below |
+
+### Four places this port shows more than the original could
+
+1. **The collection browser lists what you do *not* own.** `cardListScreen.as:101-106` already
+   walked the whole table, but `CardThumb.enabled = false` made an unowned thumb *untouchable* — so
+   the description of the card you were hunting for was the one thing you could not read. Every cell
+   is tappable here, and unowned ones are dimmed rather than desaturated: `ColorMatrixFilter` has no
+   portable Compose Multiplatform equivalent for a multi-layer composable.
+
+2. **Every achievement is listed, with progress.** `profileScreen.as:210-220` walks
+   `PROFILE_DATAS.ACHIEVEMENTS`, so an unearned achievement was invisible and the screen could not
+   say what there was to aim at. `Requirement.progress` exists precisely so it can — see the note in
+   `model/Achievement.kt` on why the AS3's `condition` is a Boolean computed in a constructor and
+   therefore cannot answer "how close".
+
+3. **A win rate.** `RoundChart` drew wins, defeats and draws as three arcs with the *total* in the
+   middle and no percentage anywhere. The arcs are decoration over numbers the list beside them
+   already printed; the thing they stood in for is the rate, which the original never wrote down.
+
+4. **A pack says what came out of it.** Opening one yields a bag *entry*, not a collection card —
+   `InventoryScreen.as:252-258`, and it is deliberate: what comes out can be used or sold, which is
+   the only sink for a duplicate the game has. Without a line saying which card, the pack simply
+   vanishes and a row appears further up a scrolled list.
+
+### Three things deliberately not reproduced
+
+- **Item icons.** `ItemIcon` resolves `potionItem`, `booster_pack_icon` and `card_r{n}_icon` out of
+  the UI atlas, which `tools/import_card_art.py` does not import — it imports the card art. A card
+  item draws its actual card instead, which is more information than the icon carried. Same reason
+  the collection grid scales a real card rather than slicing the three 8.3 MB thumbnail atlases.
+- **The `UserBar` jump menu**, which listed every dashboard screen except the current one. It
+  existed because these screens had no back button; this port has one, so returning and picking
+  again is two taps against the callout's two.
+- **The avatar.** `AVATAR_ID` names one of forty FFXIV portraits, and nothing but the bar reads one.
+
+### Two AS3 keys that do not exist
+
+`profileScreen.as:191` asks for `STR_MATCHES` and `DecksScreen.as:344`/`:366` ask for
+`STR_NEW_DECK`. **Neither is in any of the four bundles**, so the original captioned its own chart
+`STR_MATCHES` and named a fresh deck `STR_NEW_DECK`. Both are `APP_*` keys or numbered labels here;
+a dangling key is not a translation to preserve. `RULE_SAME_WALL_HELP`, `RULE_COMBO_HELP` and
+`RULE_ELEMENTAL_HELP` are the opposite case — they *resolve*, to the rule's own name, in all four
+bundles, so the original showed the title twice and explained nothing. Shown as-is: the bundles are
+imported Square Enix wording and writing three paragraphs of our own into them would be inventing
+source text.
+
+### Verification (2026-08-06)
+
+| | |
+|---|---|
+| Build | `./gradlew build` — ktlint, detekt at `maxIssues: 0`, all tests, `coverageVerify` |
+| Tests | **590** in `:shared` on desktop (up from 529), **454** on the Android host source set. New: `CollectionUiTest`, `DecksUiTest`, `InventoryUiTest`, `ShopUiTest`, `StatsUiTest`, `HelpUiTest`, `ShopCatalogTest`, plus two routing tests in `NavigationTest` |
+| Coverage | 97.4% line / 85.9% branch against the 90/75 gate — line up 0.6 points on the last pass |
+| i18n | The app-owned key count went 17 → **27**. Everything else the seven screens show was already translated four ways: the whole dashboard stack, `STR_USE` / `STR_SELL` / `STR_DISCARD` / `STR_BUY`, `STR_DECK_POWER`, every `RULE_*` name |
+
+---
+
+## What the first pass built (2026-08-02)
 
 ### Files
 
@@ -50,13 +164,14 @@ opponent that plays itself, Open visibility, the rules strip, the result panel),
 | `NewGameScreen` | ✅ Tier 2, as `ProfileCreateScreen`, **plus the collection choice the original never offered** |
 | `PVEScreen` | ✅ Tier 4, as `OpponentScreen` — the one item of that tier that needs no network |
 | `BaseMatchScreen` + `PVEMatchScreen` + `Board` + `RulesDigest` + `RematchPanel` | ✅ Tier 2, as `MatchScreen` and its result panel |
-| `HelpScreen` | ⏳ Tier 1 |
-| `playerPanel`, `cardPanel` | ⏳ Tier 2 — the hand and the board card are composables inside `MatchScreen`, not screens; a card *detail* view does not exist |
-| `DeckSelector` | ⏳ Tier 2 — the first complete deck is played; see below |
-| `dashboardScreen` | ⏳ Tier 2 |
-| `DecksScreen`, `InventoryScreen`, `cardListScreen`, `profileScreen`, `shopScreen` | ⏳ Tier 3 — all five have their data layer from Phase 2 and no screen |
+| `HelpScreen` | ✅ Tier 1, as an accordion over the seventeen rules |
+| `dashboardScreen` | ✅ Tier 2 — the hub the other six hang off |
+| `cardPanel` | ✅ Tier 2, as `CardListScreen`'s detail panel |
+| `DecksScreen`, `InventoryScreen`, `cardListScreen`, `profileScreen`, `shopScreen` | ✅ Tier 3, all five |
+| `playerPanel` | ⏳ Tier 2 — the hand is a composable inside `MatchScreen`, not a screen |
+| `DeckSelector` | ⏳ Tier 2 — the first complete deck is played; see below. The deck *editor* now exists, which is what it was waiting on |
 | `PVPScreen` and the six group / rematch screens | ⏳ Tier 4, and blocked on Phase 5 |
-| `TutorialScreen`, `BackstageScreen`, `EmptyScreen` | ⏳ Tier 5 |
+| `TutorialScreen`, `BackstageScreen`, `EmptyScreen` | ⏳ Tier 5 — `BackstageScreen` is gated on `PROFILE_DATAS.ADMIN`, which nothing in the game ever sets |
 
 ### The collection choice is new, not ported
 
@@ -121,8 +236,14 @@ ids index — switching it later would silently reinterpret every card the profi
 
 ### What is not done, and is not hidden
 
-- **Twenty-six screens**, listed in the table above. The collection browser, the deck editor, the
-  inventory and the shop all have their Phase 2 data layer and no UI.
+*Updated 2026-08-06.*
+
+- **Nineteen screens**, listed in the table above — down from twenty-six. What is left is Tier 4's
+  multiplayer (nine screens, blocked on Phase 5 and on **TR-007**: multiplayer does not function in
+  the AS3 source either), Tier 5's three, `playerPanel` and `DeckSelector`.
+- **Deck selection before a match.** The deck *editor* now exists; the match still plays the first
+  complete deck. `DeckSelector` is the screen that turns "I built four decks" into a choice, and it
+  is the obvious next thing.
 - **Drag and drop** (Task 4.7). Placement is tap-a-card-then-tap-a-cell. The original dragged, and
   `Tile.CARD_DROPED_ON_TILE_EVENT` is what that maps to.
 - **The theme system** (Task 4.1) as a system. Colours and shapes are `Controls.kt` constants and
@@ -1287,4 +1408,4 @@ sign-off is a separate step and has not happened.
 ---
 
 *Generated: 2026-07-21*  
-*Status: IN PROGRESS — 2026-08-02. The playable loop is done; 26 of 32 screens are not. See § What was built.*
+*Status: IN PROGRESS — 2026-08-06. The playable loop and Tier 3 are done; 19 of 32 screens are not, and nine of those are blocked on Phase 5. See § What was built.*

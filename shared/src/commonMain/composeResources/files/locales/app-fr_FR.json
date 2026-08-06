@@ -1,12 +1,20 @@
 {
   "APP_ACHIEVEMENT_EARNED": "Succès débloqué",
+  "APP_ALREADY_OWNED": "déjà possédée",
   "APP_AUDIO_PENDING": "enregistré, mais rien ne joue encore",
   "APP_BACK": "Retour",
+  "APP_BOONS": "Bonus",
   "APP_DIFFICULTY": "Difficulté",
+  "APP_EMPTY_BAG": "Votre sac est vide.",
   "APP_LOADING_CARDS": "chargement des cartes…",
+  "APP_MATCHES": "Parties",
+  "APP_NO_ACHIEVEMENT": "Aucun succès débloqué pour l’instant.",
   "APP_NO_OPPONENT": "Aucun adversaire n’est disponible à cette heure.",
   "APP_NO_PROFILE": "Aucun personnage — créez-en un pour jouer.",
+  "APP_OBTAINED": "{0} obtenue",
   "APP_OPPONENT_TURN": "{0} joue…",
+  "APP_OWNED": "Possédées",
+  "APP_PICK_CARD": "Choisissez une carte pour la voir.",
   "APP_SIDE_BLUE": "bleu",
   "APP_SIDE_RED": "rouge",
   "APP_STARTUP_ART": "chargement des illustrations…",
@@ -15,5 +23,7 @@
   "APP_STARTUP_SETTINGS": "lecture des réglages…",
   "APP_TURN_PICK_CARD": "au {0} — choisissez une carte",
   "APP_TURN_PICK_CELL": "{0} : {1} — choisissez une case",
+  "APP_UNKNOWN_ITEM": "Objet inconnu",
+  "APP_WIN_RATE": "Victoires",
   "APP_XP": "XP"
 }

@@ -83,7 +83,12 @@ class NavigationTest {
         onNodeWithTag(PROFILE_NEW_TEST_TAG).assertTextEquals("New Game")
     }
 
-    /** The whole line: menu → characters → new → opponents → board, and back out again. */
+    /**
+     * The whole line: menu → characters → new → dashboard → opponents → board, and back out again.
+     *
+     * Four hops back rather than three, which is the dashboard's whole cost — and the reason it is
+     * worth it is that the seven screens hanging off it have somewhere to hang.
+     */
     @Test
     fun playReachesABoardAndTheChevronComesBack() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
@@ -91,6 +96,8 @@ class NavigationTest {
 
         onNodeWithTag(MATCH_EXIT_TEST_TAG).performClick()
         awaitOpponents()
+
+        backToDashboard()
 
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
@@ -103,7 +110,7 @@ class NavigationTest {
 
     /** Once a character is loaded, Play skips the list — the original's Continue. */
     @Test
-    fun playWithACharacterLoadedGoesStraightToTheOpponents() = runComposeUiTest {
+    fun playWithACharacterLoadedGoesStraightToItsDashboard() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
@@ -113,7 +120,44 @@ class NavigationTest {
         awaitMenu()
 
         onNodeWithTag(MENU_PLAY_TEST_TAG).performClick()
-        awaitOpponents()
+        awaitDashboard()
+    }
+
+    /**
+     * Every entry on the dashboard opens the screen it names, and its chevron comes back.
+     *
+     * The routing table's own test: eight destinations that each existed as a file and none of
+     * which was reachable until [Screen] grew them. Multiplayer is deliberately absent — it is
+     * drawn disabled, and Phase 5 is what turns it on.
+     */
+    @Test
+    fun everyDashboardEntryOpensItsScreen() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+
+        val entries = listOf(
+            DASHBOARD_PLAY_TEST_TAG to OPPONENT_LIST_TEST_TAG,
+            DASHBOARD_STATS_TEST_TAG to STATS_TABLE_TEST_TAG,
+            DASHBOARD_CARDS_TEST_TAG to CARD_GRID_TEST_TAG,
+            DASHBOARD_DECKS_TEST_TAG to DECK_LIST_TEST_TAG,
+            DASHBOARD_INVENTORY_TEST_TAG to INVENTORY_EMPTY_TEST_TAG,
+            DASHBOARD_SHOP_TEST_TAG to SHOP_LIST_TEST_TAG,
+            DASHBOARD_HELP_TEST_TAG to HELP_LIST_TEST_TAG,
+        )
+        for ((entry, landmark) in entries) {
+            openFromDashboard(entry, landmark)
+            backToDashboard()
+        }
+    }
+
+    /** Logout leaves the character behind and lands where another is chosen. */
+    @Test
+    fun logoutReturnsToTheCharacterList() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+
+        onNodeWithTag(DASHBOARD_LOGOUT_TEST_TAG).performClick()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
     }
 
     @Test

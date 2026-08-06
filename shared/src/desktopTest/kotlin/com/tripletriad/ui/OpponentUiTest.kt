@@ -38,6 +38,7 @@ class OpponentUiTest {
     fun theEasiestOpponentIsListedFirst() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
+        openOpponents()
 
         // `tt-master` is difficulty 1 with a 5 MGP fee, the lowest pair in the ff14 table.
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).assertExists()
@@ -53,6 +54,7 @@ class OpponentUiTest {
     fun aRowNamesTheRulesTheOpponentImposes() = runComposeUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
+        openOpponents()
 
         assertTrue(isVisible("All Open"), "tt-master imposes All Open and the row should say so")
         assertTrue(isVisible("Difficulty"), "the row should state the difficulty")
@@ -78,6 +80,7 @@ class OpponentUiTest {
             App(store = settingsFor(AppLocale.EN_US), clock = FixedClock(hour = NOON))
         }
         newCharacter()
+        openOpponents()
 
         val found = runCatching {
             onNodeWithTag(OPPONENT_LIST_TEST_TAG)
@@ -92,6 +95,7 @@ class OpponentUiTest {
             App(store = settingsFor(AppLocale.EN_US), clock = FixedClock(hour = EVENING))
         }
         newCharacter()
+        openOpponents()
 
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
             .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))

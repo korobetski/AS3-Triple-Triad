@@ -136,28 +136,33 @@ class StringsBundleTest {
 
         /**
          * Keys defined by any of the four bundles: `import_locales.py`'s reported union of 691
-         * plus the 17 `APP_*` strings this port authored.
+         * plus the 27 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 708
+        const val UNION_KEYS = 718
 
         /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 17,
-         * 688 + 17, then 647 and 680 with no app-owned strings at all.
+         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 27,
+         * 688 + 27, then 647 and 680 with no app-owned strings at all.
          *
-         * The characters, opponents and match screens added seven app-owned keys on top of the
-         * splash's and the options screen's ten. **Almost everything those screens show is already
-         * translated in four languages**, because the AS3 bundles have it: `STR_PROFILE`,
-         * `STR_LOAD_GAME`, `STR_NEW_GAME`, `STR_USERNAME`, `STR_MODE`, `STR_LEVEL`, `STR_MGP`,
-         * `STR_WINS`, `STR_DRAWS`, `STR_DEFEATS`, `STR_DELETE`, `STR_START`, `STR_OPPONENTS`,
-         * `STR_MATCH_FEE`, `STR_REWARDS`, `STR_REMATCH`, every `RULE_*` name and every
-         * `STR_NPC_LEVEL_*`. The seven that had to be written are the ones the original never
-         * needed a sentence for: an empty character list, an empty opponent list, `XP` (there is a
-         * `STR_MGP` but no `STR_XP`), a difficulty label, "the opponent is playing", "achievement
-         * unlocked", and one more splash phase.
+         * **Almost everything the ported screens show is already translated in four languages**,
+         * because the AS3 bundles have it: `STR_PROFILE`, `STR_LOAD_GAME`, `STR_NEW_GAME`,
+         * `STR_USERNAME`, `STR_MODE`, `STR_LEVEL`, `STR_MGP`, `STR_WINS`, `STR_DRAWS`,
+         * `STR_DEFEATS`, `STR_DELETE`, `STR_START`, `STR_OPPONENTS`, `STR_MATCH_FEE`,
+         * `STR_REWARDS`, `STR_REMATCH`, the whole dashboard stack, `STR_USE` / `STR_SELL` /
+         * `STR_DISCARD` / `STR_BUY`, `STR_DECK_POWER`, every `RULE_*` name and every
+         * `STR_NPC_LEVEL_*`.
+         *
+         * The 27 that had to be written are the ones the original never needed a sentence for: the
+         * five splash phases, the options pane's two, an empty character list, an empty opponent
+         * list, an empty bag, `XP` (there is a `STR_MGP` but no `STR_XP`), a difficulty label, the
+         * two turn lines and the two side names, "the opponent is playing", "achievement unlocked",
+         * "no achievement yet", "pick a card", "owned", "obtained {0}", "already owned", "unknown
+         * item", a win rate, a boons label, a matches label (`STR_MATCHES` is asked for by
+         * `profileScreen.as:191` and defined by no bundle) and Back.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 704,
-            AppLocale.FR_FR to 705,
+            AppLocale.EN_US to 714,
+            AppLocale.FR_FR to 715,
             AppLocale.DE_DE to 647,
             AppLocale.JA_JA to 680,
         )
@@ -174,9 +179,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 17 app-owned; and 11 short, plus the 17.
-            AppLocale.DE_DE to 61,
-            AppLocale.JA_JA to 28,
+            // 44 imported keys short, plus all 27 app-owned; and 11 short, plus the 27.
+            AppLocale.DE_DE to 71,
+            AppLocale.JA_JA to 38,
         )
     }
 }

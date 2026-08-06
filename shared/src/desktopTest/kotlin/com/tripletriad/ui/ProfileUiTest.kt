@@ -47,7 +47,7 @@ class ProfileUiTest {
     }
 
     @Test
-    fun creatingACharacterWritesItAndOpensTheOpponents() = runComposeUiTest {
+    fun creatingACharacterWritesItAndOpensItsDashboard() = runComposeUiTest {
         val documents = store()
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
@@ -73,7 +73,7 @@ class ProfileUiTest {
         onNodeWithTag(PROFILE_NAME_TEST_TAG).performTextClearance()
         onNodeWithTag(PROFILE_NAME_TEST_TAG).performTextInput(NAME)
         onNodeWithTag(PROFILE_CREATE_TEST_TAG).performClick()
-        awaitOpponents()
+        awaitDashboard()
 
         assertEquals(NAME, stored(documents).single().username)
         assertTrue(
@@ -95,6 +95,7 @@ class ProfileUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
 
         newCharacter(CardCollection.FF8)
+        openOpponents()
 
         assertEquals(CardCollection.FF8, stored(documents).single().mode)
         // `chocoboy` is ff8-only; `tt-master` is ff14-only. Both directions, so a list that ignored
@@ -108,6 +109,7 @@ class ProfileUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
 
         newCharacter(CardCollection.FF14)
+        openOpponents()
 
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).assertExists()
         onNodeWithTag(opponentRowTestTag("chocoboy")).assertDoesNotExist()
@@ -118,7 +120,7 @@ class ProfileUiTest {
         setContent { App(store = settingsFor(AppLocale.EN_US)) }
         newCharacter()
 
-        // Back out to the menu: opponents → characters → menu.
+        // Back out to the menu: dashboard → characters → menu.
         onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
         assertTrue(isVisible(GameSave.DEFAULT_USERNAME), "the character should be in the list")
@@ -193,7 +195,7 @@ class ProfileUiTest {
         onNodeWithTag(PROFILE_NAME_TEST_TAG).performTextInput(NAME)
         onNodeWithTag(collectionChoiceTestTag(CardCollection.FF8)).performClick()
         onNodeWithTag(PROFILE_CREATE_TEST_TAG).performClick()
-        awaitOpponents()
+        awaitDashboard()
 
         val saved = stored(documents)
         assertEquals(2, saved.size, "both characters should be on disk")
@@ -204,7 +206,7 @@ class ProfileUiTest {
         )
     }
 
-    /** Choosing a listed character loads it and opens its own opponents. */
+    /** Choosing a listed character loads it and opens its own dashboard — and its own opponents. */
     @Test
     fun choosingAListedCharacterLoadsIt() = runComposeUiTest {
         val documents = store()
@@ -214,7 +216,8 @@ class ProfileUiTest {
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(PROFILE_LIST_TEST_TAG) }
 
         onNodeWithTag(profileRowTestTag(documents.stored.keys.single())).performClick()
-        awaitOpponents()
+        awaitDashboard()
+        openOpponents()
 
         onNodeWithTag(opponentRowTestTag("chocoboy")).assertExists()
     }

@@ -25,8 +25,14 @@ kotlin {
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
         minSdk = libs.versions.androidMinSdk.get().toInt()
         // Host-side unit tests are opt-in here, unlike under `com.android.library`. Without
-        // this the 77 `commonTest` tests would quietly stop running on Android and only
-        // `desktopTest` would be left — green CI, a third of the coverage gone.
+        // this the `androidHostTest` source set does not exist, so the 432 `commonTest` tests
+        // run once instead of twice and only `desktopTest` is left — green CI, and no longer any
+        // check that common code behaves the same on Android's runtime as on the desktop JVM.
+        //
+        // What is *not* lost is coverage: that is measured on the desktop target alone (see the
+        // JaCoCo block below), so dropping this would cost a second execution and no percentage.
+        // An earlier version of this comment said "a third of the coverage gone", which
+        // contradicted the block that explains why one target is enough.
         withHostTestBuilder {}
     }
     jvm("desktop")
@@ -93,9 +99,10 @@ compose.resources {
 // the choice is JaCoCo or no coverage at all.
 //
 // Measured on the **desktop** target only. That is not a shortcut: `commonMain` is the code
-// under test, `desktopTest` runs all 96 common tests plus the 30 that need a UI, and the
-// Android host-test run executes the same common sources a second time. Instrumenting both
-// would double-count identical lines rather than reach new ones.
+// under test, `desktopTest` runs all 432 common tests plus the 97 that need a Compose harness,
+// the packaged resource bundle or a nanosecond clock, and the Android host-test run executes the
+// same common sources a second time. Instrumenting both would double-count identical lines
+// rather than reach new ones.
 // ---------------------------------------------------------------------------------------
 
 val desktopTestTask = tasks.named<Test>("desktopTest")
@@ -129,10 +136,10 @@ tasks.register<JacocoReport>("coverageReport") {
     }
 }
 
-// A floor, not a target. Measured at 96.6% line / 85.3% branch when this was written, and set
-// well under that: the point is to catch a test file being deleted or a whole area going
-// untested, not to make every ordinary refactor a coverage negotiation. Raising it to just
-// below the current number would make the build fail on noise.
+// A floor, not a target. Last measured at 96.8% line / 86.7% branch (2026-08-02), and set well
+// under that: the point is to catch a test file being deleted or a whole area going untested, not
+// to make every ordinary refactor a coverage negotiation. Raising it to just below the current
+// number would make the build fail on noise.
 tasks.register<JacocoCoverageVerification>("coverageVerify") {
     group = "verification"
     description = "Fails if desktop coverage drops well below what it was."

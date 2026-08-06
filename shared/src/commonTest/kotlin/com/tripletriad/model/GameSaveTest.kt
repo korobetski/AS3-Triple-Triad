@@ -3,6 +3,7 @@ package com.tripletriad.model
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -265,5 +266,85 @@ class GameSaveTest {
         assertEquals(CardCollection.FF8, CardCollection.forPrefix("ff8_"))
         assertEquals(null, CardCollection.forPrefix("ff7_"))
         assertEquals("ff8_", CardCollection.FF8.prefix)
+    }
+
+    // ---- Decks -----------------------------------------------------------
+
+    @Test
+    fun addingCardsFillsADeckAndStopsAtFive() {
+        var deck = Deck("Test", emptyList())
+        for (id in 1..7) deck = deck.plusCard(id)
+
+        assertEquals(listOf(1, 2, 3, 4, 5), deck.cards, "a deck holds $HAND_SIZE and no more")
+        assertTrue(deck.isComplete)
+    }
+
+    @Test
+    fun removingACardLeavesTheRestInOrder() {
+        val deck = Deck("Test", listOf(10, 20, 30, 40, 50)).minusCardAt(1)
+
+        assertEquals(listOf(10, 30, 40, 50), deck.cards)
+        assertFalse(deck.isComplete)
+        assertEquals(deck, deck.minusCardAt(9), "removing what is not there changes nothing")
+    }
+
+    /** The same card twice is allowed — see [Deck.plusCard], and `RULE_SWAP`. */
+    @Test
+    fun aDeckMayHoldTheSameCardTwice() {
+        assertEquals(listOf(3, 3), Deck("Test", listOf(3)).plusCard(3).cards)
+    }
+
+    @Test
+    fun writingASlotBeyondTheEndFillsTheOnesBefore() {
+        val deck = Deck("Third", listOf(1, 2, 3, 4, 5))
+
+        val save = GameSave.new(createdAt = 0L).withDeck(2, deck)
+
+        assertEquals(3, save.decks.size)
+        assertEquals(deck, save.decks[2])
+        assertEquals("", save.decks[1].name, "the filled slot is unnamed — the label is the UI's")
+        assertTrue(save.decks[1].cards.isEmpty())
+        assertEquals(GameSave.DEFAULT_DECK_NAME, save.decks[0].name, "slot 0 is untouched")
+    }
+
+    @Test
+    fun aSlotOutsideTheFiveIsAProgrammingError() {
+        val save = GameSave.new(createdAt = 0L)
+
+        assertFailsWith<IllegalArgumentException> { save.withDeck(GameSave.MAX_DECKS, Deck("x")) }
+        assertFailsWith<IllegalArgumentException> { save.withDeck(-1, Deck("x")) }
+    }
+
+    /**
+     * Clearing empties the cards and keeps the slot — which is what the button claims and what the
+     * original does not do. See [GameSave.clearingDeck].
+     */
+    @Test
+    fun clearingADeckEmptiesItAndKeepsItsName() {
+        val save = GameSave.new(createdAt = 0L).clearingDeck(0)
+
+        assertEquals(1, save.decks.size)
+        assertEquals(GameSave.DEFAULT_DECK_NAME, save.decks[0].name)
+        assertTrue(save.decks[0].cards.isEmpty())
+        assertFalse(save.decks[0].isComplete)
+    }
+
+    @Test
+    fun clearingASlotThatDoesNotExistChangesNothing() {
+        val save = GameSave.new(createdAt = 0L)
+
+        assertEquals(save, save.clearingDeck(3))
+    }
+
+    @Test
+    fun deckSlotsSurviveARoundTrip() {
+        val save = GameSave.new(createdAt = 1L)
+            .withDeck(1, Deck("Second", listOf(2, 4, 6, 8, 10)))
+            .withDeck(3, Deck("Fourth", listOf(1, 2)))
+
+        val decoded = json.decodeFromString<GameSave>(json.encodeToString(save))
+
+        assertEquals(save.decks, decoded.decks)
+        assertEquals(4, decoded.decks.size, "the unnamed filler slot is on disk too")
     }
 }

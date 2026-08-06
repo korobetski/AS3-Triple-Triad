@@ -71,11 +71,23 @@ Everything below has been executed; the results are in
 │       │   │   ├── settings/SettingsStore.kt   interface + in-memory implementation
 │       │   │   ├── settings/UserSettings.kt    UserSettings.json, load/save, first run
 │       │   │   └── ui/
-│       │   │       ├── App.kt           root composable, four screens, back handling
+│       │   │       ├── App.kt           root composable, 14 screens, back handling
 │       │   │       ├── Startup.kt       StartupPhase, the splash's own model
 │       │   │       ├── SplashScreen.kt  logo + phase line + progress
-│       │   │       ├── MainMenuScreen.kt   play / options / quit
+│       │   │       ├── MainMenuScreen.kt   play / characters / options / quit
 │       │   │       ├── OptionsScreen.kt    language + the two volumes
+│       │   │       ├── ProfileSession.kt   the loaded character; the only thing that writes
+│       │   │       ├── ProfileScreen.kt    character list + creation, with the collection
+│       │   │       ├── DashboardScreen.kt  the character's own menu, and the hub
+│       │   │       ├── OpponentScreen.kt   who can be challenged, by collection and hour
+│       │   │       ├── CardListScreen.kt   the whole card table, owned and not
+│       │   │       ├── DecksScreen.kt      five slots, and an editor behind each
+│       │   │       ├── InventoryScreen.kt  the bag: use, sell, discard
+│       │   │       ├── ShopScreen.kt       the two shelves, and buying from them
+│       │   │       ├── StatsScreen.kt      the record, and all 22 achievements
+│       │   │       ├── HelpScreen.kt       the seventeen rules, as an accordion
+│       │   │       ├── ItemRow.kt          naming, keying and refusing a bag item
+│       │   │       ├── Controls.kt      WideButton, the scaffolds, the shared row palette
 │       │   │       ├── CardArt.kt       texture loading, face cache, digit atlas
 │       │   │       ├── MatchScreen.kt   playable board, both hands, orientation layout
 │       │   │       ├── CardView.kt      CardFace + CardDigits, scalable
@@ -422,18 +434,37 @@ followed by a repaired file holding the device's own language.
 
 ## Screens and navigation
 
-Four destinations, in a `remember`ed enum:
+Fourteen destinations, in a `remember`ed enum. The shape is a tree of depth three:
 
 ```
-SPLASH ──(startup finishes)──▶ MENU ──▶ MATCH   (‹ chevron, or system back)
-                                └────▶ OPTIONS (‹ Back, or system back)
+SPLASH ──(startup finishes)──▶ MENU ──▶ PROFILES ──▶ PROFILE_NEW
+                                │           │
+                                │           └──────▶ DASHBOARD ──▶ OPPONENTS ──▶ MATCH
+                                │                        ├───────▶ STATS
+                                │                        ├───────▶ CARDS
+                                │                        ├───────▶ DECKS
+                                │                        ├───────▶ INVENTORY
+                                │                        ├───────▶ SHOP
+                                │                        └───────▶ HELP
+                                ├────▶ OPTIONS
                                 └────▶ onQuit  (the host's business)
 ```
 
-**No Compose Navigation.** `docs/migration/08-PHASE-4-UI-LAYER.md` Task 4.3 specifies a `NavHost`
-with named routes. Four destinations, no deep links, no arguments and no back stack worth the name
-do not pay for a dependency and a route-string layer. When this grows toward the original's 32
-screens, that is the point to reconsider — and the enum will have told us so by then.
+Every arrow reverses with the ‹ chevron or the system back gesture. **Play** on the menu goes to
+the dashboard when a character is loaded and to the character list when none is — the original's
+Continue and Load Game behind one button, chosen by what is loaded rather than by asking.
+
+**The dashboard is the hub, and that is the original's shape**, not an invention:
+`dashboardScreen.as:49-59` builds this exact stack and all seven screens behind it return to it.
+Putting Play on the main menu — which this port did while it had one destination — leaves the
+collection, the decks, the bag and the shop nowhere to hang.
+
+**Still no Compose Navigation.** `docs/migration/08-PHASE-4-UI-LAYER.md` Task 4.3 specifies a
+`NavHost` with named routes. There are no deep links, no arguments beyond what the session already
+holds, and nothing to restore across process death that is not already on disk; what a navigation
+library would replace is `Screen.up` and two `when`s. The point named for reconsidering this was "a
+screen reachable from two places with a different back destination from each" — and the dashboard is
+what keeps that from happening: every screen behind it has exactly one way in.
 
 **The Android system back gesture is handled**, which it was not before: `BackHandler` from
 `androidx.compose.ui.backhandler` — multiplatform in Compose 1.9, so no Android-only source set —
@@ -469,9 +500,23 @@ still costs appearance and not playability.
 ### Main menu
 
 `MenuScreen.as` in shape — the `logo_white_512` wordmark centred over a vertical stack, 8 px gap —
-but three actions rather than eight: **Play, Options, Quit**. The original's Continue / New Game /
-Load Game all need save games, which do not exist yet; `MenuScreen.as:52-58` is the order to grow
-the list back in.
+with four actions: **Play, Characters, Options, Quit**, and a line under the logo naming the loaded
+character. The original's Continue / New Game / Load Game are the first two of those, folded
+together: which one Play means is decided by whether a character is loaded, not by asking.
+
+### Dashboard, and the six screens behind it
+
+The character's own menu: Play, Multiplayer (drawn disabled — it needs Phase 5), the record, the
+collection, the decks, the bag, the shop, the rules, and Logout. Everything Phase 2 built a data
+layer for is reachable from here, and everything these screens change is written through
+`ProfileSession`, which is the one thing that writes a profile.
+
+Three of them fix something the original got wrong rather than merely porting it: **a purchase is
+now saved** (`shopScreen.as:149` ends on a commented-out `Save.save`), **Reset on a deck actually
+empties it** (`resetDeckHandler` calls `slice` where `splice` was meant, so the deck came back on the
+next load), and **discarding a bag item asks twice** (the original's handler opens on
+`// TODO : afficher une Alert` and then destroys it on the first tap). The full list, with the
+AS3 line numbers, is in `docs/migration/08-PHASE-4-UI-LAYER.md`.
 
 `onQuit` is a parameter, not something `:shared` does: `finish()` on Android, `exitApplication` on
 desktop, and on iOS nothing at all, since Apple's guidelines have no "quit". A test asserts the

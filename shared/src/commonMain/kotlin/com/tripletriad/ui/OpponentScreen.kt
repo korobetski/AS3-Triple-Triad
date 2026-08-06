@@ -142,7 +142,7 @@ private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
         if (rules.isNotEmpty()) {
             Text(
                 text = rules.joinToString(DOT_SEPARATOR) { strings[it] },
-                color = RuleText,
+                color = BoonText,
                 fontSize = 11.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -166,5 +166,3 @@ private fun rewardLine(strings: Strings, npc: Npc): String = buildList {
     val xp = npc.xpFor(MatchResult.WIN)
     if (xp > 0) add("$xp ${strings[StringKeys.XP]}")
 }.joinToString(DOT_SEPARATOR)
-
-private val RuleText = Color(0xFFF2C14E)

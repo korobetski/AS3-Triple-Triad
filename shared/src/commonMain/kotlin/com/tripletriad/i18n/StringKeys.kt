@@ -121,6 +121,96 @@ object StringKeys {
     /** `Rematch` — the control that plays the same opponent again. */
     const val REMATCH: String = "STR_REMATCH"
 
+    // ---- Dashboard. `dashboardScreen.as:49-59` builds its stack from exactly these.
+    /** `Multiplayer` — listed, and inert: PvP is Phase 5. */
+    const val MULTIPLAYER: String = "STR_MULTIPLAYER"
+    const val CARD_LIST: String = "STR_CARD_LIST"
+    const val CARD_DECKS: String = "STR_CARD_DECKS"
+    const val INVENTORY: String = "STR_INVENTORY"
+    const val SHOP: String = "STR_SHOP"
+    const val HELP: String = "STR_HELP"
+
+    /** `Logout` — leaves the character, which is what returning to the main menu is. */
+    const val LOGOUT: String = "STR_LOGOUT"
+
+    // ---- Card list and card detail.
+    /** `Card Informations` — the original's title, plural included. */
+    const val CARD_INFOS: String = "STR_CARD_INFOS"
+    const val TOTAL: String = "STR_TOTAL"
+    const val SIDES: String = "STR_SIDES"
+    const val RARITY: String = "STR_RARITY"
+    const val CARD_TYPE: String = "STR_CARD_TYPE"
+
+    /** No AS3 key: its detail panel simply stayed blank until a card was tapped. */
+    const val PICK_CARD: String = "APP_PICK_CARD"
+
+    /** No AS3 key: the collection screen dimmed unowned cards and said nothing. */
+    const val OWNED: String = "APP_OWNED"
+
+    // ---- Decks.
+    const val DECK: String = "STR_DECK"
+    const val DECK_POWER: String = "STR_DECK_POWER"
+    const val RESET_DECK: String = "STR_RESET_DECK"
+    const val SAVE: String = "STR_SAVE"
+
+    /** `Play this deck` — the deck selector's confirm, shown before the deal. */
+    const val CHOOSE_DECK: String = "STR_CHOOSE_DECK"
+
+    /**
+     * `Random` — the rule's own name, reused by `DeckSelector` for its "deal me anything" button
+     * (`DeckSelector.as:113` looks up `RULE_RANDOM`, not a button key of its own).
+     */
+    const val RANDOM_DECK: String = "RULE_RANDOM"
+
+    // ---- Inventory and shop.
+    const val USE: String = "STR_USE"
+    const val SELL: String = "STR_SELL"
+    const val DISCARD: String = "STR_DISCARD"
+    const val BUY: String = "STR_BUY"
+
+    /** `Card Shop` — the shop panel's title, where `STR_SHOP` is the menu entry. */
+    const val CARD_SHOP: String = "STR_CARD_SHOP"
+
+    /** No AS3 key: an empty bag drew an empty list. */
+    const val EMPTY_BAG: String = "APP_EMPTY_BAG"
+
+    /** `{0}` is the card's name. What opening a pack yielded. */
+    const val OBTAINED: String = "APP_OBTAINED"
+
+    /** Why Use is refused on a card the profile already has — `InventoryScreen.as:111`. */
+    const val ALREADY_OWNED: String = "APP_ALREADY_OWNED"
+
+    /**
+     * A bag entry whose `type` this build does not know.
+     *
+     * `Item.itemize`'s `else` branch — [com.tripletriad.model.MiscItem] — which the original drew
+     * with an empty label and a booster icon. Reachable only from a save written by a newer build
+     * or from the declared-and-unused `item-type-accessory`.
+     */
+    const val UNKNOWN_ITEM: String = "APP_UNKNOWN_ITEM"
+
+    // ---- Character statistics.
+    const val ACHIEVEMENTS_LIST: String = "STR_ACHIEVEMENTS_LIST"
+    const val FORFEITS: String = "STR_FORFEITS"
+
+    /**
+     * `Matches`.
+     *
+     * An `APP_` key although `profileScreen.as:191` asks for `STR_MATCHES`: that key is **in none
+     * of the four bundles**, so the original's own round chart was captioned `STR_MATCHES`. A
+     * dangling key is not a translation to preserve.
+     */
+    const val MATCHES: String = "APP_MATCHES"
+
+    /** No AS3 equivalent: it drew a pie chart and never wrote the number. */
+    const val WIN_RATE: String = "APP_WIN_RATE"
+
+    /** The two potion multipliers, which the original showed as two unlabelled icons. */
+    const val BOONS: String = "APP_BOONS"
+
+    /** No AS3 key: an achievement list with nothing in it rendered as an empty group. */
+    const val NO_ACHIEVEMENT: String = "APP_NO_ACHIEVEMENT"
+
     /** Every key above, for the tests that assert each resolves. */
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
@@ -134,6 +224,11 @@ object StringKeys {
         DELETE, DELETE_CONFIRM, CANCEL, START, NO_PROFILE,
         OPPONENTS, RULES, MATCH_FEE, REWARDS, CHALLENGE, NO_OPPONENT,
         XP, DIFFICULTY, OPPONENT_TURN, ACHIEVEMENT_EARNED, REMATCH,
+        MULTIPLAYER, CARD_LIST, CARD_DECKS, INVENTORY, SHOP, HELP, LOGOUT,
+        CARD_INFOS, TOTAL, SIDES, RARITY, CARD_TYPE, PICK_CARD, OWNED,
+        DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK,
+        USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
+        ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT,
     )
 
     /** The subset this port authored, which is the subset that may be untranslated. */

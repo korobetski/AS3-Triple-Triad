@@ -90,6 +90,37 @@ data class Deck(
     @SerialName("cards") val cards: List<Int> = emptyList(),
 ) {
     val isComplete: Boolean get() = cards.size == HAND_SIZE
+
+    /** The same deck with no cards in it. Keeps the name, which is what the slot is known by. */
+    fun emptied(): Deck = copy(cards = emptyList())
+
+    /**
+     * The same deck with [cardId] added, or unchanged when it is already full.
+     *
+     * ### Why adding appends instead of filling a chosen slot
+     *
+     * The AS3 editor is slot-addressed: five fixed `Card` clips, tap a card then tap the slot to
+     * put it in, and `saveDeck_Handler` pushes `0` for each clip left empty — so `DECKS[n].cards`
+     * is always five long with zeroes standing in for holes, and `DeckSelector` counts the non-zero
+     * entries to decide whether the deck may be played.
+     *
+     * A hole is not worth representing. The **only** thing a card's position in a deck decides is
+     * the play order under `RULE_ORDER`, and a hand dealt from a list with zeroes in it would be
+     * short. So the list here holds cards and nothing else, [isComplete] is a size check, and the
+     * editor offers add and remove rather than five addressable slots. A player who wants a
+     * different order removes and re-adds, which is the same number of taps as the original's
+     * tap-card-then-tap-slot.
+     *
+     * A duplicate is allowed through: nothing in the original prevents the same card appearing
+     * twice in a deck either, and [Card] ids in a hand are not required to be distinct — see
+     * `RULE_SWAP`, which can produce a genuine duplicate mid-match.
+     */
+    fun plusCard(cardId: Int): Deck =
+        if (cards.size >= HAND_SIZE) this else copy(cards = cards + cardId)
+
+    /** The same deck without the card at position [at]. Unchanged if there is none. */
+    fun minusCardAt(at: Int): Deck =
+        if (at !in cards.indices) this else copy(cards = cards.filterIndexed { i, _ -> i != at })
 }
 
 /**
@@ -109,8 +140,8 @@ data class Deck(
  * - **`NPC_W_TOTAL`**, which `Achievements.as` reads off `Game.PROFILE_DATAS`, is nowhere in
  *   `Save.DATAS` — it is computed elsewhere from `NPC_W`. It is [npcWinsTotal] here.
  * - **`LEVEL` and `RANK` are stored but redundant**: both are pure functions of the XP fields
- *   ([XpTable]). They are kept as fields because they are in the file, and [sane] recomputes
- *   them on load so a hand-edited or stale value cannot disagree with the XP it claims to be.
+ *   ([XpTable]). They are kept as fields because they are in the file, and [sane] recomputes them
+ *   on load so a hand-edited or stale value cannot disagree with the XP it claims to be.
  *
  * ### Types that differ from the migration plan
  *
@@ -170,10 +201,9 @@ data class GameSave(
     /**
      * Matches begun and abandoned. `Save.as:59`, and the reason `STATS.FORFEITS` is not stored.
      *
-     * `@Transient` is valid here — unlike on the body properties
-     * `docs/migration/13-DATA-MODELS.md` warned about — because this is a computed property with no
-     * backing field, so there is nothing for the serializer to write in the first place. The
-     * annotation is redundant and omitted.
+     * `@Transient` is valid here — unlike on the body properties `docs/migration/13-DATA-MODELS.md`
+     * warned about — because this is a computed property with no backing field, so there is nothing
+     * for the serializer to write in the first place. The annotation is redundant and omitted.
      */
     val forfeits: Int get() = (startedMatches - endedMatches).coerceAtLeast(0)
 
@@ -267,6 +297,51 @@ data class GameSave(
             updated[key] = (updated[key] ?: 0) + 1
         }
         return copy(rulesWins = updated)
+    }
+
+    /**
+     * The same profile with deck slot [index] replaced by [deck].
+     *
+     * Slots below [index] that do not exist yet are filled with **unnamed empty decks**, because
+     * `DECKS` is a fixed five-slot array on screen and a sparse one in the data: the AS3 assigns
+     * `DECKS[selectedIndex] = deck` directly (`DecksScreen.as:385`), which on an AS3 array leaves
+     * `undefined` holes that `JSON.stringify` writes as `null` and `if (_userDecks[i])` then reads
+     * back as "empty deck". A `List<Deck>` cannot hold that hole, and making the list nullable to
+     * model it would push the null onto every reader; an empty deck is what the screen draws for a
+     * hole anyway, and [Deck.isComplete] keeps it out of every match either way.
+     *
+     * The name is left blank rather than defaulted to `"Deck 2"`: that label is `STR_DECK` plus a
+     * number, and a model that reached into the locale bundles would put the player's language into
+     * their save file.
+     *
+     * @throws IllegalArgumentException if [index] is not a slot — a screen offers exactly
+     *   [MAX_DECKS] of them, so an out-of-range index is a programming error and not a user action.
+     */
+    fun withDeck(index: Int, deck: Deck): GameSave {
+        require(index in 0 until MAX_DECKS) { "deck slot must be in 0..<$MAX_DECKS, was $index" }
+        val slots = decks.toMutableList()
+        while (slots.size <= index) slots += Deck(name = "", cards = emptyList())
+        slots[index] = deck
+        return copy(decks = slots)
+    }
+
+    /**
+     * Empties deck slot [index], keeping the slot and its name.
+     *
+     * `resetDeckHandler` (`DecksScreen.as:342-362`) is the one place the original is not merely
+     * awkward but **does not work**: it pushes five zeroes onto the deck's existing card list — so
+     * a full deck becomes ten entries rather than none — and then calls
+     * `Game.PROFILE_DATAS.DECKS.slice(index, 1)`, which returns a copy and mutates nothing, where
+     * `splice` was meant. It then saves. The visual list is rebuilt empty, the file is not, and the
+     * deck reappears on the next load.
+     *
+     * Emptying the cards and keeping the slot is what the button visibly claims to do.
+     */
+    fun clearingDeck(index: Int): GameSave {
+        if (index !in decks.indices) return this
+        return copy(
+            decks = decks.mapIndexed { at, deck -> if (at == index) deck.emptied() else deck },
+        )
     }
 
     /** Marks [id] earned at [instant], keeping the first time if it was earned already. */

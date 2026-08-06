@@ -24,9 +24,11 @@ import com.tripletriad.audio.AudioPlayer
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.SilentAudioPlayer
 import com.tripletriad.audio.Sound
+import com.tripletriad.data.CardCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.rememberStrings
+import com.tripletriad.model.GameSave
 import com.tripletriad.model.Npc
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
@@ -43,21 +45,32 @@ private val Backdrop = Color(0xFF14161C)
 /**
  * Which screen is showing.
  *
- * A `remember`ed value and not a navigation library. There are seven destinations now and the flow
- * is still a line — menu → characters → opponents → board — with one `up` per screen and no deep
- * links, no arguments beyond what the session already holds, and no state to restore across process
- * death that is not already on disk. Compose Navigation would buy a `NavHost`, a route DSL and
- * typed arguments; what it would replace is [up] and one `when`. The point to reconsider is a
- * screen reachable from two places with a different back destination from each — the original's
- * fourteen screens have several. Not yet.
+ * A `remember`ed value and not a navigation library. There are fourteen destinations now and the
+ * flow is still a **tree of depth three** — menu → characters → dashboard → one of seven — with one
+ * [up] per screen and no deep links, no arguments beyond what the session already holds, and no
+ * state to restore across process death that is not already on disk. Compose Navigation would buy a
+ * `NavHost`, a route DSL and typed arguments; what it would replace is [up] and two `when`s.
+ *
+ * The point to reconsider was named in Phase 4's first pass as "a screen reachable from two places
+ * with a different back destination from each", and the dashboard is what keeps that from
+ * happening: every screen behind it has exactly one way in. [MATCH] is the nearest thing to an
+ * exception — a rematch re-enters it from itself — and that is a state change rather than a
+ * navigation.
  */
 internal enum class Screen {
     SPLASH,
     MENU,
     PROFILES,
     PROFILE_NEW,
+    DASHBOARD,
     OPPONENTS,
     MATCH,
+    STATS,
+    CARDS,
+    DECKS,
+    INVENTORY,
+    SHOP,
+    HELP,
     OPTIONS,
     ;
 
@@ -67,13 +80,19 @@ internal enum class Screen {
      * [SPLASH] and [MENU] return themselves, which is what makes back on the menu fall through to
      * the host and leave the app — the behaviour a main menu should have — without the
      * `BackHandler` needing a list of which screens are exempt.
+     *
+     * [DASHBOARD] goes to the character list rather than to the menu, which is also where its own
+     * Logout leads: leaving a character means choosing another, and the list is where that is done.
+     * The original sent Logout to `MENU_SCREEN` and left `Game.PROFILE_DATAS` loaded, so its
+     * "logout" changed the screen and nothing else.
      */
     val up: Screen
         get() = when (this) {
             SPLASH, MENU -> this
             PROFILES, OPTIONS -> MENU
             PROFILE_NEW -> PROFILES
-            OPPONENTS -> PROFILES
+            DASHBOARD -> PROFILES
+            OPPONENTS, STATS, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
             MATCH -> OPPONENTS
         }
 }
@@ -86,19 +105,19 @@ internal enum class Screen {
  *   preview or a test needs no filesystem, and so that a test can pin the language by handing in
  *   `InMemorySettingsStore("""{"language":"en_US"}""")` rather than inheriting whatever locale the
  *   machine running it happens to be set to.
- * @param documents where the `.sav` profiles live, for the same reason and from the same host.
- *   The in-memory default means a test gets a working, empty profile list rather than the machine's
+ * @param documents where the `.sav` profiles live, for the same reason and from the same host. The
+ *   in-memory default means a test gets a working, empty profile list rather than the machine's
  *   real saves — and that a preview cannot delete anybody's character.
  * @param clock the wall clock. Injected so a test can pin both the save timestamps and the hour
  *   that decides which opponents are available. **Defaults to a stopped clock**, not a real one:
  *   `:shared` has no `SystemClock` — see `Clock` — and a frozen 2026-01-01T12:00 is a working,
  *   obvious default for a preview or a test, the same bargain `InMemorySettingsStore` and
  *   `SilentAudioPlayer` make. Both real hosts pass one.
- * @param audio plays the sounds. Silent by default, which is also what the desktop host
- *   installs — see `AudioPlayer`.
- * @param onQuit what the Quit action does. Nothing, by default: a host that cannot express
- *   quitting (iOS) or does not want to (a preview) is a legitimate host, and the button being inert
- *   is better than `:shared` guessing.
+ * @param audio plays the sounds. Silent by default, which is also what the desktop host installs —
+ *   see `AudioPlayer`.
+ * @param onQuit what the Quit action does. Nothing, by default: a host that cannot express quitting
+ *   (iOS) or does not want to (a preview) is a legitimate host, and the button being inert is
+ *   better than `:shared` guessing.
  */
 // `BackHandler` is still `@ExperimentalComposeUiApi` in Compose 1.9.3. Opted into here rather than
 // project-wide, so the day it moves or changes shape there is exactly one call site to fix.
@@ -216,11 +235,11 @@ private fun Destination(
 
         Screen.MENU -> MainMenuScreen(
             active = session.active,
-            // Play goes straight to the opponents when a character is loaded and to the character
+            // Play goes straight to the dashboard when a character is loaded and to the character
             // list when none is — the original's Continue and Load Game behind one button, chosen
             // by what is actually loaded rather than by asking which of the two the player meant.
             onPlay = {
-                onNavigate(if (session.active == null) Screen.PROFILES else Screen.OPPONENTS)
+                onNavigate(if (session.active == null) Screen.PROFILES else Screen.DASHBOARD)
             },
             onProfiles = { onNavigate(Screen.PROFILES) },
             onOptions = { onNavigate(Screen.OPTIONS) },
@@ -229,22 +248,84 @@ private fun Destination(
 
         Screen.PROFILES -> ProfileListScreen(
             session = session,
-            onSelected = { onNavigate(Screen.OPPONENTS) },
+            onSelected = { onNavigate(Screen.DASHBOARD) },
             onNew = { onNavigate(Screen.PROFILE_NEW) },
             onBack = { onNavigate(Screen.MENU) },
         )
 
         Screen.PROFILE_NEW -> ProfileCreateScreen(
             session = session,
-            onCreated = { onNavigate(Screen.OPPONENTS) },
+            onCreated = { onNavigate(Screen.DASHBOARD) },
             onBack = { onNavigate(Screen.PROFILES) },
         )
 
-        // The two play screens need a character *and* a catalog. A missing one is a state the
-        // flow cannot reach — Play only leaves the menu once startup is ready, and the opponent
-        // list is only reachable with a character selected — so rendering nothing is the honest
-        // answer, rather than half a screen or a placeholder claiming something is wrong.
-        Screen.OPPONENTS -> Both(session.active, startup.opponents) { profile, opponents ->
+        Screen.OPTIONS -> settings?.let {
+            OptionsScreen(settings = it, onBack = { onNavigate(Screen.MENU) })
+        }
+
+        // Everything behind the dashboard needs a character, and a missing one is a state the flow
+        // cannot reach: the dashboard is only entered from the list or from creation, both of which
+        // select one. Rendering nothing is the honest answer, rather than half a screen or a
+        // placeholder claiming something is wrong.
+        //
+        // Grouped rather than delegated behind an `else`, so that adding a fourteenth screen is a
+        // compile error here instead of a destination that silently renders blank.
+        Screen.DASHBOARD, Screen.OPPONENTS, Screen.MATCH, Screen.STATS,
+        Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
+        -> session.active?.let { profile ->
+            CharacterDestination(
+                destination = destination,
+                profile = profile,
+                startup = startup,
+                session = session,
+                opponent = opponent,
+                clock = clock,
+                onNavigate = onNavigate,
+                onChoose = onChoose,
+            )
+        }
+    }
+}
+
+/**
+ * One of the nine screens behind the dashboard.
+ *
+ * Split from [Destination] because they share a prerequisite — a loaded character — and checking it
+ * once is what keeps the eight call sites from each writing their own `?.let`. It is also what
+ * keeps either function under the complexity detekt rejects: the two together are the routing table
+ * the original spread across a `gotoScreen` string switch in `Game.as`.
+ *
+ * The card catalog is the second prerequisite and is *not* hoisted the same way: the dashboard, the
+ * statistics and the help screen do not need it, and gating them on it would leave them blank while
+ * `cards.json` loads.
+ */
+@Composable
+private fun CharacterDestination(
+    destination: Screen,
+    profile: GameSave,
+    startup: StartupState,
+    session: ProfileSession,
+    opponent: Npc?,
+    clock: Clock,
+    onNavigate: (Screen) -> Unit,
+    onChoose: (Npc) -> Unit,
+) {
+    val toDashboard = { onNavigate(Screen.DASHBOARD) }
+
+    when (destination) {
+        Screen.DASHBOARD -> DashboardScreen(
+            profile = profile,
+            onPlay = { onNavigate(Screen.OPPONENTS) },
+            onStats = { onNavigate(Screen.STATS) },
+            onCards = { onNavigate(Screen.CARDS) },
+            onDecks = { onNavigate(Screen.DECKS) },
+            onInventory = { onNavigate(Screen.INVENTORY) },
+            onShop = { onNavigate(Screen.SHOP) },
+            onHelp = { onNavigate(Screen.HELP) },
+            onLogout = { onNavigate(Screen.PROFILES) },
+        )
+
+        Screen.OPPONENTS -> startup.opponents?.let { opponents ->
             OpponentScreen(
                 profile = profile,
                 catalog = opponents,
@@ -253,11 +334,11 @@ private fun Destination(
                     onChoose(it)
                     onNavigate(Screen.MATCH)
                 },
-                onBack = { onNavigate(Screen.PROFILES) },
+                onBack = toDashboard,
             )
         }
 
-        Screen.MATCH -> Both(session.active, startup.catalog) { profile, catalog ->
+        Screen.MATCH -> startup.catalog?.let { catalog ->
             opponent?.let { chosen ->
                 // `LocalCardArt` is provided even when null: a card composes correctly with no
                 // textures at all — flat colour quad, empty layers — so a failed art load costs
@@ -275,21 +356,61 @@ private fun Destination(
             }
         }
 
-        Screen.OPTIONS -> settings?.let {
-            OptionsScreen(settings = it, onBack = { onNavigate(Screen.MENU) })
+        Screen.STATS -> StatsScreen(profile = profile, onBack = toDashboard)
+
+        Screen.HELP -> HelpScreen(profile = profile, onBack = toDashboard)
+
+        // The four that browse the card table. Grouped for the same reason the character-bearing
+        // screens are grouped one level up: they share a prerequisite, and checking it four times
+        // is four places for one of them to forget.
+        Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP,
+        -> startup.catalog?.let { catalog ->
+            CompositionLocalProvider(LocalCardArt provides startup.art) {
+                CollectionDestination(
+                    destination = destination,
+                    profile = profile,
+                    catalog = catalog,
+                    onPersist = session::persist,
+                    onBack = toDashboard,
+                )
+            }
         }
+
+        // The five screens ahead of a loaded character. [Destination] routes those itself and never
+        // calls this with one; the branch exists because Kotlin requires the `when` to be complete.
+        Screen.SPLASH, Screen.MENU, Screen.PROFILES, Screen.PROFILE_NEW, Screen.OPTIONS -> Unit
     }
 }
 
 /**
- * Renders [content] only when both prerequisites are present.
+ * The four screens that read the card table: the collection, the decks, the bag and the shop.
  *
- * A guard rather than a `?.let` chain at each call site: two nullable prerequisites nested by hand
- * is how one of them ends up unchecked.
+ * All four take the same four arguments and differ only in which composable they call, which is
+ * what makes them worth one function — and what keeps [CharacterDestination] under the complexity
+ * detekt rejects. The card art is already provided by the caller.
  */
 @Composable
-private fun <A : Any, B : Any> Both(first: A?, second: B?, content: @Composable (A, B) -> Unit) {
-    if (first != null && second != null) content(first, second)
+private fun CollectionDestination(
+    destination: Screen,
+    profile: GameSave,
+    catalog: CardCatalog,
+    onPersist: suspend (GameSave) -> Unit,
+    onBack: () -> Unit,
+) {
+    when (destination) {
+        Screen.CARDS -> CardListScreen(profile = profile, catalog = catalog, onBack = onBack)
+
+        Screen.DECKS ->
+            DecksScreen(profile, catalog, onPersist = onPersist, onBack = onBack)
+
+        Screen.INVENTORY ->
+            InventoryScreen(profile, catalog, onPersist = onPersist, onBack = onBack)
+
+        Screen.SHOP ->
+            ShopScreen(profile, catalog, onPersist = onPersist, onBack = onBack)
+
+        else -> Unit
+    }
 }
 
 /**

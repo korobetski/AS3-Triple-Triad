@@ -36,9 +36,10 @@ class MatchAudioTest {
         // `MenuScreen` never called `shuffleLoop` — nothing plays on the menu but the tap.
         assertFalse(Sound.MATCH_MUSIC in audio, "the music started before a match")
 
-        // Play now leads to the character list, so reaching a board is the whole flow — and the
-        // music must not start on any screen along the way.
+        // Play now leads to the character list and then to the dashboard, so reaching a board is
+        // the whole flow — and the music must not start on any screen along the way.
         newCharacter()
+        openOpponents()
         assertFalse(Sound.MATCH_MUSIC in audio, "the music started before a board was up")
 
         challenge()

@@ -19,7 +19,24 @@ sealed interface ItemUse {
     /** The profile after the item was consumed. */
     val save: GameSave
 
-    /** A booster was opened and yielded [cardId]. */
+    /**
+     * A pack was opened and yielded a [CardItem] for [cardId] **into the bag**, not into the
+     * collection.
+     *
+     * That is the original's behaviour and it is deliberate rather than an oversight:
+     * `useBtnHandler` (`InventoryScreen.as:252-258`) opens the pack and pushes `new
+     * CardItem(cardId).__toJSON()` onto `BAG`, leaving `CARDS` alone. Opening a pack therefore
+     * yields something the player can either *use* — which adds the card — or **sell**, which is
+     * the only sink for a duplicate the game has. Adding the card directly would silently delete
+     * that choice, and with it the resale value of every duplicate ever drawn.
+     */
+    data class PackOpened(
+        override val save: GameSave,
+        val cardId: Int,
+        val wasNew: Boolean,
+    ) : ItemUse
+
+    /** A card item was used and [cardId] entered the collection. */
     data class CardDrawn(
         override val save: GameSave,
         val cardId: Int,
@@ -110,15 +127,19 @@ object Inventory {
     /**
      * Uses one [item].
      *
-     * - A **booster** is opened, the drawn card added to the collection, and the pack consumed.
-     *   `BoosterItem.open()` draws from a fixed pool with a strong low-index bias — see there.
+     * - A **booster** is opened, the pack consumed, and a [CardItem] for the drawn card put in the
+     *   bag — *not* the card into the collection; see [ItemUse.PackOpened] for why that distinction
+     *   is the whole point of a pack. `BoosterItem.open()` draws from a fixed pool with a strong
+     *   low-index bias — see there.
      * - A **potion** raises its boon and is consumed.
      * - A **card item** adds its card to the collection and is consumed. `CardItem` is `useable` in
      *   the AS3, and this is what using it can only have meant.
      * - Anything else is [ItemUse.NotUseable] and the profile is untouched.
      *
      * A card already owned is still consumed, and [ItemUse.CardDrawn.wasNew] says so — the AS3 shop
-     * behaves the same way, and silently refunding would be a new rule.
+     * behaves the same way, and silently refunding would be a new rule. The inventory screen
+     * disables Use on a card already owned (`InventoryScreen.as:111`), which is where that is
+     * prevented rather than refunded.
      *
      * @param random the booster draw. Injected so a drop is reproducible.
      */
@@ -128,7 +149,11 @@ object Inventory {
         return when (item) {
             is BoosterItem -> {
                 val cardId = item.open(random)
-                ItemUse.CardDrawn(consumed.withCard(cardId), cardId, !save.ownsCard(cardId))
+                ItemUse.PackOpened(
+                    save = add(consumed, CardItem(cardId)),
+                    cardId = cardId,
+                    wasNew = !save.ownsCard(cardId),
+                )
             }
 
             is CardItem ->
