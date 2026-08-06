@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,12 +19,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.Inventory
 import com.tripletriad.data.ItemUse
@@ -33,6 +32,7 @@ import com.tripletriad.i18n.Strings
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.Item
+import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
@@ -191,16 +191,20 @@ private fun ItemRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = itemName(strings, item, cards),
-                color = Color.White,
-                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = itemFacts(strings, item, refusal),
-                color = if (refusal == null) Color.White.copy(alpha = 0.6f) else BoonText,
-                fontSize = 11.sp,
+                color = if (refusal == null) {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
+                } else {
+                    LocalTtoColors.current.transient
+                },
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -210,8 +214,8 @@ private fun ItemRow(
         // name every time a purchase lands.
         Text(
             text = "×${item.stack}",
-            color = Color.White.copy(alpha = 0.8f),
-            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             softWrap = false,
         )

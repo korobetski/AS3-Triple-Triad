@@ -162,6 +162,12 @@ object StringKeys {
      */
     const val RANDOM_DECK: String = "RULE_RANDOM"
 
+    /**
+     * No AS3 key: `DeckSelector.as:84-86` handles an empty list with an empty block, so a player
+     * with no complete deck was shown a blank panel and no reason for it.
+     */
+    const val NO_FULL_DECK: String = "APP_NO_FULL_DECK"
+
     // ---- Inventory and shop.
     const val USE: String = "STR_USE"
     const val SELL: String = "STR_SELL"
@@ -226,7 +232,7 @@ object StringKeys {
         XP, DIFFICULTY, OPPONENT_TURN, ACHIEVEMENT_EARNED, REMATCH,
         MULTIPLAYER, CARD_LIST, CARD_DECKS, INVENTORY, SHOP, HELP, LOGOUT,
         CARD_INFOS, TOTAL, SIDES, RARITY, CARD_TYPE, PICK_CARD, OWNED,
-        DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK,
+        DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
         ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT,
     )

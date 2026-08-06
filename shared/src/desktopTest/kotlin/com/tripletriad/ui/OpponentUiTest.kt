@@ -187,6 +187,7 @@ class OpponentUiTest {
         val afterFirst = stored(documents)
 
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+        settleDeck()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
         playOut()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { stored(documents).endedMatches == 2 }

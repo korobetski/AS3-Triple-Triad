@@ -184,6 +184,27 @@ internal fun ComposeUiTest.startMatch(
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.challenge(iconId: String = TEST_OPPONENT) {
     onNodeWithTag(opponentRowTestTag(iconId)).performClick()
-    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
+    settleDeck()
     awaitPlayer()
+}
+
+/**
+ * Gets past the deck selector, however it happens to be resolved, and waits for the board.
+ *
+ * Three outcomes have to be tolerated because all three are real: the selector is up with a deck to
+ * confirm, it is up with **no complete deck** — so only Random works — or it never appears at all,
+ * which is what `RULE_RANDOM` does. A test that is not about deck selection should not have to know
+ * which of the three its opponent produces.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.settleDeck() {
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+        exists(DECK_SELECT_CHOOSE_TEST_TAG) || exists(BOARD_TEST_TAG)
+    }
+    if (exists(DECK_SELECT_EMPTY_TEST_TAG)) {
+        onNodeWithTag(DECK_SELECT_RANDOM_TEST_TAG).performClick()
+    } else if (exists(DECK_SELECT_CHOOSE_TEST_TAG)) {
+        onNodeWithTag(DECK_SELECT_CHOOSE_TEST_TAG).performClick()
+    }
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
 }

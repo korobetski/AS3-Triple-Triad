@@ -76,6 +76,77 @@ class PveMatchTest {
         assertTrue(match.setup.state.hands.values.flatten().all { it.collection == "ff8_" })
     }
 
+    // ---- Choosing a deck ---------------------------------------------------
+
+    /** An explicitly chosen deck beats the "first complete one" default. */
+    @Test
+    fun theDeckPassedInIsTheDeckDealt() {
+        val decks = listOf(
+            Deck("First", listOf(1, 2, 3, 4, 5)),
+            Deck("Second", listOf(6, 7, 8, 9, 10)),
+        )
+        val save = profile(decks = decks)
+        val random = Random(1)
+        val plan = MatchPlan(PveMatches.rulesFor(opponent, save.mode, random), decks[1].cards)
+
+        val match = PveMatches.assemble(save, opponent, catalog, random, plan)
+
+        assertEquals(decks[1].cards, match.setup.state.hands[CardColor.BLUE]?.map { it.id })
+    }
+
+    /**
+     * Resolving the rules separately and passing them in gives the same match as letting
+     * [PveMatches.assemble] do it.
+     *
+     * This is the contract the deck selector depends on: it needs the rules *before* the match is
+     * assembled, in order to know whether to ask for a deck at all, and it must not cost a second
+     * roulette draw. Asserted against a roulette opponent, where a second draw would show.
+     */
+    @Test
+    fun resolvingTheRulesFirstDoesNotChangeTheMatch() {
+        val roulette = opponent.copy(ruleKeys = listOf("RULE_ROULETTE"))
+        val save = profile()
+
+        val whole = PveMatches.assemble(save, roulette, catalog, Random(7))
+
+        val split = Random(7).let { random ->
+            val rules = PveMatches.rulesFor(roulette, save.mode, random)
+            val plan = MatchPlan(rules, PveMatches.playerDeck(save))
+            PveMatches.assemble(save, roulette, catalog, random, plan)
+        }
+
+        assertEquals(whole.rules, split.rules, "the roulette must be drawn exactly once")
+        assertEquals(whole.setup.state.hands, split.setup.state.hands)
+    }
+
+    /** Only complete decks are offered, and the index is the save slot rather than the row. */
+    @Test
+    fun onlyCompleteAndResolvableDecksArePlayable() {
+        val save = profile(
+            cards = (1..12).toList(),
+            decks = listOf(
+                Deck("Partial", listOf(1, 2)),
+                Deck("Full", listOf(1, 2, 3, 4, 5)),
+                // Five ids, but 99 is in neither table, so this one would throw if it were offered.
+                Deck("Broken", listOf(1, 2, 3, 4, 99)),
+            ),
+        )
+
+        val playable = PveMatches.playableDecks(save, catalog)
+
+        assertEquals(listOf(1), playable.map { it.index }, "the slot, not the row")
+        assertEquals("Full", playable.single().value.name)
+    }
+
+    @Test
+    fun aProfileWithNoCompleteDeckOffersNothingToChooseFrom() {
+        val save = profile(decks = listOf(Deck("Partial", listOf(1, 2))))
+
+        assertTrue(PveMatches.playableDecks(save, catalog).isEmpty())
+        // …and still has something to play, which is what the fallback is for.
+        assertEquals(HAND_SIZE, PveMatches.playerDeck(save).size)
+    }
+
     /** The complete deck is played, not the first five cards owned. */
     @Test
     fun theFirstCompleteDeckIsPlayed() {

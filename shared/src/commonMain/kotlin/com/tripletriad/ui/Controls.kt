@@ -12,15 +12,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +30,7 @@ import com.tripletriad.audio.Sound
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
+import com.tripletriad.ui.theme.LocalTtoColors
 
 /** The back chevron of any [ScreenScaffold]. Only one is on screen at a time. */
 const val SCREEN_BACK_TEST_TAG: String = "screen-back"
@@ -64,19 +64,18 @@ internal fun WideButton(
         },
         enabled = enabled,
         modifier = Modifier.fillMaxWidth().height(48.dp).testTag(tag),
-        shape = RoundedCornerShape(4.dp),
+        shape = MaterialTheme.shapes.extraSmall,
+        // `primary` is the card blue and `onPrimary` the theme's light text, so the only thing
+        // left to say is what a *disabled* button looks like — Material would grey it against a
+        // surface this app does not use.
         colors = ButtonDefaults.buttonColors(
-            // The card edge blue, so the menu belongs to the same palette as the board rather
-            // than to Material's default purple.
-            containerColor = BlueCard,
-            contentColor = Color.White,
-            disabledContainerColor = RowBackground,
-            disabledContentColor = Color.White.copy(alpha = 0.4f),
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED),
         ),
     ) {
         Text(
             text = label,
-            fontSize = 16.sp,
+            style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis,
@@ -108,8 +107,8 @@ internal fun ScreenScaffold(
         ) {
             Text(
                 text = "‹",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = MUTED),
+                fontSize = CHEVRON,
                 modifier = Modifier
                     .testTag(SCREEN_BACK_TEST_TAG)
                     .clickable(onClick = onBack)
@@ -117,9 +116,7 @@ internal fun ScreenScaffold(
             )
             Text(
                 text = title,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -162,16 +159,15 @@ internal fun CharacterBar(save: GameSave) {
         modifier = Modifier
             .testTag(CHARACTER_BAR_TEST_TAG)
             .fillMaxWidth()
-            .clip(RowShape)
-            .background(RowBackground.copy(alpha = 0.6f))
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = BAR_FILL))
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
             text = save.username,
-            color = Color.White,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -180,8 +176,8 @@ internal fun CharacterBar(save: GameSave) {
         if (boons.isNotEmpty()) {
             Text(
                 text = boons.joinToString(" "),
-                color = BoonText,
-                fontSize = 11.sp,
+                color = LocalTtoColors.current.transient,
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 softWrap = false,
             )
@@ -189,8 +185,8 @@ internal fun CharacterBar(save: GameSave) {
         Text(
             text = "${strings[StringKeys.LEVEL]} ${save.level}$DOT_SEPARATOR" +
                 "${save.mgp} ${strings[StringKeys.MGP]}",
-            color = Color.White.copy(alpha = 0.75f),
-            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             softWrap = false,
         )
@@ -225,8 +221,8 @@ internal fun CharacterScaffold(
 internal fun EmptyNote(text: String, tag: String) {
     Text(
         text = text,
-        color = Color.White.copy(alpha = 0.7f),
-        fontSize = 14.sp,
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = MUTED),
+        style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.testTag(tag).padding(vertical = 24.dp),
     )
 }
@@ -237,35 +233,58 @@ internal fun EmptyNote(text: String, tag: String) {
  * Six screens draw this same box. A modifier rather than a wrapper composable so a row keeps
  * control of its own layout — some are a `Row`, some a `Column`, and one is a grid cell.
  *
+ * `@Composable` because it reads the theme, which is what a `Modifier` extension may do as long as
+ * it is called from a composition — every call site here is inside one.
+ *
  * @param armed draws the destructive-confirmation outline instead of the ordinary one.
  * @param selected draws the card-blue outline and tints the fill, for a row that is the current
  *   choice rather than merely tappable.
  */
+@Composable
 internal fun Modifier.rowSurface(
     armed: Boolean = false,
     selected: Boolean = false,
-): Modifier = clip(RowShape)
-    .background(if (selected) BlueCard.copy(alpha = 0.28f) else RowBackground)
-    .border(
-        width = 1.dp,
-        color = when {
-            armed -> ArmedBorder
-            selected -> BlueCard
-            else -> RowBorder
-        },
-        shape = RowShape,
-    )
+): Modifier {
+    val game = LocalTtoColors.current
+    val shape = MaterialTheme.shapes.small
+    return clip(shape)
+        .background(if (selected) game.selectedFill else MaterialTheme.colorScheme.surfaceVariant)
+        .border(
+            width = 1.dp,
+            color = when {
+                armed -> MaterialTheme.colorScheme.error
+                selected -> game.selectedOutline
+                else -> MaterialTheme.colorScheme.outline
+            },
+            shape = shape,
+        )
+}
 
 /** Keeps every list screen the same width on a desktop window that is far wider than a phone. */
 internal val ContentMaxWidth = 520.dp
 
-internal val RowShape = RoundedCornerShape(6.dp)
-internal val RowBackground = Color(0xFF1E2230)
-internal val RowBorder = Color(0xFF3A4152)
-internal val ArmedBorder = Color(0xFFE05252)
-
-/** The boon markers and an opponent row's rules: the same "temporary effect" gold. */
-internal val BoonText = Color(0xFFF2C14E)
-
 /** The `·`-joined metadata line used by the profile and opponent rows. */
 internal const val DOT_SEPARATOR = "  ·  "
+
+/*
+ * The alphas this app dims text by. Four steps, named once: a screen with six shades of white is a
+ * screen where each was picked separately.
+ */
+
+/** A secondary line under a row's name. */
+internal const val SUBDUED = 0.75f
+
+/** An explanatory line, and an empty-state note. */
+internal const val MUTED = 0.7f
+
+/** Metadata that should recede: a count, a rarity, a description. */
+internal const val FAINT = 0.6f
+
+/** A disabled control's own label. */
+internal const val DISABLED = 0.4f
+
+/** The back chevron, which is a glyph rather than a type-scale entry. */
+private val CHEVRON = 20.sp
+
+/** The character bar sits *on* the backdrop rather than beside a list, so its fill is lighter. */
+private const val BAR_FILL = 0.6f

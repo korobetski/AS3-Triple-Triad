@@ -10,18 +10,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.i18n.LocalStrings
 import androidx.compose.foundation.Image as ComposeImage
 
@@ -81,8 +80,8 @@ internal fun SplashScreen(state: StartupState) {
 
         Text(
             text = strings[state.phase.labelKey],
-            color = Color.White.copy(alpha = 0.75f),
-            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+            style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 32.dp, bottom = 12.dp)
                 .testTag(SPLASH_PHASE_TEST_TAG),
         )
@@ -90,8 +89,8 @@ internal fun SplashScreen(state: StartupState) {
         LinearProgressIndicator(
             progress = { progress },
             modifier = Modifier.fillMaxWidth().widthIn(max = LogoMaxWidth).height(3.dp),
-            color = BlueEdge,
-            trackColor = Color.White.copy(alpha = 0.12f),
+            color = MaterialTheme.colorScheme.tertiary,
+            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
             gapSize = 0.dp,
             drawStopIndicator = {},
         )

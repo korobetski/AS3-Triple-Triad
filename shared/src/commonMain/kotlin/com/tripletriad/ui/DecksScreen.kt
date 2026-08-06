@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -23,13 +24,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -149,8 +148,8 @@ private fun DeckSlotRow(index: Int, deck: Deck, cards: Map<Int, Card>, onClick: 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = deckLabel(strings, deck, index),
-                color = Color.White,
-                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -158,8 +157,8 @@ private fun DeckSlotRow(index: Int, deck: Deck, cards: Map<Int, Card>, onClick: 
             Text(
                 text = "${deck.cards.size} / $HAND_SIZE$DOT_SEPARATOR" +
                     "${strings[StringKeys.DECK_POWER]} ${deckPower(deck, cards)}",
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
             )
         }
@@ -199,12 +198,12 @@ private fun DeckEditor(
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedContainerColor = RowBackground,
-                unfocusedContainerColor = RowBackground,
-                focusedIndicatorColor = BlueCard,
-                unfocusedIndicatorColor = RowBorder,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
             ),
             modifier = Modifier.testTag(DECK_NAME_TEST_TAG).fillMaxWidth(),
         )
@@ -233,8 +232,12 @@ private fun DeckEditor(
         Text(
             text = "${strings[StringKeys.DECK_POWER]} ${deckPower(draft, cards)}" +
                 "$DOT_SEPARATOR${draft.cards.size} / $HAND_SIZE",
-            color = if (draft.isComplete) BlueEdge else Color.White.copy(alpha = 0.6f),
-            fontSize = 12.sp,
+            color = if (draft.isComplete) {
+                MaterialTheme.colorScheme.tertiary
+            } else {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
+            },
+            style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.testTag(DECK_POWER_TEST_TAG),
         )
 
@@ -258,7 +261,7 @@ private fun DeckEditor(
         }
 
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = PickWidth + 4.dp),
+            columns = GridCells.Adaptive(minSize = DeckCardWidth + 4.dp),
             modifier = Modifier
                 .testTag(DECK_PICK_GRID_TEST_TAG)
                 .fillMaxWidth()
@@ -274,7 +277,7 @@ private fun DeckEditor(
                         .clickable(enabled = !draft.isComplete) { draft = draft.plusCard(card.id) }
                         .padding(1.dp),
                 ) {
-                    CardFace(card = card, scale = PICK_SCALE)
+                    CardFace(card = card, scale = DECK_CARD_SCALE)
                 }
             }
         }
@@ -289,11 +292,15 @@ private fun DeckEditor(
  * [CardListScreen]) — so an empty position is an outlined box of the same size.
  */
 @Composable
-private fun DeckPosition(card: Card?) {
+internal fun DeckPosition(card: Card?) {
     if (card == null) {
-        Box(modifier = Modifier.size(PickWidth, CardSpriteHeight * PICK_SCALE).rowSurface())
+        Box(
+            modifier = Modifier
+                .size(DeckCardWidth, CardSpriteHeight * DECK_CARD_SCALE)
+                .rowSurface(),
+        )
     } else {
-        CardFace(card = card, scale = PICK_SCALE)
+        CardFace(card = card, scale = DECK_CARD_SCALE)
     }
 }
 
@@ -308,7 +315,7 @@ private fun DeckPosition(card: Card?) {
  * slot with no deck in it. That key is **in none of the four bundles**, so the original named such
  * a deck `STR_NEW_DECK`. The numbered label is what its own list already used.
  */
-private fun deckLabel(strings: Strings, deck: Deck, index: Int): String =
+internal fun deckLabel(strings: Strings, deck: Deck, index: Int): String =
     deck.name.ifBlank { "${strings[StringKeys.DECK]} ${index + 1}" }
 
 /**
@@ -319,12 +326,12 @@ private fun deckLabel(strings: Strings, deck: Deck, index: Int): String =
  * 5 and five five-star cards score 25. It is a measure of how rare a deck is, and the original's
  * label for it is the misleading part rather than the arithmetic.
  */
-private fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
+internal fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
     deck.cards.sumOf { cards[it]?.rarity ?: 0 }
 
 /** Long enough for any deck name that will lay out in a row; the original's field had no limit. */
 private const val MAX_DECK_NAME = 24
 
 /** Five of these plus a label have to fit the width of a phone. */
-private const val PICK_SCALE = 0.42f
-private val PickWidth = CardSpriteWidth * PICK_SCALE
+internal const val DECK_CARD_SCALE = 0.42f
+internal val DeckCardWidth = CardSpriteWidth * DECK_CARD_SCALE

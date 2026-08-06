@@ -203,6 +203,9 @@ class MatchUiTest {
 
         playOut()
         onNodeWithTag(NEW_MATCH_TEST_TAG).performClick()
+        // A rematch is a fresh match, so it runs the deck selector again — `deckSelectionPhase`
+        // is entered once per match in the original too.
+        settleDeck()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !isFinished() }
 
         assertEquals(HAND_SIZE, handSize(CardColor.BLUE), "the player should be dealt again")

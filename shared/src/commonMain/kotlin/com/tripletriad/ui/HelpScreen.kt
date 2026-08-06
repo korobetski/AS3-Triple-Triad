@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,11 +16,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
@@ -98,8 +97,8 @@ private fun HelpRow(ruleKey: String, isOpen: Boolean, onClick: () -> Unit) {
     ) {
         Text(
             text = strings[ruleKey],
-            color = Color.White,
-            fontSize = 15.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
         )
         // `AnimatedVisibility` rather than an `if`, so the text slides in instead of the row
@@ -107,8 +106,8 @@ private fun HelpRow(ruleKey: String, isOpen: Boolean, onClick: () -> Unit) {
         AnimatedVisibility(visible = isOpen) {
             Text(
                 text = strings["${ruleKey}_HELP"],
-                color = Color.White.copy(alpha = 0.8f),
-                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag(helpTextTestTag(ruleKey)),
             )
         }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -21,13 +22,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Achievement
 import com.tripletriad.model.AchievementCatalog
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.XpTable
+import com.tripletriad.ui.theme.LocalTtoColors
 import kotlin.math.roundToInt
 
 const val STATS_TABLE_TEST_TAG: String = "stats-table"
@@ -111,8 +112,8 @@ internal fun StatsScreen(profile: GameSave, onBack: () -> Unit) {
 
         Text(
             text = strings[StringKeys.ACHIEVEMENTS_LIST],
-            color = Color.White,
-            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 14.dp, bottom = 6.dp),
         )
@@ -165,11 +166,11 @@ private fun LevelBar(profile: GameSave) {
         Text(
             text = "${strings[StringKeys.LEVEL]} ${profile.level}$DOT_SEPARATOR" +
                 "${profile.xp} ${strings[StringKeys.XP]}",
-            color = Color.White,
-            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
         )
-        Meter(fraction = fraction, colour = BlueEdge)
+        Meter(fraction = fraction, colour = MaterialTheme.colorScheme.tertiary)
     }
 }
 
@@ -188,16 +189,16 @@ private fun StatRow(labelKey: String, value: String) {
     ) {
         Text(
             text = strings[labelKey],
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
         Text(
             text = value,
-            color = Color.White,
-            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             softWrap = false,
             modifier = Modifier.testTag(statsRowTestTag(labelKey)),
@@ -225,8 +226,9 @@ private fun AchievementRow(achievement: Achievement, profile: GameSave, isEarned
         ) {
             Text(
                 text = strings[achievement.labelKey],
-                color = if (isEarned) Color.White else Color.White.copy(alpha = 0.65f),
-                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurface
+                    .copy(alpha = if (isEarned) 1f else 0.65f),
+                style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -236,20 +238,29 @@ private fun AchievementRow(achievement: Achievement, profile: GameSave, isEarned
                 // The counter rather than a tick, because "300 of 3000" is the thing the original
                 // could not show at all and a tick is what the highlighted row already says.
                 text = "${progress.current} / ${progress.target}",
-                color = if (isEarned) BoonText else Color.White.copy(alpha = 0.6f),
-                fontSize = 11.sp,
+                color = if (isEarned) {
+                    LocalTtoColors.current.transient
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT)
+                },
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 softWrap = false,
             )
         }
         Text(
             text = strings["${achievement.labelKey}_DESC"],
-            color = Color.White.copy(alpha = 0.6f),
-            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+            style = MaterialTheme.typography.labelSmall,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        Meter(fraction = progress.fraction, colour = if (isEarned) BoonText else BlueEdge)
+        val fill = if (isEarned) {
+            LocalTtoColors.current.transient
+        } else {
+            MaterialTheme.colorScheme.tertiary
+        }
+        Meter(fraction = progress.fraction, colour = fill)
     }
 }
 
@@ -260,14 +271,14 @@ private fun Meter(fraction: Float, colour: Color) {
         modifier = Modifier
             .fillMaxWidth()
             .height(MeterHeight)
-            .clip(RowShape)
-            .background(RowBorder.copy(alpha = 0.5f)),
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth(fraction)
                 .height(MeterHeight)
-                .clip(RowShape)
+                .clip(MaterialTheme.shapes.small)
                 .background(colour),
         )
     }

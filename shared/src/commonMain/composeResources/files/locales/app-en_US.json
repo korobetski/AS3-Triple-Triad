@@ -9,6 +9,7 @@
   "APP_LOADING_CARDS": "loading cards…",
   "APP_MATCHES": "Matches",
   "APP_NO_ACHIEVEMENT": "No achievement earned yet.",
+  "APP_NO_FULL_DECK": "No complete deck — play a random hand, or build one first.",
   "APP_NO_OPPONENT": "No opponent is available at this hour.",
   "APP_NO_PROFILE": "No character yet — create one to play.",
   "APP_OBTAINED": "Obtained {0}",

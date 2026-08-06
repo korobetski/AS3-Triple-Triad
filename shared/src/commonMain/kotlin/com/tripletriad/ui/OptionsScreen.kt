@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -19,7 +20,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -68,7 +68,7 @@ internal fun OptionsScreen(settings: SettingsHolder, onBack: () -> Unit) {
     ) {
         Text(
             text = strings[StringKeys.SETTINGS],
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 20.dp),
@@ -90,8 +90,8 @@ internal fun OptionsScreen(settings: SettingsHolder, onBack: () -> Unit) {
             )
             Text(
                 text = strings[StringKeys.AUDIO_PENDING],
-                color = Color.White.copy(alpha = 0.45f),
-                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                style = MaterialTheme.typography.labelSmall,
             )
             VolumeRow(
                 label = strings[StringKeys.BACKGROUND_VOLUME],
@@ -108,7 +108,11 @@ internal fun OptionsScreen(settings: SettingsHolder, onBack: () -> Unit) {
                 onClick = onBack,
                 modifier = Modifier.padding(top = 24.dp).testTag(OPTIONS_BACK_TEST_TAG),
             ) {
-                Text(text = "‹ ${strings[StringKeys.BACK]}", color = BlueEdge, fontSize = 15.sp)
+                Text(
+                    text = "‹ ${strings[StringKeys.BACK]}",
+                    color = MaterialTheme.colorScheme.tertiary,
+                    style = MaterialTheme.typography.titleSmall,
+                )
             }
         }
     }
@@ -131,9 +135,9 @@ private fun LanguageChoice(settings: UserSettings, onPick: (AppLocale) -> Unit) 
                 label = { Text(locale.displayName, fontSize = 13.sp) },
                 shape = RoundedCornerShape(4.dp),
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = BlueCard,
-                    selectedLabelColor = Color.White,
-                    labelColor = Color.White.copy(alpha = 0.7f),
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onSurface,
+                    labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
                 ),
                 modifier = Modifier.testTag(optionsLanguageTestTag(locale)),
             )
@@ -158,8 +162,8 @@ private fun VolumeRow(
             // implementation detail and 0.6 means nothing on a slider.
             Text(
                 text = "${(value * PERCENT).toInt()}%",
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                style = MaterialTheme.typography.labelMedium,
             )
         }
         Slider(
@@ -167,9 +171,9 @@ private fun VolumeRow(
             onValueChange = onChange,
             modifier = Modifier.testTag(tag),
             colors = SliderDefaults.colors(
-                thumbColor = BlueEdge,
-                activeTrackColor = BlueEdge,
-                inactiveTrackColor = Color.White.copy(alpha = 0.15f),
+                thumbColor = MaterialTheme.colorScheme.tertiary,
+                activeTrackColor = MaterialTheme.colorScheme.tertiary,
+                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
             ),
         )
     }
@@ -179,8 +183,8 @@ private fun VolumeRow(
 private fun SectionHeading(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text.uppercase(),
-        color = BlueEdge,
-        fontSize = 11.sp,
+        color = MaterialTheme.colorScheme.tertiary,
+        style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Bold,
         modifier = modifier.padding(bottom = 4.dp),
     )
@@ -188,7 +192,7 @@ private fun SectionHeading(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Label(text: String) {
-    Text(text = text, color = Color.White, fontSize = 14.sp)
+    Text(text = text, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
 }
 
 private val PaneMaxWidth = 420.dp

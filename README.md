@@ -53,6 +53,7 @@ Everything below has been executed; the results are in
 ├── tools/import_locales.py      normalises the four AS3 string bundles
 ├── tools/make_launcher_icons.py regenerates the Android launcher icon from the AIR art
 ├── tools/import_sounds.py       copies the ten sounds this port plays into res/raw
+├── tools/import_fonts.py        copies Raleway — the AS3 theme's own face — and its licence
 ├── shared/                      KMP module: model + data + Compose UI
 │   └── src/
 │       ├── commonMain/
@@ -71,7 +72,9 @@ Everything below has been executed; the results are in
 │       │   │   ├── settings/SettingsStore.kt   interface + in-memory implementation
 │       │   │   ├── settings/UserSettings.kt    UserSettings.json, load/save, first run
 │       │   │   └── ui/
-│       │   │       ├── App.kt           root composable, 14 screens, back handling
+│       │   │       ├── theme/          the AS3 palette, Raleway, and the type scale
+│       │   │       ├── App.kt           root composable, back handling
+│       │   │       ├── Screen.kt        the 14 destinations, and where back goes from each
 │       │   │       ├── Startup.kt       StartupPhase, the splash's own model
 │       │   │       ├── SplashScreen.kt  logo + phase line + progress
 │       │   │       ├── MainMenuScreen.kt   play / characters / options / quit
@@ -86,6 +89,7 @@ Everything below has been executed; the results are in
 │       │   │       ├── ShopScreen.kt       the two shelves, and buying from them
 │       │   │       ├── StatsScreen.kt      the record, and all 22 achievements
 │       │   │       ├── HelpScreen.kt       the seventeen rules, as an accordion
+│       │   │       ├── DeckSelectorScreen.kt  which deck to play, inside the match
 │       │   │       ├── ItemRow.kt          naming, keying and refusing a bag item
 │       │   │       ├── Controls.kt      WideButton, the scaffolds, the shared row palette
 │       │   │       ├── CardArt.kt       texture loading, face cache, digit atlas
@@ -440,6 +444,7 @@ Fourteen destinations, in a `remember`ed enum. The shape is a tree of depth thre
 SPLASH ──(startup finishes)──▶ MENU ──▶ PROFILES ──▶ PROFILE_NEW
                                 │           │
                                 │           └──────▶ DASHBOARD ──▶ OPPONENTS ──▶ MATCH
+                                │                        │                        └ deck selector
                                 │                        ├───────▶ STATS
                                 │                        ├───────▶ CARDS
                                 │                        ├───────▶ DECKS
@@ -449,6 +454,11 @@ SPLASH ──(startup finishes)──▶ MENU ──▶ PROFILES ──▶ PROFI
                                 ├────▶ OPTIONS
                                 └────▶ onQuit  (the host's business)
 ```
+
+The deck selector is a **step inside the match**, not a destination — which is where the original
+put it, and for a reason: under `RULE_RANDOM` the hand is dealt from the whole collection and the
+panel never opens, so whether the player is asked at all is not known until the roulette has been
+drawn. `MatchScreen` resolves the rules first and asks only if they permit it.
 
 Every arrow reverses with the ‹ chevron or the system back gesture. **Play** on the menu goes to
 the dashboard when a character is loaded and to the character list when none is — the original's
@@ -541,6 +551,33 @@ Nearly every label came for free: `STR_PLAY`, `STR_SETTINGS`, `STR_QUIT`, `STR_L
 volume labels and both headings are all in the imported bundles, translated four ways. Only five
 new `APP_*` keys were needed — `APP_BACK`, `APP_AUDIO_PENDING` and three `APP_STARTUP_*` — which is
 why the app-owned count went from 5 to 10 and not to 17.
+
+## Theme
+
+One dark theme, built from `theme/BaseTTOTheme.as` rather than from Material's defaults:
+`PRIMARY_BACKGROUND_COLOR`, `LIST_BACKGROUND_COLOR`, `LIGHT_TEXT_COLOR` and the rest, transcribed in
+[`ui/theme/Colors.kt`](shared/src/commonMain/kotlin/com/tripletriad/ui/theme/Colors.kt) and pinned
+by `ThemeTest`. The card colours travel beside the scheme in `TtoColors`, because "the blue player's
+card" is not one of Material's thirty-odd colour roles and forcing it into `tertiaryContainer` would
+make every call site read as a lie about what it is drawing.
+
+**The font is Raleway**, which is what `BaseTTOTheme.as:118` declares and what `:115-116` embed —
+Regular as `normal`, Medium as `bold`, so the game's "bold" is a medium weight. The migration plan
+named Eurostile and warned that redistributing it might need a licence; Eurostile appears once in
+the whole AS3 source, drawing the `±N` modifier on a card, and Raleway ships under the SIL Open Font
+License with its own `OFL.txt`. `tools/import_fonts.py` copies both faces and the licence.
+
+Raleway has no CJK coverage, so `ja_JA` falls back per glyph to the platform face — Latin stays
+Raleway in the same line. The AS3 needed two `Noto-ja` bitmap fonts for this; Skia and Android do it
+themselves.
+
+The **type scale is re-anchored, not transcribed**. The AS3's four sizes (18/24/28/36) are pixels at
+326 DPI, which convert to about 9/12/14/18 dp — too small on anything that is not a 2013 Retina
+display. The ladder's shape is kept and its anchor is not, the same judgement the card geometry gets.
+
+Before this existed the app ran on `darkColorScheme()` and every Material control was hand-coloured
+at its call site to hide the default purple. Fourteen screens now read the theme, and no
+`Color.White` or `fontSize` literal is left in any of them.
 
 ## Audio
 

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -17,12 +18,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.data.ShopOffer
@@ -136,16 +135,16 @@ private fun OfferRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = itemName(strings, offer.item, cards),
-                color = Color.White.copy(alpha = alpha),
-                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = strings[offer.item.descriptionKey],
-                color = Color.White.copy(alpha = alpha * DESCRIPTION_ALPHA),
-                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha * DESCRIPTION_ALPHA),
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -153,8 +152,12 @@ private fun OfferRow(
 
         Text(
             text = "${offer.price} ${strings[StringKeys.MGP]}",
-            color = if (isAffordable) BlueEdge else Color.White.copy(alpha = alpha),
-            fontSize = 13.sp,
+            color = if (isAffordable) {
+                MaterialTheme.colorScheme.tertiary
+            } else {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
+            },
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             softWrap = false,
         )

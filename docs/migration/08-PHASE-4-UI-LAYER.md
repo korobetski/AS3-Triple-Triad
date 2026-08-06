@@ -6,7 +6,8 @@
 - **Duration**: 8 weeks (Weeks 13-20)
 - **Status**: IN PROGRESS — 2026-08-06. The playable loop was completed on 2026-08-02; **Tier 3 is
   now complete too** — the dashboard and the six screens behind it, so the collection, the decks,
-  the bag, the shop and the record are all reachable. Thirteen of the 32 screens exist; see
+  the bag, the shop, the record and the deck selector are all reachable. Fourteen of the 32 exist;
+  see
   § What was built for what is done, what is deliberately not, and what is left.
 - **Version**: 1.1
 - **Last Updated**: 2026-08-06
@@ -24,9 +25,10 @@ the logic all existed and none of it was reachable.
 **2026-08-06 — the character now has somewhere to live.** The dashboard and the six screens behind
 it: the collection browser, the deck editor, the bag, the shop, the record with its achievements,
 and the rules. Everything Phase 2 built a data layer for is now reachable, and everything those
-screens change is written through `ProfileSession` like the match result already was.
+screens change is written through `ProfileSession` like the match result already was. The **deck
+selector** landed with them, which is what turns "I built four decks" into a choice.
 
-Thirteen of the 32 screens exist. What is left is Tier 4's multiplayer (blocked on Phase 5), Tier 5,
+Fourteen of the 32 screens exist. What is left is Tier 4's multiplayer (blocked on Phase 5), Tier 5,
 drag-and-drop, and the theme system — all listed under § What is not done.
 
 ---
@@ -124,14 +126,111 @@ bundles, so the original showed the title twice and explained nothing. Shown as-
 imported Square Enix wording and writing three paragraphs of our own into them would be inventing
 source text.
 
+---
+
+## The deck selector (2026-08-06)
+
+`DeckSelectorScreen` — which deck to play this match with. Fourteen of the 32 screens now exist.
+
+### It is a step inside the match, not a destination ahead of it
+
+`BaseMatchScreen.deckSelectionPhase` (`:113-143`) is where the AS3 opens it, and the placement is
+load-bearing rather than incidental: **under `RULE_RANDOM` the panel never opens** — the hand is
+dealt from the whole collection and any chosen deck is ignored. Since the roulette can *add* Random
+to an opponent's declared rules, whether the player is asked at all is not known until the roulette
+has been drawn.
+
+So `PveMatches.assemble` was split. `rulesFor` resolves the rules — roulette included — and the
+result travels with the chosen deck as a `MatchPlan` into `assemble`. `MatchScreen` resolves the
+rules, shows the selector if they permit it, and assembles once a deck is settled. A caller that
+does not care still gets the old behaviour from one call: `assemble`'s default plan is the drawn
+rules plus the first complete deck.
+
+That split has to hold one property, and `PveMatchTest.resolvingTheRulesFirstDoesNotChangeTheMatch`
+is the test for it: resolving the rules separately must not cost a **second roulette draw**, which
+would play the match under rules the player was never shown.
+
+### The counter, and where it is incremented
+
+`PVEScreen.as:244` increments `STARTED_MATCHES` when the match screen is *launched* — which in the
+original is before the selector opens, since the panel is a child of that screen. So the write moved
+from match assembly to screen entry, and backing out of the selector is a forfeit. That is the
+behaviour the counter was designed for and it is asserted directly.
+
+### Three departures
+
+| | |
+|---|---|
+| **The first offered deck starts selected** | `chooseBtn.isEnabled = false` with nothing picked (`:117`), so the original always cost two taps. One deck is the common case and should be one tap |
+| **An empty list says why** | `if (deckCollection.length == 0) { }` is an empty block, so a player with no complete deck saw a blank panel. Random is always offered and always works — it draws from the collection, and every profile owns at least five cards |
+| **A deck's label follows its save slot** | Filtering the incomplete decks out would otherwise renumber the survivors, so an unnamed deck in slot 5 would read `Deck 2`. `playableDecks` returns `IndexedValue`s for this reason |
+
+The opponent's name and the rules in force are shown on the panel, which the original did not do
+here — `RulesDigest` is on the board, one screen later. Reverse or Fallen Ace turns a deck of aces
+into the wrong deck, so it is exactly what the choice should be made against.
+
+---
+
+## The theme system — Task 4.1 (2026-08-06)
+
+`ui/theme/` — `Colors.kt`, `Typography.kt`, `Theme.kt`, plus `tools/import_fonts.py`.
+
+### What was there instead
+
+`darkColorScheme()`, Material's default, whose primary is a lavender purple. Every Material control
+in the tree was hand-coloured at its call site to hide it — two `OutlinedTextField`s, a `Slider`, a
+`FilterChip` and the `Button` behind `WideButton` — and the shared palette was a handful of invented
+`Color(0xFF…)` constants at the bottom of `Controls.kt`. That is the shape of a missing theme: each
+new control is one more place to remember, and the one that forgets is purple.
+
+Fourteen screens now read `MaterialTheme.colorScheme`, `MaterialTheme.typography` and
+`MaterialTheme.shapes`. Ninety-odd `fontSize = 13.sp` literals and every `Color.White` are gone.
+
+### Two corrections to this document's Task 4.1
+
+| What the task says | What the source says |
+|---|---|
+| The theme font is **Eurostile**, and redistributing it may need a licence | `BaseTTOTheme.as:118` declares `FONT_NAME = "Raleway"` and `:115-116` embed exactly two weights of it. Eurostile appears **once** in the whole source, at `Card.as:81`, drawing the `±N` modifier on a card — a field this port does not render. And the licence caveat is about the wrong font: Raleway ships with its own `OFL.txt` and is redistributable, where `eurostile.TTF` ships with nothing |
+| `0xFF1a1a1a` and `0xFF2a2a2a` among the theme colours | Neither appears in any AS3 file. The transcription in `theme/Colors.kt` is from `BaseTTOTheme.as:124-137`, and `ThemeTest` holds it to those values |
+
+The task's own notes were right about the rest: the card colours *were* mixed up with the two
+`large*ElementFormat` text colours in an earlier revision, `MaterialTheme` cannot be assigned to a
+top-level `val`, and a `TextStyle` carrying a colour would silently override the scheme. All three
+are honoured.
+
+### Three decisions worth naming
+
+1. **`primary` is the card blue, not the AS3's accent.** `SELECTED_TEXT_COLOR` is an orange used for
+   the *selected* item in a list; Material's `primary` drives every filled button, slider and chip,
+   selected or not. Painting them orange would read as "everything is selected". The orange is
+   `secondary`, doing the job it does in the original, and the bright `largeBlueElementFormat` cyan
+   is `tertiary` — the affirmative accent behind a filled meter, an affordable price and a complete
+   deck. `primary` is the *dark* card blue and a bar filled with it reads as empty.
+2. **The type scale is re-anchored, not transcribed.** `BaseTTOTheme.as:669-672` declares 18/24/28/36
+   — but those are **pixels at 326 DPI**, which convert to roughly 9/12/14/18 dp. Nine dp is too
+   small on anything that is not a 2013 Retina display, so the ladder's *shape* is kept and its
+   anchor is not. The same judgement Task 4.2 records for the card geometry.
+3. **Every type slot carries the family, including the eight nothing names.** `Text`'s default style
+   is `typography.bodyLarge`, and a `Text` that sets `fontSize` without setting `style` still takes
+   its *family* from there — so naming seven slots would have left most of the screen in the platform
+   font while the theme claimed to have set one.
+
+### The `ja_JA` question the task raised, answered
+
+Raleway has no CJK coverage, and the task asks what happens to `ja_JA`. The AS3 needed the two
+`Noto-ja` bitmap fonts in `sources/bin/assets/fonts` for it. This port needs nothing: Skia and
+Android substitute per glyph, so Latin takes Raleway and kana and kanji take the system face in the
+same line. Checked by rendering the `ja_JA` screens and reading them — no test asserts it, because
+none of them can look at a glyph.
+
 ### Verification (2026-08-06)
 
 | | |
 |---|---|
 | Build | `./gradlew build` — ktlint, detekt at `maxIssues: 0`, all tests, `coverageVerify` |
-| Tests | **590** in `:shared` on desktop (up from 529), **454** on the Android host source set. New: `CollectionUiTest`, `DecksUiTest`, `InventoryUiTest`, `ShopUiTest`, `StatsUiTest`, `HelpUiTest`, `ShopCatalogTest`, plus two routing tests in `NavigationTest` |
-| Coverage | 97.4% line / 85.9% branch against the 90/75 gate — line up 0.6 points on the last pass |
-| i18n | The app-owned key count went 17 → **27**. Everything else the seven screens show was already translated four ways: the whole dashboard stack, `STR_USE` / `STR_SELL` / `STR_DISCARD` / `STR_BUY`, `STR_DECK_POWER`, every `RULE_*` name |
+| Tests | **608** in `:shared` on desktop (up from 529), **458** on the Android host source set. New: `CollectionUiTest`, `DecksUiTest`, `InventoryUiTest`, `ShopUiTest`, `StatsUiTest`, `HelpUiTest`, `DeckSelectorUiTest`, `ThemeTest`, `ShopCatalogTest`, plus routing tests in `NavigationTest` and four in `PveMatchTest` |
+| Coverage | 97.7% line / 85.8% branch against the 90/75 gate — line up 0.9 points on the last pass |
+| i18n | The app-owned key count went 17 → **28**. Everything else these screens show was already translated four ways: the whole dashboard stack, `STR_USE` / `STR_SELL` / `STR_DISCARD` / `STR_BUY`, `STR_DECK_POWER`, `STR_CHOOSE_DECK`, every `RULE_*` name |
 
 ---
 
@@ -168,8 +267,8 @@ opponent that plays itself, Open visibility, the rules strip, the result panel),
 | `dashboardScreen` | ✅ Tier 2 — the hub the other six hang off |
 | `cardPanel` | ✅ Tier 2, as `CardListScreen`'s detail panel |
 | `DecksScreen`, `InventoryScreen`, `cardListScreen`, `profileScreen`, `shopScreen` | ✅ Tier 3, all five |
+| `DeckSelector` | ✅ Tier 2 — a step inside the match, as in the original |
 | `playerPanel` | ⏳ Tier 2 — the hand is a composable inside `MatchScreen`, not a screen |
-| `DeckSelector` | ⏳ Tier 2 — the first complete deck is played; see below. The deck *editor* now exists, which is what it was waiting on |
 | `PVPScreen` and the six group / rematch screens | ⏳ Tier 4, and blocked on Phase 5 |
 | `TutorialScreen`, `BackstageScreen`, `EmptyScreen` | ⏳ Tier 5 — `BackstageScreen` is gated on `PROFILE_DATAS.ADMIN`, which nothing in the game ever sets |
 
@@ -238,16 +337,12 @@ ids index — switching it later would silently reinterpret every card the profi
 
 *Updated 2026-08-06.*
 
-- **Nineteen screens**, listed in the table above — down from twenty-six. What is left is Tier 4's
+- **Eighteen screens**, listed in the table above — down from twenty-six. What is left is Tier 4's
   multiplayer (nine screens, blocked on Phase 5 and on **TR-007**: multiplayer does not function in
-  the AS3 source either), Tier 5's three, `playerPanel` and `DeckSelector`.
-- **Deck selection before a match.** The deck *editor* now exists; the match still plays the first
-  complete deck. `DeckSelector` is the screen that turns "I built four decks" into a choice, and it
-  is the obvious next thing.
+  the AS3 source either), Tier 5's three, `playerPanel`, and the five embedded match components the
+  port draws inside `MatchScreen` rather than as classes of their own.
 - **Drag and drop** (Task 4.7). Placement is tap-a-card-then-tap-a-cell. The original dragged, and
   `Tile.CARD_DROPED_ON_TILE_EVENT` is what that maps to.
-- **The theme system** (Task 4.1) as a system. Colours and shapes are `Controls.kt` constants and
-  `CardColors.kt`; there is no `TTOTheme` equivalent and no typography scale.
 - **The pre-match animations.** `MatchIntroStep` is computed and handed to the UI, which ignores it.
   Those are the twenty-three `anims/` classes, and they are Phase 6.
 - **`DesktopDocumentStore` and `AndroidDocumentStore` have no tests.** Neither host module has a test
@@ -472,9 +567,13 @@ fun TripleTriadTheme(content: @Composable () -> Unit) {
 > Eurostile may itself require a licence.
 
 **Acceptance Criteria**:
-- [ ] Theme colors match original
-- [ ] Typography matches original
-- [ ] Theme is applied consistently
+- [x] Theme colors match original — transcribed from `BaseTTOTheme.as:124-137`, pinned by `ThemeTest`
+- [x] Typography matches original — Raleway, the two weights the AS3 embeds; the *scale* is
+      re-anchored for density rather than transcribed, and § The theme system says why
+- [x] Theme is applied consistently — no `Color.White`, no `fontSize` literal and no per-call-site
+      Material override left in the fourteen screens
+
+Done 2026-08-06. See § The theme system for what this document got wrong about the font.
 
 ---
 
@@ -1408,4 +1507,4 @@ sign-off is a separate step and has not happened.
 ---
 
 *Generated: 2026-07-21*  
-*Status: IN PROGRESS — 2026-08-06. The playable loop and Tier 3 are done; 19 of 32 screens are not, and nine of those are blocked on Phase 5. See § What was built.*
+*Status: IN PROGRESS — 2026-08-06. The playable loop, Tier 3 and the deck selector are done; 18 of 32 screens are not, and nine of those are blocked on Phase 5. See § What was built.*

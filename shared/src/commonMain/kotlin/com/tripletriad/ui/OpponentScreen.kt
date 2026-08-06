@@ -1,7 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,18 +8,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -29,6 +25,7 @@ import com.tripletriad.i18n.Strings
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.Npc
+import com.tripletriad.ui.theme.LocalTtoColors
 
 const val OPPONENT_LIST_TEST_TAG: String = "opponent-list"
 const val OPPONENT_EMPTY_TEST_TAG: String = "opponent-empty"
@@ -72,8 +69,8 @@ internal fun OpponentScreen(
         if (opponents.isEmpty()) {
             Text(
                 text = strings[StringKeys.NO_OPPONENT],
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.testTag(OPPONENT_EMPTY_TEST_TAG).padding(vertical = 24.dp),
             )
         } else {
@@ -97,9 +94,7 @@ private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
         modifier = Modifier
             .testTag(opponentRowTestTag(npc.iconId))
             .fillMaxWidth()
-            .clip(RowShape)
-            .background(RowBackground)
-            .border(1.dp, RowBorder, RowShape)
+            .rowSurface()
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -111,8 +106,8 @@ private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
         ) {
             Text(
                 text = strings[npc.nameKey],
-                color = Color.White,
-                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -120,8 +115,8 @@ private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
             )
             Text(
                 text = strings[npc.level.labelKey],
-                color = BlueCard,
-                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 softWrap = false,
             )
@@ -129,8 +124,8 @@ private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
 
         Text(
             text = rewardLine(strings, npc),
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -142,8 +137,8 @@ private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
         if (rules.isNotEmpty()) {
             Text(
                 text = rules.joinToString(DOT_SEPARATOR) { strings[it] },
-                color = BoonText,
-                fontSize = 11.sp,
+                color = LocalTtoColors.current.transient,
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

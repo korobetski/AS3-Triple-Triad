@@ -8,19 +8,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.GameSave
@@ -88,8 +87,9 @@ internal fun MainMenuScreen(
                     "${strings[StringKeys.LEVEL]} ${it.level}",
                 ).joinToString(DOT_SEPARATOR)
             } ?: strings[StringKeys.NO_PROFILE],
-            color = Color.White.copy(alpha = if (active == null) 0.5f else 0.8f),
-            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurface
+                .copy(alpha = if (active == null) 0.5f else 0.8f),
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.testTag(MENU_PROFILE_TEST_TAG).padding(top = 16.dp),

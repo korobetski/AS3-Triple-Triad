@@ -1,7 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -23,8 +22,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -82,8 +79,8 @@ internal fun ProfileListScreen(
         if (session.isLoaded && session.slots.isEmpty()) {
             Text(
                 text = strings[StringKeys.NO_PROFILE],
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.testTag(PROFILE_EMPTY_TEST_TAG).padding(vertical = 24.dp),
             )
         } else {
@@ -136,9 +133,7 @@ private fun ProfileRow(
         modifier = Modifier
             .testTag(profileRowTestTag(slot.key))
             .fillMaxWidth()
-            .clip(RowShape)
-            .background(RowBackground)
-            .border(1.dp, if (isArmed) ArmedBorder else RowBorder, RowShape)
+            .rowSurface(armed = isArmed)
             .clickable(onClick = onSelect)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -147,8 +142,8 @@ private fun ProfileRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = save.username,
-                color = Color.White,
-                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -159,8 +154,8 @@ private fun ProfileRow(
                     "${strings[StringKeys.LEVEL]} ${save.level}",
                     "${save.mgp} ${strings[StringKeys.MGP]}",
                 ).joinToString(DOT_SEPARATOR),
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -170,15 +165,19 @@ private fun ProfileRow(
                     "${save.stats.draws} ${strings[StringKeys.DRAWS]}",
                     "${save.stats.defeats} ${strings[StringKeys.DEFEATS]}",
                 ).joinToString(DOT_SEPARATOR),
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         Text(
             text = if (isArmed) strings[StringKeys.DELETE] else "×",
-            color = if (isArmed) ArmedBorder else Color.White.copy(alpha = 0.5f),
+            color = if (isArmed) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            },
             fontSize = if (isArmed) 12.sp else 18.sp,
             maxLines = 1,
             softWrap = false,
@@ -218,20 +217,20 @@ internal fun ProfileCreateScreen(
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedContainerColor = RowBackground,
-                unfocusedContainerColor = RowBackground,
-                focusedIndicatorColor = BlueCard,
-                unfocusedIndicatorColor = RowBorder,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
             ),
             modifier = Modifier.testTag(PROFILE_NAME_TEST_TAG).fillMaxWidth(),
         )
 
         Text(
             text = strings[StringKeys.COLLECTION],
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(top = 16.dp),
         )
         Row(
@@ -274,17 +273,15 @@ private fun CollectionChoice(
     Box(
         modifier = modifier
             .testTag(collectionChoiceTestTag(collection))
-            .clip(RowShape)
-            .background(if (isSelected) BlueCard.copy(alpha = 0.35f) else RowBackground)
-            .border(1.dp, if (isSelected) BlueCard else RowBorder, RowShape)
+            .rowSurface(selected = isSelected)
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = collectionLabel(collection),
-            color = Color.White,
-            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
         )
     }

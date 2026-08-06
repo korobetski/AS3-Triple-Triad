@@ -203,6 +203,9 @@ class MatchAudioTest {
         waitForIdle()
 
         assertTrue(Sound.NEW_MATCH in audio, "played: ${audio.played}")
+        // The deal sound comes with the cards, which is now after the deck is settled rather than
+        // when the screen opens — the two were the same moment before the selector existed.
+        settleDeck()
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { Sound.MATCH_OPEN in audio }
     }
 

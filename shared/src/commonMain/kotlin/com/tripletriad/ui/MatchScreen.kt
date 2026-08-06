@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +46,7 @@ import com.tripletriad.audio.AudioPlayer
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.Sound
 import com.tripletriad.data.CardCatalog
+import com.tripletriad.data.MatchPlan
 import com.tripletriad.data.MatchReward
 import com.tripletriad.data.MatchRewards
 import com.tripletriad.data.PveMatches
@@ -166,13 +168,17 @@ internal fun MatchScreen(
     // draw from it. Seeded from the clock so successive matches differ, which also makes a test
     // with a `FixedClock` fully deterministic.
     val random = remember(matchIndex, npc.iconId) { Random(clock.nowMillis() + matchIndex) }
-    val match = remember(matchIndex, npc.iconId) {
-        PveMatches.assemble(profile, npc, catalog, random)
+
+    // Resolved before the deck is asked for, because the answer decides whether it is asked at all:
+    // under `RULE_RANDOM` the hand comes from the whole collection and the selector never opens
+    // (`BaseMatchScreen.as:120-135`). Drawn once and passed into `assemble`, which would otherwise
+    // roll the roulette a second time and play under rules the player was never shown.
+    val rules = remember(matchIndex, npc.iconId) {
+        PveMatches.rulesFor(npc, profile.mode, random)
     }
-    val ai = remember { MatchAi() }
 
     /*
-     * The profile this match is played by, captured **once** when the match is assembled.
+     * The profile this match is played by, captured **once** when the match screen opens.
      *
      * Not `profile` read inside the effects below: that parameter tracks `session.active`, which
      * changes the moment `onPersist` returns, so the crediting effect would see a profile that had
@@ -180,21 +186,52 @@ internal fun MatchScreen(
      * started. Capturing it here is also what makes the two effects agree on which profile they are
      * amending.
      */
-    val playing = remember(match) { profile.startingMatch(againstNpc = true) }
+    val playing = remember(matchIndex, npc.iconId) { profile.startingMatch(againstNpc = true) }
+
+    // `PVEScreen.as:244` — the match is counted as started when it is launched, not when it ends,
+    // which is what makes `STATS.FORFEITS` (`STARTED_MATCHES - ENDED_MATCHES`) mean anything. That
+    // is *before* the deck selector in the original too, since the selector is inside the match
+    // screen: walking out of it is the forfeit this counter was designed for.
+    //
+    // Written here, unlike the original: the AS3 increments the counter on a global and only saves
+    // in `endGame`, so a match abandoned before the last placement loses the increment and forfeits
+    // can never be anything but zero. Persisting at the start is what the field was designed for.
+    LaunchedEffect(matchIndex, npc.iconId) {
+        onPersist(playing)
+    }
+
+    // Null until the player has chosen, which under Random they never are asked to.
+    var deck by remember(matchIndex, npc.iconId) {
+        mutableStateOf(if (rules.random) PveMatches.playerDeck(profile) else null)
+    }
+    val chosen = deck
+    if (chosen == null) {
+        DeckSelectorScreen(
+            profile = profile,
+            catalog = catalog,
+            npc = npc,
+            rules = rules,
+            onChoose = { deck = it },
+            onBack = onExit,
+            random = random,
+        )
+        return
+    }
+
+    val match = remember(matchIndex, npc.iconId, chosen) {
+        PveMatches.assemble(profile, npc, catalog, random, MatchPlan(rules, chosen))
+    }
+    val ai = remember { MatchAi() }
+
     var state by remember(match) { mutableStateOf(match.setup.state) }
     var visibility by remember(match) { mutableStateOf(match.setup.opponentVisibility) }
     var selected by remember(match) { mutableStateOf<Card?>(null) }
     var reward by remember(match) { mutableStateOf<MatchReward?>(null) }
 
-    // `PVEScreen.as:244` — the match is counted as started when it is launched, not when it ends,
-    // which is what makes `STATS.FORFEITS` (`STARTED_MATCHES - ENDED_MATCHES`) mean anything.
-    //
-    // Written here, unlike the original: the AS3 increments the counter on a global and only saves
-    // in `endGame`, so a match abandoned before the last placement loses the increment and forfeits
-    // can never be anything but zero. Persisting at the start is what the field was designed for.
+    // The deal, which is now a frame later than the screen opening: the cards are dealt once a deck
+    // is settled on, and that is what this sound is announcing.
     LaunchedEffect(match) {
         audio.play(Sound.MATCH_OPEN)
-        onPersist(playing)
     }
 
     // The opponent's turn. Keyed on the placement count, so it fires once per turn and again
@@ -319,7 +356,7 @@ private fun RulesStrip(rules: GameRules) {
     Text(
         text = keys.joinToString(DOT_SEPARATOR) { strings[it] },
         color = RuleStripText,
-        fontSize = 11.sp,
+        style = MaterialTheme.typography.labelSmall,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
@@ -350,9 +387,9 @@ private fun OutcomePanel(
             .testTag(MATCH_RESULT_TEST_TAG)
             .widthIn(max = ContentMaxWidth)
             .padding(16.dp)
-            .clip(RowShape)
+            .clip(MaterialTheme.shapes.small)
             .background(PanelBackground)
-            .border(1.dp, RowBorder, RowShape)
+            .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -363,14 +400,14 @@ private fun OutcomePanel(
                 MatchResult.LOSE -> strings[StringKeys.YOU_LOSE]
                 MatchResult.DRAW -> strings[StringKeys.DRAW]
             },
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
         )
         Text(
             text = opponentName,
-            color = Color.White.copy(alpha = 0.6f),
-            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -382,7 +419,7 @@ private fun OutcomePanel(
                 if (reward.xp > 0) add("+${reward.xp} ${strings[StringKeys.XP]}")
             }.joinToString(DOT_SEPARATOR),
             color = PayoutText,
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.testTag(MATCH_PAYOUT_TEST_TAG),
         )
@@ -390,8 +427,8 @@ private fun OutcomePanel(
         if (reward.items.isNotEmpty()) {
             Text(
                 text = "${strings[StringKeys.REWARDS]}: ${reward.items.size}",
-                color = Color.White.copy(alpha = 0.8f),
-                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.labelMedium,
             )
         }
         for (achievement in reward.achievements) {
@@ -399,7 +436,7 @@ private fun OutcomePanel(
                 text = strings[StringKeys.ACHIEVEMENT_EARNED] + " — " +
                     strings[achievement.labelKey],
                 color = RuleStripText,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -530,8 +567,8 @@ private fun StatusBar(
         // reaches the same place — see `App`.
         Text(
             text = "‹",
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 18.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier
                 .testTag(MATCH_EXIT_TEST_TAG)
                 .clickable(onClick = onExit)
@@ -561,7 +598,7 @@ private fun StatusBar(
         Text(
             text = opponentName,
             color = CardColor.RED.edge,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis,
@@ -580,8 +617,8 @@ private fun Score(state: MatchState) {
             append(" — ")
             withStyle(SpanStyle(color = CardColor.RED.edge)) { append(score.red.toString()) }
         },
-        color = Color.White,
-        fontSize = 14.sp,
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.Bold,
         modifier = Modifier.testTag(SCORE_TEST_TAG),
     )
@@ -612,8 +649,8 @@ private fun TurnLine(state: MatchState, selected: Card?) {
                 is MatchOutcome.SuddenDeath ->
                     "${strings[StringKeys.DRAW]} — ${strings[StringKeys.SUDDEN_DEATH]}"
             },
-            color = Color.White,
-            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.testTag(OUTCOME_TEST_TAG),
         )
@@ -630,7 +667,7 @@ private fun TurnLine(state: MatchState, selected: Card?) {
             else -> strings.format(StringKeys.TURN_PICK_CELL, side, selected.name)
         },
         color = player.edge,
-        fontSize = 13.sp,
+        style = MaterialTheme.typography.bodySmall,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.testTag(TURN_TEST_TAG),
@@ -681,7 +718,7 @@ private fun TileCell(
             element?.let {
                 Text(
                     text = it.name.take(ELEMENT_LABEL_CHARS),
-                    color = Color.White.copy(alpha = 0.35f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
                     fontSize = ElementFontSize * scale,
                 )
             }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,12 +23,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -82,8 +81,8 @@ internal fun CardListScreen(profile: GameSave, catalog: CardCatalog, onBack: () 
             // no card in its own collection cannot push the total past the collection's size.
             text = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
                 "${cards.count { it.id in owned }} / ${cards.size}",
-            color = Color.White.copy(alpha = 0.75f),
-            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+            style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG).padding(bottom = 8.dp),
         )
@@ -158,16 +157,16 @@ private fun CardDetail(card: Card?) {
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
                         text = strings[card.nameKey],
-                        color = Color.White,
-                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = cardFacts(strings, card),
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+                        style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -178,8 +177,8 @@ private fun CardDetail(card: Card?) {
                     if (strings.has(description)) {
                         Text(
                             text = strings[description],
-                            color = Color.White.copy(alpha = 0.6f),
-                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                            style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.verticalScroll(rememberScrollState()),
                         )
                     }
