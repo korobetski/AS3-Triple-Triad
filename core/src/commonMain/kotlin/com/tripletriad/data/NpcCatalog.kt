@@ -4,8 +4,6 @@ import com.tripletriad.model.CardCollection
 import com.tripletriad.model.Npc
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.jetbrains.compose.resources.ExperimentalResourceApi
-import tripletriad.shared.generated.resources.Res
 
 /**
  * The two NPC tables of `sources/src/tto/datas/NPCs.as`, as extracted by
@@ -53,20 +51,9 @@ data class NpcCatalog(
             .sortedWith(compareBy({ it.difficulty }, { it.matchFee }, { it.nameKey.lowercase() }))
 }
 
-/**
- * Parses the NPC catalog. Split out from [loadNpcCatalog] so it can be tested in `commonTest`
- * without a resource loader, exactly as [CardCatalogParser] is.
- */
+/** Parses the NPC catalog. Split from its loader for the same reason [CardCatalogParser] is. */
 object NpcCatalogParser {
     private val json = Json { ignoreUnknownKeys = true }
 
     fun parse(text: String): NpcCatalog = json.decodeFromString(text)
 }
-
-/** Path of the catalog inside `commonMain/composeResources`. */
-const val NPC_CATALOG_PATH: String = "files/npcs.json"
-
-/** Reads and parses `npcs.json` out of the Compose Multiplatform resource bundle. */
-@OptIn(ExperimentalResourceApi::class)
-suspend fun loadNpcCatalog(): NpcCatalog =
-    NpcCatalogParser.parse(Res.readBytes(NPC_CATALOG_PATH).decodeToString())

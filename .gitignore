@@ -1,6 +1,8 @@
 .gradle/
 build/
 local.properties
+# Local Docker environment; see .env.sample for the template.
+.env
 .kotlin/
 .idea/
 *.iml

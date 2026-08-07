@@ -8,6 +8,13 @@ Phase 0, Task 1.3 deliverable 4.
 > vestige of a chat server the client no longer speaks to. See TR-007 in
 > [16-RISK-ASSESSMENT.md](../migration/16-RISK-ASSESSMENT.md).
 
+> ⚠️ **The protocol described here is not being ported.** The socket architecture was abandoned on
+> 2026-07-25 and the replacement is a different design entirely — a replayable signed transcript
+> verified server-side, sketched in
+> [09-PHASE-5-NETWORK.md](../migration/09-PHASE-5-NETWORK.md) § The shape of the network layer.
+> What follows keeps its value as the record of what the AS3 client attempted, and the 27 dead
+> handlers remain useful as **design input** for the message set a new protocol will need.
+
 ---
 
 ## 1. What actually works today

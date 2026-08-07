@@ -4,12 +4,11 @@
 
 - **Phase**: 4 - UI Layer
 - **Duration**: 8 weeks (Weeks 13-20)
-- **Status**: IN PROGRESS — 2026-08-06. The playable loop was completed on 2026-08-02; **Tier 3 is
-  now complete too** — the dashboard and the six screens behind it, so the collection, the decks,
-  the bag, the shop, the record and the deck selector are all reachable. Fourteen of the 32 exist;
-  see
-  § What was built for what is done, what is deliberately not, and what is left.
-- **Version**: 1.1
+- **Status**: IN PROGRESS — 2026-08-06. The playable loop, all of Tier 3, the deck selector, the
+  theme system, drag-and-drop and the turn timer are done: **20 of the 32 screens**. Of the twelve
+  left, only two are blocked on Phase 5 — six more are filed under multiplayer and are single-player
+  ladders, two wait on Phase 6, and two will not be ported. See § What was built.
+- **Version**: 1.2
 - **Last Updated**: 2026-08-06
 - **Prerequisites**: Phases 1-3
 
@@ -28,8 +27,9 @@ and the rules. Everything Phase 2 built a data layer for is now reachable, and e
 screens change is written through `ProfileSession` like the match result already was. The **deck
 selector** landed with them, which is what turns "I built four decks" into a choice.
 
-Fourteen of the 32 screens exist. What is left is Tier 4's multiplayer (blocked on Phase 5), Tier 5,
-drag-and-drop, and the theme system — all listed under § What is not done.
+**20 of the 32 screens exist and 12 are left**, of which only two — `PVPScreen` and
+`PVPMatchScreen` — are blocked on Phase 5. Six more are filed under multiplayer and are nothing of
+the kind; two will not be ported at all. See § Screens, against the plan's tiers.
 
 ---
 
@@ -130,7 +130,7 @@ source text.
 
 ## The deck selector (2026-08-06)
 
-`DeckSelectorScreen` — which deck to play this match with. Fourteen of the 32 screens now exist.
+`DeckSelectorScreen` — which deck to play this match with.
 
 ### It is a step inside the match, not a destination ahead of it
 
@@ -223,13 +223,99 @@ Android substitute per glyph, so Latin takes Raleway and kana and kanji take the
 same line. Checked by rendering the `ja_JA` screens and reading them — no test asserts it, because
 none of them can look at a glyph.
 
+---
+
+## Drag and drop — Task 4.7 (2026-08-06)
+
+`ui/BoardDragState.kt`, plus the hand and the board in the new `ui/MatchBoard.kt`.
+
+Pick a card up, carry it to a cell, let go. A ghost card follows the finger, the cell under it takes
+a highlight, and the card left in the hand dims rather than vanishing — pulling it out would
+re-lay-out the four beside it in the middle of the gesture.
+
+### Tapping is not replaced, which the task asks for and the original does
+
+Task 4.7 ends on "do not ship drag-only", and `Card.onTouch` dispatches `TRIGGERED` on a tap *and*
+starts a drag on a move (`Card.as:126-151`), with `Tile.onTouch` handling the second tap. Both are
+here. Compose keeps them apart on its own: `clickable` gives up once the pointer passes touch slop,
+which is the same threshold `detectDragGestures` starts at.
+
+### One correction to the task's sketch
+
+It hit-tests in "the board's coordinate space" and accumulates `dragPosition += delta` from
+`onDragStart`'s offset — but **that offset is local to the dragged card**, so the pointer and the
+cell bounds are measured from different origins and the hit test is wrong by the card's position on
+screen. Everything here is in **root** coordinates instead: a dragged card converts its pointer with
+`localToRoot`, a cell registers `boundsInRoot`, and no shared parent has to be found and threaded
+through. The task's larger point stands — `Modifier.dragAndDropTarget` is for drags *between
+applications* and is not what this needs.
+
+### An occupied cell refuses earlier than the original's
+
+`Tile.onDragDrop` accepts the drop and then checks `this.card == null` (`Tile.as:115`), so the
+refusal happens after the finger lifts. Here a taken cell does not register its bounds at all, so it
+never highlights — the player sees the refusal while still holding the card.
+
+The same gate covers the rules: only the player's own **playable** cards can be lifted, which is
+`Card._draggable` (`:137`) plus `RULE_ORDER` and `RULE_CHAOS`. Dragging a card the rules forbid and
+having the drop silently do nothing is worse feedback than not being able to lift it.
+
+### `MatchScreen.kt` was split
+
+It crossed detekt's twenty-functions-per-file, which was the right moment: the board, the hands, the
+drag and the layout arithmetic are now `MatchBoard.kt`, and `MatchScreen.kt` keeps the match — its
+state, its effects, the status bar and the result panel. `canPlay` is the one guard behind both ways
+of playing a card, because a pair of guards that check the same three things is exactly the pair
+that drifts apart.
+
+---
+
+## The turn timer — `playerPanel` (2026-08-06)
+
+Tier 2's `playerPanel` is listed in the plan as a screen, and read as one it is a nothing: a name
+label and a hand, both of which this port already draws. Read as *code* it holds a **game mechanic
+that was missing** — a thirty-second turn limit that plays a card for you when it runs out.
+
+| | |
+|---|---|
+| `playerPanel.as:37` | `_timer = 30` |
+| `BaseMatchScreen.as:377-387` | `setTimer()` on the side to move, `razTimer()` on the other |
+| `BaseMatchScreen.as:93` | `TIME_UP_EVENT` on the blue player → `timeUp_play` |
+| `BaseMatchScreen.as:422-437` | `autoPlay()` — a **random** remaining card on a **random** free cell |
+
+So letting the clock run out does not pass the turn: it plays a move you did not choose. That
+randomness is the penalty, which is why the port draws the card at random too rather than reusing
+`MatchAi` — the opponent's AI would make a *good* move, and being rewarded for inattention is not
+what the original does. Under `RULE_ORDER` the AS3 takes `remainingCards[0]`, which `playable()`
+already narrows to, so the rule is honoured without being restated.
+
+### One bar, not two
+
+The original arms **both** players' timers but listens to only one: `:93` attaches the handler to
+`bluePlayer` and to nothing else, so red's bar counts down and expiring does nothing. Red is driven
+by `opponentPhase` instead, which in this port answers in 700 ms and could never reach thirty
+seconds. A bar that cannot expire is decoration, so there is one.
+
+It sits under the status line rather than over the hand, where `playerPanel` put it: the hand here is
+sized to the cards by `MatchLayout`, and a bar inside it would either shrink them or be drawn across
+them. It turns red under a quarter remaining, which the original does not do — its bar is one colour
+the whole way down, and thirty seconds is long enough that a shortening bar is easy to miss.
+
+### The limit is a parameter
+
+`MatchScreen(turnLimit = …)`, defaulting to the AS3's thirty seconds. `TutorialScreen.as:58` raises
+it to sixty for its lesson and `PVPScreen.as:277` sets it back to thirty, so the number is already
+per-match in the original. It is also what lets `TurnTimerTest` reach the expiry without waiting for
+it — that test composes `MatchScreen` directly rather than threading a test-only argument down four
+screens.
+
 ### Verification (2026-08-06)
 
 | | |
 |---|---|
 | Build | `./gradlew build` — ktlint, detekt at `maxIssues: 0`, all tests, `coverageVerify` |
-| Tests | **608** in `:shared` on desktop (up from 529), **458** on the Android host source set. New: `CollectionUiTest`, `DecksUiTest`, `InventoryUiTest`, `ShopUiTest`, `StatsUiTest`, `HelpUiTest`, `DeckSelectorUiTest`, `ThemeTest`, `ShopCatalogTest`, plus routing tests in `NavigationTest` and four in `PveMatchTest` |
-| Coverage | 97.7% line / 85.8% branch against the 90/75 gate — line up 0.9 points on the last pass |
+| Tests | **617** in `:shared` on desktop (up from 529), **458** on the Android host source set. New: `CollectionUiTest`, `DecksUiTest`, `InventoryUiTest`, `ShopUiTest`, `StatsUiTest`, `HelpUiTest`, `DeckSelectorUiTest`, `ThemeTest`, `DragAndDropTest`, `TurnTimerTest`, `ShopCatalogTest`, plus routing tests in `NavigationTest` and four in `PveMatchTest` |
+| Coverage | 97.8% line / 86.2% branch against the 90/75 gate — line up 1.0 point on the last pass |
 | i18n | The app-owned key count went 17 → **28**. Everything else these screens show was already translated four ways: the whole dashboard stack, `STR_USE` / `STR_SELL` / `STR_DISCARD` / `STR_BUY`, `STR_DECK_POWER`, `STR_CHOOSE_DECK`, every `RULE_*` name |
 
 ---
@@ -268,9 +354,37 @@ opponent that plays itself, Open visibility, the rules strip, the result panel),
 | `cardPanel` | ✅ Tier 2, as `CardListScreen`'s detail panel |
 | `DecksScreen`, `InventoryScreen`, `cardListScreen`, `profileScreen`, `shopScreen` | ✅ Tier 3, all five |
 | `DeckSelector` | ✅ Tier 2 — a step inside the match, as in the original |
-| `playerPanel` | ⏳ Tier 2 — the hand is a composable inside `MatchScreen`, not a screen |
-| `PVPScreen` and the six group / rematch screens | ⏳ Tier 4, and blocked on Phase 5 |
-| `TutorialScreen`, `BackstageScreen`, `EmptyScreen` | ⏳ Tier 5 — `BackstageScreen` is gated on `PROFILE_DATAS.ADMIN`, which nothing in the game ever sets |
+| `playerPanel` | ✅ Tier 2 — its **turn timer** is what it held; the hand and the name were already drawn |
+| `PVPScreen`, `PVPMatchScreen` | ⏳ Tier 4 / Tier 2 — the only two that touch the socket, so the only two Phase 5 blocks |
+| `CCGroupScreen`, `GSGroupScreen`, `CCGroupMatchScreen`, `GSGroupMatchScreen`, `CCGroupRematchPanel`, `GSGroupRematchPanel` | ⏳ Tier 4 on paper, **single-player in fact** — see below |
+| `TutorialScreen`, `TutorialRematchPanel` | ⏳ Tier 5 / Tier 4 — scripted PvE; waits on `TalkAnim`, which is Phase 6 |
+| `BackstageScreen`, `EmptyScreen` | ⏳ Tier 5, and **neither is reachable** — see below |
+
+**20 of the 32 are done and 12 are left.** That tally was wrong in earlier revisions of this
+document — it read fifteen and seventeen — because each pass incremented the previous number instead
+of recounting against the plan's own tier lists. Per tier: 4 of 4, 9 of 10, 5 of 5, 2 of 10, 0 of 3.
+
+### Six of the eight "multiplayer" screens are not multiplayer
+
+`grep -c Socket` is **0** on all six of the group screens and panels, and `CCGroupScreen.as:98` /
+`GSGroupScreen.as:98` increment `PVE_MATCHES`, not `PVP_MATCHES`. They are single-player tournament
+ladders — pay 500 MGP, then play five to seven fixed opponents in sequence — and nothing blocks
+them. Only `PVPScreen` and `PVPMatchScreen` reach `tto.net.Socket`.
+
+The work in them is **data, not UI**: `CCGroupMatchScreen.as:30-70` declares its opponents inline as
+`NPC` records with their own rules, card pools and drop tables. That is the shape `shopScreen` had
+before Phase 2 pulled its price tables out into `ShopCatalog`, and it wants the same treatment
+first.
+
+### Two Tier 5 screens will not be ported, and here is why
+
+- **`EmptyScreen`** is an empty `Screen` subclass — three overrides that call `super` and nothing
+  else — and it has **no `addScreen` entry in `Game.as`**, so nothing can navigate to it. It is a
+  template left in the tree. There is nothing to port.
+- **`BackstageScreen`** dumps `JSON.stringify(Game.PROFILE_DATAS)` into a `TextArea` and
+  `JSON.parse`s it back on Save. It is gated on `PROFILE_DATAS.ADMIN`, which `Save.as` sets to 0 and
+  **nothing ever writes**. It is a save-file editor that the shipped game cannot open; porting it
+  would be shipping a cheat console.
 
 ### The collection choice is new, not ported
 
@@ -337,14 +451,13 @@ ids index — switching it later would silently reinterpret every card the profi
 
 *Updated 2026-08-06.*
 
-- **Eighteen screens**, listed in the table above — down from twenty-six. What is left is Tier 4's
-  multiplayer (nine screens, blocked on Phase 5 and on **TR-007**: multiplayer does not function in
-  the AS3 source either), Tier 5's three, `playerPanel`, and the five embedded match components the
-  port draws inside `MatchScreen` rather than as classes of their own.
-- **Drag and drop** (Task 4.7). Placement is tap-a-card-then-tap-a-cell. The original dragged, and
-  `Tile.CARD_DROPED_ON_TILE_EVENT` is what that maps to.
+- **Twelve screens**, listed in the table above — down from twenty-six, and not the seventeen
+  earlier revisions of this document claimed. Two are blocked on Phase 5 and on **TR-007**
+  (multiplayer does not function in the AS3 source either); six are single-player ladders that
+  nothing blocks; two wait on Phase 6's `TalkAnim`; two will not be ported.
 - **The pre-match animations.** `MatchIntroStep` is computed and handed to the UI, which ignores it.
-  Those are the twenty-three `anims/` classes, and they are Phase 6.
+  Those are the twenty-three `anims/` classes, and they are Phase 6. The drag has no *animation*
+  either: a card dropped on nothing disappears from under the finger rather than flying home.
 - **`DesktopDocumentStore` and `AndroidDocumentStore` have no tests.** Neither host module has a test
   source set. The `DocumentStore` *contract* is covered by `InMemoryDocumentStore` and the whole
   profile flow runs against it, but the two real file implementations are exercised only by hand.
@@ -1272,10 +1385,13 @@ fun DraggableCard(
 > a 3×3 grid. Do not ship drag-only.
 
 **Acceptance Criteria**:
-- [ ] Cards can be dragged
-- [ ] Cards can be dropped on tiles
-- [ ] Drop validation works
-- [ ] Visual feedback during drag
+- [x] Cards can be dragged — the player's own playable ones; see § Drag and drop for the gate
+- [x] Cards can be dropped on tiles
+- [x] Drop validation works — an occupied cell never registers, so it never highlights either
+- [x] Visual feedback during drag — a ghost on the finger, a highlight on the target, the source
+      card dimmed in the hand
+
+Done 2026-08-06, tapping kept alongside it as the task asks. `DragAndDropTest` covers all four.
 
 ---
 
@@ -1507,4 +1623,4 @@ sign-off is a separate step and has not happened.
 ---
 
 *Generated: 2026-07-21*  
-*Status: IN PROGRESS — 2026-08-06. The playable loop, Tier 3 and the deck selector are done; 18 of 32 screens are not, and nine of those are blocked on Phase 5. See § What was built.*
+*Status: IN PROGRESS — 2026-08-06. The playable loop, Tier 3, the deck selector, the theme, drag-and-drop and the turn timer are done: 20 of 32 screens. Of the 12 left, only 2 are blocked on Phase 5. See § What was built.*

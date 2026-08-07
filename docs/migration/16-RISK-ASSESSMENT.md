@@ -272,18 +272,27 @@ scope statement in [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md).
   there is no live protocol to observe beyond connect/ping/user-list
 
 **Mitigation Strategies**:
-1. ⬜ **Re-scope: drop PvP from v1** (recommended). Ship PvE-only, removing 3
-    weeks and all backend dependency. Nothing that currently works is lost.
-2. ⬜ Or re-plan Phase 5 as greenfield design + client + server, and staff backend
-    capacity (currently 0 FTE allocated to server work).
-3. ⬜ Either way: correct the Phase 0 deliverable from "reverse-engineer protocol"
-    to "specify protocol", and mine the 27 dead handlers as design input for the
-    intended message set.
-4. ⬜ Confirm whether `triple-triad-online.com:2468` (the commented-out production
-    endpoint in `PVPScreen.as:315`) still exists before assuming any server at all.
+1. ❌ **Re-scope: drop PvP from v1** — *not taken*. Multiplayer is wanted, in both a local and an
+    online form (decision, 2026-08-06).
+2. ✅ **Re-plan Phase 5 as greenfield design + client + server** — taken. The legacy socket
+    architecture was abandoned outright on 2026-07-25, and the replacement design is sketched in
+    [09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md) § The shape of the network layer.
+    **Backend capacity is still 0 FTE**, and the 2026-08-06 decision to hold player progression
+    server-side makes that gap larger, not smaller: it adds accounts, a datastore, backups and
+    personal-data obligations to what was already unstaffed.
+3. ✅ Phase 0's deliverable was corrected: [network-protocol.md](../analysis/network-protocol.md)
+    opens by stating it is a specification exercise, not reverse engineering.
+4. ✅ Moot. The endpoint is not being used by anything: the whole socket architecture is dropped, so
+    whether `triple-triad-online.com:2468` still answers no longer matters.
 
 **Owner**: Tech Lead + Project Manager
-**Status**: 🔴 **UNRESOLVED — re-scope required before Phase 5 estimate is valid**
+
+**Status**: 🟠 **RE-SCOPED, 2026-07-25 / 2026-08-06 — the technical risk is retired, the staffing
+risk is not.** There is no longer a false premise ("port the working network layer"): the phase is
+acknowledged greenfield and has a design direction. What remains open is that its cost still bears
+no relation to the three weeks budgeted, and that nobody is allocated to the server it now requires.
+An earlier revision of this file left the status at UNRESOLVED after Phase 5 had already recorded
+the decision, so the two documents contradicted each other.
 
 ---
 

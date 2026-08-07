@@ -3,8 +3,6 @@ package com.tripletriad.data
 import com.tripletriad.model.Card
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.jetbrains.compose.resources.ExperimentalResourceApi
-import tripletriad.shared.generated.resources.Res
 
 /**
  * The two card tables of `sources/src/tto/datas/cards.as`, as extracted by
@@ -35,8 +33,11 @@ data class CardCatalog(
 }
 
 /**
- * Parses the card catalog. Split out from [loadCardCatalog] so it can be tested in
- * `commonTest` without a resource loader or a Compose environment.
+ * Parses the card catalog.
+ *
+ * Split from the loader — which lives in `:shared`, because reading the bytes needs Compose
+ * resources — so that this module stays free of any way to obtain them. The server has the same
+ * catalog to parse and a completely different way of getting hold of it.
  */
 object CardCatalogParser {
     // The extractor emits every field, but being lenient about unknown keys means a
@@ -45,17 +46,3 @@ object CardCatalogParser {
 
     fun parse(text: String): CardCatalog = json.decodeFromString(text)
 }
-
-/** Path of the catalog inside `commonMain/composeResources`. */
-const val CARD_CATALOG_PATH: String = "files/cards.json"
-
-/**
- * Reads and parses `cards.json` out of the Compose Multiplatform resource bundle.
- *
- * Compose resources are the mechanism the real migration needs for the 263 card
- * images too, which is why the PoC loads through them rather than through a
- * platform-specific file API.
- */
-@OptIn(ExperimentalResourceApi::class)
-suspend fun loadCardCatalog(): CardCatalog =
-    CardCatalogParser.parse(Res.readBytes(CARD_CATALOG_PATH).decodeToString())

@@ -1,9 +1,5 @@
 package com.tripletriad.ui
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,9 +8,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -24,7 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,14 +27,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tripletriad.audio.AudioPlayer
@@ -52,25 +45,24 @@ import com.tripletriad.data.MatchRewards
 import com.tripletriad.data.PveMatches
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
+import com.tripletriad.model.Board
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
-import com.tripletriad.model.CardType
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.GameSave
-import com.tripletriad.model.HAND_SIZE
-import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchAi
 import com.tripletriad.model.MatchOutcome
 import com.tripletriad.model.MatchPreparation
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.Npc
-import com.tripletriad.model.PlacedCard
 import com.tripletriad.time.Clock
-import kotlinx.coroutines.coroutineScope
+import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.random.Random
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** Test tags for `shared/src/desktopTest`. */
 const val BOARD_TEST_TAG: String = "board"
@@ -96,6 +88,12 @@ const val MATCH_EXIT_TEST_TAG: String = "match-exit"
 
 /** The opponent's name in the status bar. */
 const val MATCH_OPPONENT_TEST_TAG: String = "match-opponent"
+
+/** The turn timer's track. Always present; its fill is not. */
+const val TURN_TIMER_TEST_TAG: String = "turn-timer"
+
+/** The part of the track still running. Absent when it is not the player's turn. */
+const val TURN_TIMER_FILL_TEST_TAG: String = "turn-timer-fill"
 
 /**
  * `turn-blue` / `turn-red` — present only while that side is to move.
@@ -150,8 +148,11 @@ fun handCardTestTag(owner: CardColor, slot: Int): String =
  *   the hands.
  * @param onPersist writes the profile. Called at the start of the match — so abandoning it counts
  *   as a forfeit — and again once it is credited.
+ * @param turnLimit how long the player has to move before a card is played for them. The AS3's
+ *   thirty seconds by default; a parameter so a test can reach the expiry without waiting for it.
  */
 @Composable
+@Suppress("LongParameterList")
 internal fun MatchScreen(
     catalog: CardCatalog,
     profile: GameSave,
@@ -159,6 +160,7 @@ internal fun MatchScreen(
     clock: Clock,
     onPersist: suspend (GameSave) -> Unit,
     onExit: () -> Unit,
+    turnLimit: Duration = DEFAULT_TURN_LIMIT,
 ) {
     val audio = LocalAudio.current
     val strings = LocalStrings.current
@@ -271,6 +273,22 @@ internal fun MatchScreen(
         onPersist(credit.save)
     }
 
+    // The one guard, for both ways of playing a card. Tapping a cell plays whatever is selected;
+    // dropping one plays what the finger is holding — and both have to check the same three
+    // things, which is exactly the sort of pair that drifts apart.
+    val place: (Card, Int) -> Unit = { card, position ->
+        if (canPlay(state, card, position)) {
+            val next = state.play(card, position)
+            state = next
+            selected = null
+            sound(audio, next)
+        }
+    }
+
+    val turnFraction = turnClock(match, state, turnLimit) {
+        autoPlay(state, random)?.let { (card, position) -> place(card, position) }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -279,6 +297,7 @@ internal fun MatchScreen(
             state = state,
             selected = selected,
             opponentName = strings[npc.nameKey],
+            turnFraction = turnFraction,
             onExit = onExit,
         )
         RulesStrip(match.rules)
@@ -296,18 +315,10 @@ internal fun MatchScreen(
                 selected = selected,
                 visibility = visibility,
                 layout = matchLayout(maxWidth, maxHeight),
+                playable = playable(state),
                 onSelect = { if (it in playable(state)) selected = it },
-                onPlace = { position ->
-                    val card = selected
-                    if (card != null && state.currentPlayer == CardColor.BLUE &&
-                        state.board.isEmpty(position)
-                    ) {
-                        val next = state.play(card, position)
-                        state = next
-                        selected = null
-                        sound(audio, next)
-                    }
-                },
+                onPlace = { position -> selected?.let { place(it, position) } },
+                onDrop = place,
             )
             reward?.let {
                 OutcomePanel(
@@ -489,58 +500,6 @@ private fun sound(audio: AudioPlayer, state: MatchState) {
 }
 
 /**
- * Red hand, board, blue hand — as a row in landscape, a column in portrait.
- *
- * `SpaceBetween` puts the board dead centre: both hand areas are given the same fixed size by
- * [MatchLayout], so the board does not drift as a hand empties.
- */
-@Composable
-private fun PlayArea(
-    state: MatchState,
-    selected: Card?,
-    visibility: HandVisibility,
-    layout: MatchLayout,
-    onSelect: (Card) -> Unit,
-    onPlace: (Int) -> Unit,
-) {
-    val hand: @Composable (CardColor) -> Unit = { owner ->
-        HandArea(
-            state = state,
-            owner = owner,
-            selected = selected,
-            visibility = visibility,
-            layout = layout,
-            onSelect = onSelect,
-        )
-    }
-    val board: @Composable () -> Unit = {
-        BoardGrid(state = state, scale = layout.boardScale, onPlace = onPlace)
-    }
-
-    if (layout.landscape) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            hand(CardColor.RED)
-            board()
-            hand(CardColor.BLUE)
-        }
-    } else {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            hand(CardColor.RED)
-            board()
-            hand(CardColor.BLUE)
-        }
-    }
-}
-
-/**
  * Score, whose turn it is, and a reset. One compact line so the board gets the rest.
  *
  * The score is two numbers and a dash, with each number in its side's colour and no colour *word*
@@ -550,6 +509,76 @@ private fun PlayArea(
  */
 @Composable
 private fun StatusBar(
+    state: MatchState,
+    selected: Card?,
+    opponentName: String,
+    turnFraction: Float?,
+    onExit: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        StatusRow(
+            state = state,
+            selected = selected,
+            opponentName = opponentName,
+            onExit = onExit,
+        )
+        TurnTimerBar(fraction = turnFraction)
+    }
+}
+
+/**
+ * How much of the turn is left, as `playerPanel`'s `ProgressBar` was.
+ *
+ * ### One bar, not two
+ *
+ * The original gives **both** players a timer and starts both (`BaseMatchScreen.as:377-387`) — but
+ * only the blue one is listened to: `:93` attaches `TIME_UP_EVENT` to `bluePlayer` and to nothing
+ * else, so red's bar runs down and expiring does nothing. Red is driven by `opponentPhase` instead,
+ * which in this port answers in [OPPONENT_PAUSE_MS] and could never reach thirty seconds anyway. A
+ * bar that cannot expire is decoration, so there is one.
+ *
+ * It goes under the status line rather than over the hand, which is where `playerPanel` put it: the
+ * hand here is sized to the cards by [MatchLayout], and a bar inside it would either shrink them or
+ * be drawn across them.
+ *
+ * @param fraction 1f at the start of the turn, 0f when it is up. Null while it is not the player's
+ *   turn, which is when the original calls `razTimer()`.
+ */
+@Composable
+private fun TurnTimerBar(fraction: Float?) {
+    Box(
+        modifier = Modifier
+            .testTag(TURN_TIMER_TEST_TAG)
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .height(TurnTimerHeight)
+            .clip(TurnTimerShape)
+            .background(MaterialTheme.colorScheme.outline.copy(alpha = TIMER_TRACK_ALPHA)),
+    ) {
+        if (fraction != null) {
+            Box(
+                modifier = Modifier
+                    .testTag(TURN_TIMER_FILL_TEST_TAG)
+                    .fillMaxWidth(fraction)
+                    .height(TurnTimerHeight)
+                    .clip(TurnTimerShape)
+                    // Amber near the end, which the original does not do — its bar is one colour
+                    // the whole way down. Thirty seconds is long enough that a bar shortening is
+                    // easy to miss, and the penalty for missing it is a card played at random.
+                    .background(
+                        if (fraction <= TIMER_URGENT) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            LocalTtoColors.current.transient
+                        },
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusRow(
     state: MatchState,
     selected: Card?,
     opponentName: String,
@@ -674,311 +703,93 @@ private fun TurnLine(state: MatchState, selected: Card?) {
     )
 }
 
-/** The 3×3 board. Empty cells show their element, if the board has one. */
-@Composable
-private fun BoardGrid(state: MatchState, scale: Float, onPlace: (Int) -> Unit) {
-    Column(
-        modifier = Modifier.testTag(BOARD_TEST_TAG).padding(TileGap * scale),
-        verticalArrangement = Arrangement.spacedBy(TileGap * scale),
-    ) {
-        for (row in 0 until BOARD_WIDTH) {
-            Row(horizontalArrangement = Arrangement.spacedBy(TileGap * scale)) {
-                for (column in 0 until BOARD_WIDTH) {
-                    val position = row * BOARD_WIDTH + column
-                    TileCell(
-                        placed = state.board[position],
-                        element = state.board.elements[position],
-                        scale = scale,
-                        modifier = Modifier
-                            .testTag(tileTestTag(position))
-                            .clickable { onPlace(position) },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TileCell(
-    placed: PlacedCard?,
-    element: CardType?,
-    scale: Float,
-    modifier: Modifier,
-) {
-    Box(
-        modifier = modifier
-            .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
-            .clip(TileShape)
-            .background(EmptyTile)
-            .border(1.dp, TileBorder, TileShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (placed == null) {
-            element?.let {
-                Text(
-                    text = it.name.take(ELEMENT_LABEL_CHARS),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                    fontSize = ElementFontSize * scale,
-                )
-            }
-        } else {
-            BoardCard(placed, scale)
-        }
-    }
-}
+/**
+ * Whether the player may put [card] on [position] right now.
+ *
+ * The one guard behind both ways of playing a card — tapping a cell with one selected, and dropping
+ * one onto it. They check the same three things, and a pair like that is exactly what drifts apart:
+ * the drag would have been the one that forgot `RULE_ORDER`.
+ */
+private fun canPlay(state: MatchState, card: Card, position: Int): Boolean =
+    state.currentPlayer == CardColor.BLUE &&
+        state.board.isEmpty(position) &&
+        card in playable(state)
 
 /**
- * A placed card that flips when its owner changes.
+ * Counts the player's turn down, and reports how much of it is left.
  *
- * Re-triggered by a [LaunchedEffect] on the owner rather than by a tap: on the board a flip is
- * something the rules *did*, not something the player asked for.
+ * `playerPanel`'s thirty-second limit, re-armed on every turn: `setTimer()` on the side to move and
+ * `razTimer()` on the other (`BaseMatchScreen.as:377-387`). Its own composable rather than an
+ * effect inside the match, because the loop and its three guards are the sort of thing that makes a
+ * screen function too complex to read — which is what detekt said when they were.
  *
- * **A port now, not a substitution.** `Card.flip()` (`Card.as:249-291`) chains four 0.1 s
- * tweens — `flip` → `yoyo` → `unflip` → `yoyo2` — squashing `scaleY` to 0 and back twice while
- * `scaleX` widens to 1.2 for the duration. The colour switches and the back appears at the first
- * pinch; the new face returns at the second.
- *
- * An earlier revision used a `rotationY` half-turn instead, which **mirrored the card's contents
- * between 90° and 180°** — every glyph on it drawn backwards for a fifth of a second. A squash
- * cannot do that, because the scale never goes negative. The original's choice was the right one.
+ * @param key restarts the whole clock. The match, so a rematch gets a fresh one.
+ * @param onExpired the turn ran out. Called once, from the effect's own coroutine.
+ * @return 1f at the start of the turn falling to 0f, or **null** when the clock is not running —
+ *   the opponent's turn, or a finished match.
  */
 @Composable
-private fun BoardCard(placed: PlacedCard, scale: Float) {
-    val squashY = remember { Animatable(1f) }
-    val stretchX = remember { Animatable(1f) }
-    var shown by remember { mutableStateOf(placed.owner) }
-    var showBack by remember { mutableStateOf(false) }
-
-    LaunchedEffect(placed.owner) {
-        if (shown == placed.owner) return@LaunchedEffect
-        // `horizon = false` is the default and the only value the match screens pass, so the
-        // squash is vertical and the widening horizontal.
-        coroutineScope {
-            launch { stretchX.animateTo(FLIP_STRETCH, tween(FLIP_LEG_MS, easing = EaseIn)) }
-            squashY.animateTo(0f, tween(FLIP_LEG_MS, easing = EaseIn))
-        }
-        shown = placed.owner // yoyo(): switchColor()
-        showBack = true // yoyo(): hide()
-        squashY.animateTo(FLIP_STRETCH, tween(FLIP_LEG_MS, easing = EaseOut))
-        squashY.animateTo(0f, tween(FLIP_LEG_MS, easing = EaseIn)) // unflip()
-        showBack = false // yoyo2(): show()
-        coroutineScope {
-            launch { stretchX.animateTo(1f, tween(FLIP_LEG_MS, easing = EaseOut)) }
-            squashY.animateTo(1f, tween(FLIP_LEG_MS, easing = EaseOut))
-        }
-    }
-
-    CardFace(
-        card = placed.card.copy(owner = shown),
-        scale = scale,
-        showBack = showBack,
-        modifier = Modifier.graphicsLayer {
-            scaleX = stretchX.value
-            scaleY = squashY.value
-        },
-    )
-}
-
-/**
- * One side's remaining cards, in a fixed-size box so the board stays put as the hand empties.
- *
- * Dimmed when it is not that side's turn. [HAND_SIZE] slots are always laid out; the empty ones
- * are spacers, which is what holds the arrangement steady.
- */
-@Composable
-private fun HandArea(
+private fun turnClock(
+    key: Any,
     state: MatchState,
-    owner: CardColor,
-    selected: Card?,
-    visibility: HandVisibility,
-    layout: MatchLayout,
-    onSelect: (Card) -> Unit,
-) {
-    val cards = state.hands[owner].orEmpty()
-    val active = state.currentPlayer == owner
-    val gap = HandGap * layout.scale
+    limit: Duration,
+    onExpired: () -> Unit,
+): Float? {
+    var remaining by remember(key) { mutableStateOf(limit) }
+    val running = !state.isFinished && state.currentPlayer == CardColor.BLUE
 
-    Box(
-        modifier = Modifier
-            .size(layout.handWidth, layout.handHeight)
-            .graphicsLayer { alpha = if (active) 1f else INACTIVE_HAND_ALPHA },
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-            for (row in 0 until layout.handRows) {
-                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    for (column in 0 until layout.handColumns) {
-                        val slot = row * layout.handColumns + column
-                        val card = cards.getOrNull(slot)
-                        if (card == null) {
-                            Spacer(
-                                Modifier.size(
-                                    CardSpriteWidth * layout.scale,
-                                    CardSpriteHeight * layout.scale,
-                                ),
-                            )
-                        } else {
-                            // Keyed by the card, not by the slot. Slots close up when a card is
-                            // played, so without this every slot behind the played one is handed
-                            // a different card and silently keeps the previous one's composition
-                            // state. That is what made cards draw each other's artwork
-                            // (`rememberCardFace`, and `CardFaceTest`); nothing else in a slot
-                            // holds state today, and this is what stops the next thing that does.
-                            key(card.textureId) {
-                                HandCard(
-                                    card = card,
-                                    owner = owner,
-                                    slot = slot,
-                                    isSelected = active && selected?.id == card.id,
-                                    active = active,
-                                    // The player always sees their own hand whatever the Open rule
-                                    // says — `openPhase` assigns `RULE_ALL_OPEN` to `bluePlayer` on
-                                    // both of its branches (`BaseMatchScreen.as:172`, `:176`), so
-                                    // Open is only ever about the opponent.
-                                    faceUp = owner == CardColor.BLUE || visibility.isVisible(card),
-                                    scale = layout.scale,
-                                    onSelect = onSelect,
-                                )
-                            }
-                        }
-                    }
-                }
+    LaunchedEffect(key, state.placement, state.currentPlayer, state.isFinished) {
+        remaining = limit
+        if (running) {
+            while (remaining > Duration.ZERO) {
+                delay(TIMER_TICK)
+                remaining -= TIMER_TICK
             }
+            onExpired()
         }
+    }
+
+    return (remaining / limit).toFloat().takeIf { running }
+}
+
+/**
+ * A card and a cell chosen at random, for a turn that ran out of time.
+ *
+ * `BaseMatchScreen.autoPlay` (`:422-437`), and its randomness is the point: the penalty for letting
+ * the clock run out is a move you did not choose. Under `RULE_ORDER` it takes `remainingCards[0]`
+ * instead, which [playable] already narrows to — so the rule is honoured without being named here.
+ *
+ * Null when the board is full or the hand is empty, which the caller cannot reach: [turnClock] does
+ * not run once the match is finished.
+ */
+private fun autoPlay(state: MatchState, random: Random): Pair<Card, Int>? {
+    val cards = playable(state)
+    val free = (0 until Board.SIZE).filter { state.board.isEmpty(it) }
+    return if (cards.isEmpty() || free.isEmpty()) {
+        null
+    } else {
+        cards.random(random) to free.random(random)
     }
 }
 
-/**
- * One selectable card in a hand.
- *
- * The selection ring is a border on the card's own bounds rather than a frame around them: a
- * frame would have to grow the slot, and a growing slot moves every card beside it.
- */
-@Composable
-@Suppress("LongParameterList")
-private fun HandCard(
-    card: Card,
-    owner: CardColor,
-    slot: Int,
-    isSelected: Boolean,
-    active: Boolean,
-    faceUp: Boolean,
-    scale: Float,
-    onSelect: (Card) -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .testTag(handCardTestTag(owner, slot))
-            .clickable(enabled = active) { onSelect(card) },
-    ) {
-        CardFace(card = card, scale = scale, showBack = !faceUp)
-        if (isSelected) {
-            Box(
-                modifier = Modifier
-                    .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
-                    .border(SelectionRingWidth, SelectionRing, TileShape),
-            )
-        }
-    }
-}
-
-/**
- * How the board and the two hands are arranged, and at what size.
- *
- * @property landscape true when the hands sit either side of the board rather than above and
- *   below it.
- * @property handColumns cards across in one hand area — five in a portrait strip, two in a
- *   landscape block.
- * @property handRows rows needed to hold [HAND_SIZE] cards at [handColumns] across.
- * @property scale the factor a **hand** card is drawn at. 1.0 is the authored AS3 size.
- * @property boardScale the factor a **board** tile is drawn at, always at least [scale]. The
- *   board is only three cards across where a portrait hand is five, so it is not bound by the
- *   same budget and would otherwise leave a third of a phone screen empty. The FFXIV board
- *   draws it larger than the hands too.
- */
-internal data class MatchLayout(
-    val landscape: Boolean,
-    val handColumns: Int,
-    val handRows: Int,
-    val scale: Float,
-    val boardScale: Float,
-) {
-    /** Fixed size of one hand area, empty slots included. */
-    val handWidth: Dp
-        get() = (CardSpriteWidth * handColumns + HandGap * (handColumns + 1)) * scale
-    val handHeight: Dp
-        get() = (CardSpriteHeight * handRows + HandGap * (handRows + 1)) * scale
-}
-
-/**
- * Chooses the arrangement for a **measured** [width] x [height] and the largest scale that
- * fits inside it.
- *
- * A pure function of two numbers, which is the whole point: three earlier attempts estimated
- * the leftover space from a screen size minus a constant and each one over-subscribed the
- * column on some device. An over-subscribed column is not a visible error either — `Modifier
- * .size` silently coerces into the constraints it is given, so children collapse to zero
- * height while continuing to draw at full size, and the symptom is overlap rather than a
- * clipped or complaining layout. Deriving the scale from real bounds cannot do that.
- *
- * Both hands are the same shape, so in landscape the total width is two hand areas plus the
- * board and the height is whichever of hand or board is taller; in portrait the axes swap.
- */
-internal fun matchLayout(width: Dp, height: Dp): MatchLayout {
-    val landscape = width >= height
-    val columns = if (landscape) LANDSCAPE_HAND_COLUMNS else HAND_SIZE
-    val rows = (HAND_SIZE + columns - 1) / columns
-
-    val handWidth = CardSpriteWidth.value * columns + HandGap.value * (columns + 1)
-    val handHeight = CardSpriteHeight.value * rows + HandGap.value * (rows + 1)
-    val boardWidth = CardSpriteWidth.value * BOARD_WIDTH + TileGap.value * (BOARD_WIDTH + 1)
-    val boardHeight = CardSpriteHeight.value * BOARD_WIDTH + TileGap.value * (BOARD_WIDTH + 1)
-
-    val neededWidth = if (landscape) handWidth * 2 + boardWidth else maxOf(handWidth, boardWidth)
-    val neededHeight =
-        if (landscape) maxOf(handHeight, boardHeight) else handHeight * 2 + boardHeight
-
-    val scale = minOf(width.value / neededWidth, height.value / neededHeight)
-        .coerceIn(MIN_CARD_SCALE, MAX_CARD_SCALE)
-
-    // Whatever the hands did not need, on the axis they are stacked along.
-    val boardWidthBudget = if (landscape) width.value - handWidth * 2 * scale else width.value
-    val boardHeightBudget =
-        if (landscape) height.value else height.value - handHeight * 2 * scale
-    val boardScale = minOf(boardWidthBudget / boardWidth, boardHeightBudget / boardHeight)
-        .coerceIn(scale, MAX_CARD_SCALE)
-
-    return MatchLayout(landscape, columns, rows, scale, boardScale)
-}
-
-private const val BOARD_WIDTH = 3
-
-/** Two columns of cards either side of the board: taller than wide, which landscape has. */
-private const val LANDSCAPE_HAND_COLUMNS = 2
-
-private const val MIN_CARD_SCALE = 0.22f
-
-/** 1.0 is the authored 88x118 face. Drawing bigger than the source art would only blur it. */
-private const val MAX_CARD_SCALE = 1f
-private const val ELEMENT_LABEL_CHARS = 3
-private const val INACTIVE_HAND_ALPHA = 0.45f
-
-/** `Starling.juggler.tween(this, 0.1, ...)`, four times over -- `Card.as:249-291`. */
-private const val FLIP_LEG_MS = 100
-
-/** `scaleX: 1.2` / `scaleY: 1.2` -- the overshoot each leg tweens to. */
-private const val FLIP_STRETCH = 1.2f
-
-/**
- * How long the opponent appears to think.
- *
- * `PVEMatchScreen.as:42` waits `1000 + tools.rand(4) * 1000` — one to five seconds — which covered
- * a `setTimeout` cascade of turn announcements this port does not have. Long enough that a
- * placement reads as the opponent's move rather than as part of the player's, and short enough not
- * to be a wait.
- */
 private const val OPPONENT_PAUSE_MS = 700L
+
+/**
+ * `playerPanel._timer = 30` — the turn limit, and the AS3's own default.
+ *
+ * `TutorialScreen.as:58` raises it to 60 for its lesson and `PVPScreen.as:277` sets it back to 30
+ * for a network match, so 30 is what a PvE match plays under.
+ */
+private val DEFAULT_TURN_LIMIT = 30.seconds
+
+/** How often the bar is redrawn. Fine enough to look continuous, coarse enough to be cheap. */
+private val TIMER_TICK = 100.milliseconds
+
+/** Below this the bar turns red. */
+private const val TIMER_URGENT = 0.25f
+
+/** The unfilled part of the track. */
+private const val TIMER_TRACK_ALPHA = 0.4f
 
 /**
  * Seeds the per-turn generator that Chaos draws its card from.
@@ -989,22 +800,10 @@ private const val OPPONENT_PAUSE_MS = 700L
  */
 private const val CHAOS_SEED = 20260802
 
-/*
- * `Transitions.EASE_IN` / `EASE_OUT`, per the mapping in
- * [api-mapping.md](../../../../../../../docs/analysis/api-mapping.md). Starling's curves are
- * not identical to Compose's; a visual diff pass is still owed.
- */
-private val EaseIn = FastOutLinearInEasing
-private val EaseOut = LinearOutSlowInEasing
+/** Thin enough to read as a rule under the status line rather than as a control. */
+private val TurnTimerHeight = 3.dp
+private val TurnTimerShape = RoundedCornerShape(2.dp)
 
-private val TileGap = 4.dp
-private val TileShape = RoundedCornerShape(6.dp)
-private val EmptyTile = Color(0xFF1E2230)
-private val TileBorder = Color(0xFF3A4152)
-private val SelectionRing = Color(0xFFF2C14E)
 private val RuleStripText = Color(0xFFF2C14E)
 private val PayoutText = Color(0xFF7FD18B)
 private val PanelBackground = Color(0xFF11141C)
-private val SelectionRingWidth = 2.dp
-private val ElementFontSize = 9.sp
-private val HandGap = 3.dp

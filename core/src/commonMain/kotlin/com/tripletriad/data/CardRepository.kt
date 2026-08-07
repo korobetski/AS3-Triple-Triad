@@ -60,10 +60,18 @@ interface CardRepository {
  * a screen could plausibly both ask first. The suspend-friendly `kotlinx.coroutines.sync.Mutex` is
  * used rather than a lock, since the loader itself suspends.
  *
- * @param load reads the catalog. Defaults to the bundled resource; a test passes a lambda.
+ * ### Why [load] has no default any more
+ *
+ * It used to default to `loadCardCatalog()`, which reads the Compose resource bundle — the one
+ * thing `:core` may not link against. Removing the default cost nothing: **no production code
+ * constructs this class**, so the default was only ever exercised by not being used. Callers that
+ * want the bundled catalog pass `{ loadCardCatalog() }`, which is where that dependency belongs.
+ *
+ * @param load reads the catalog, once. A test passes a lambda; the client passes the loader from
+ *   `:shared`; the server will pass whatever it reads the catalog from.
  */
 class BundledCardRepository(
-    private val load: suspend () -> CardCatalog = { loadCardCatalog() },
+    private val load: suspend () -> CardCatalog,
 ) : CardRepository {
     private val mutex = Mutex()
     private var catalog: CardCatalog? = null

@@ -1,0 +1,76 @@
+# Development infrastructure for the Phase 5 server.
+#
+# ### Why this exists before the server does
+#
+# `docs/migration/09-PHASE-5-NETWORK.md` § Sequencing puts the server last, on purpose: steps 1-3
+# (determinism tests, the `:core` extraction, the transcript and protocol over an in-memory
+# loopback) commit to no infrastructure. This file is therefore *deliberately ahead* of the code —
+# it fixes the shape of the development environment so that the storage decisions taken in step 3
+# can be checked against a real Postgres instead of being deferred to a rewrite later.
+#
+# Until a `:server` module exists there is nothing here but the database. That is expected, and the
+# `server` service below is left commented rather than stubbed so that `docker compose up` always
+# describes something that actually runs.
+#
+# ### Why Postgres, and why in a container
+#
+# Decision 2 in the Phase 5 design makes profiles server-held, which makes losing them
+# unrecoverable. A container gives every developer the *same* database version as production, so
+# "it worked locally" cannot be a difference in server-side defaults, collation, or the behaviour
+# of a `timestamptz`.
+#
+# Usage:
+#   cp .env.sample .env      # once
+#   docker compose up -d     # start
+#   docker compose down      # stop, keeping data
+#   docker compose down -v   # stop and DESTROY the volume
+
+name: triple-triad
+
+services:
+  postgres:
+    # Pinned to a major version rather than `latest`: Postgres does not upgrade its data
+    # directory in place, so a silent major bump would leave the volume unreadable by the new
+    # container and look like data loss.
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tripletriad}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tripletriad}
+      POSTGRES_DB: ${POSTGRES_DB:-tripletriad}
+    ports:
+      # Bound to the loopback interface, not 0.0.0.0. The default `5432:5432` would publish the
+      # database to every machine on the network — with the development password above.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Anything dropped in here runs once, on an *empty* volume only. Left mounted so the first
+      # schema can arrive without a change to this file; deliberately empty for now, since there
+      # is no schema to write until the transcript and profile shapes are settled.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # `pg_isready` alone reports ready during the init container's own bootstrap pass, when the
+      # server is briefly up on a private socket. Naming the database makes the check mean "ready
+      # for us" rather than "a postmaster is answering".
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tripletriad} -d ${POSTGRES_DB:-tripletriad}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # The server, once `:core` is extracted and there is something to serve.
+  #
+  # server:
+  #   build: .
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tripletriad}
+  #   ports:
+  #     - "127.0.0.1:8080:8080"
+
+volumes:
+  # A named volume, not a bind mount: Postgres needs POSIX ownership and permissions on its data
+  # directory, which a bind mount from a Windows host cannot provide.
+  postgres-data:

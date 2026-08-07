@@ -49,6 +49,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            // `api` so the app modules and the UI keep seeing `Card`, `MatchState` and the rest
+            // under their own names. The extraction moved where they live, not what they are.
+            api(project(":core"))
             // `api` so :androidApp and :desktopApp can compose against the same
             // Compose artifacts without re-declaring them.
             api(compose.runtime)

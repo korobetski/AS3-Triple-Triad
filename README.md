@@ -93,7 +93,9 @@ Everything below has been executed; the results are in
 │       │   │       ├── ItemRow.kt          naming, keying and refusing a bag item
 │       │   │       ├── Controls.kt      WideButton, the scaffolds, the shared row palette
 │       │   │       ├── CardArt.kt       texture loading, face cache, digit atlas
-│       │   │       ├── MatchScreen.kt   playable board, both hands, orientation layout
+│       │   │       ├── MatchScreen.kt   the match: state, effects, status bar, result panel
+│       │   │       ├── MatchBoard.kt    the board, both hands, the drag, orientation layout
+│       │   │       ├── BoardDragState.kt  a card in the air, and where the cells are
 │       │   │       ├── CardView.kt      CardFace + CardDigits, scalable
 │       │   │       └── CardColors.kt    colours and geometry lifted from the AS3 source
 │       │   └── composeResources/files/
@@ -551,6 +553,31 @@ Nearly every label came for free: `STR_PLAY`, `STR_SETTINGS`, `STR_QUIT`, `STR_L
 volume labels and both headings are all in the imported bundles, translated four ways. Only five
 new `APP_*` keys were needed — `APP_BACK`, `APP_AUDIO_PENDING` and three `APP_STARTUP_*` — which is
 why the app-owned count went from 5 to 10 and not to 17.
+
+## Playing a card
+
+Two ways, and the original has both: **tap a card then tap a cell**, or **drag the card onto the
+cell**. `Card.onTouch` dispatches `TRIGGERED` on a tap and starts a drag on a move; the migration
+plan's own note says not to ship drag-only, and dragging into a 3×3 grid on a phone is fiddly.
+Compose keeps the two apart on its own — `clickable` gives up once the pointer passes touch slop,
+which is exactly where the drag begins.
+
+The drag is hit-tested by hand, in **root coordinates**: Compose's `Modifier.dragAndDropTarget` is
+for drags *between applications*, and there is no in-process equivalent. A card converts its pointer
+with `localToRoot`, each free cell registers its `boundsInRoot`, and
+[`BoardDragState`](shared/src/commonMain/kotlin/com/tripletriad/ui/BoardDragState.kt) matches them.
+An occupied cell registers nothing, so it never lights up — the refusal is visible while the card is
+still in the air, where the original checked only after the finger lifted.
+
+Only the player's own **playable** cards can be lifted, which is `Card._draggable` plus whatever
+`RULE_ORDER` or `RULE_CHAOS` allows this turn. Lifting a card the rules forbid and having the drop
+do nothing is worse than not being able to lift it.
+
+**And there is a clock.** Thirty seconds a turn, shown as a bar under the status line, and when it
+runs out a card is played for you — a *random* one on a *random* free cell. That is
+`playerPanel._timer = 30` plus `BaseMatchScreen.timeUp_play` → `autoPlay()`, and the randomness is
+the penalty: reusing the opponent's AI would reward inattention with a good move. The original arms
+both players' clocks but listens to only the player's, so only the player's is drawn.
 
 ## Theme
 
