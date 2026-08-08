@@ -34,10 +34,30 @@ data class ScoredMove(
  *   was evidently meant to do and makes the opponent stop volunteering an ace into an open corner
  *   when a safer square captures the same card.
  */
-data class MatchAiOptions(val coverBreaksTies: Boolean = true) {
+data class MatchAiOptions(
+    val coverBreaksTies: Boolean = true,
+    val playsWorst: Boolean = false,
+) {
     companion object {
         /** Reproduces `PVEMatchScreen.AI` exactly, dead cover sort included. */
         val FAITHFUL = MatchAiOptions(coverBreaksTies = false)
+
+        /**
+         * The tutorial opponent, which loses on purpose — `TutorialScreen.AI` (`:246-249`).
+         *
+         * It scores every placement exactly as the real AI does and then takes
+         * `powers[powers.length - 1]`, the **last** entry of a list sorted best first:
+         *
+         * ```actionscript
+         * // c'est le tuto, le pnj jour toujours la pire solution
+         * card = powers[powers.length -1].card;
+         * ```
+         *
+         * So the lesson is winnable by a player who has just been told what a card is. Note it is
+         * the *worst* move rather than a random one: a random opponent would occasionally capture
+         * three cards in a row and teach the opposite of what the script is saying at the time.
+         */
+        val TUTOR = MatchAiOptions(playsWorst = true)
     }
 }
 
@@ -139,14 +159,17 @@ class MatchAi(private val options: MatchAiOptions = MatchAiOptions()) {
      *
      * The original's threshold is `this.turn > 5` on a counter incremented before use, so it is the
      * sixth placement onward — placement index 5 and up. See [TurnOrder].
+     *
+     * Under [MatchAiOptions.playsWorst] neither branch is taken and the bottom of the same ranking
+     * is played instead — see [MatchAiOptions.TUTOR].
      */
     fun choose(state: MatchState, random: Random = Random.Default): ScoredMove? {
         val ranked = candidates(state, random)
         val best = ranked.firstOrNull() ?: return null
-        return if (best.captures > 0) {
-            bestCapture(ranked, best, random)
-        } else {
-            bestPosition(ranked, state.placement, random)
+        return when {
+            options.playsWorst -> ranked.last()
+            best.captures > 0 -> bestCapture(ranked, best, random)
+            else -> bestPosition(ranked, state.placement, random)
         }
     }
 

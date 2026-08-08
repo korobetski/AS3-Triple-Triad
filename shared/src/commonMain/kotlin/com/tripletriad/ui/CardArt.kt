@@ -34,6 +34,8 @@ import tripletriad.shared.generated.resources.Res
 class CardArt internal constructor(
     /** `back` — `Card.as:93`. Drawn over everything while a card is mid-flip. */
     val back: ImageBitmap,
+    /** `talk_basic.tex` — [TalkBubble]'s frame. One image for every language; it holds no text. */
+    val talk: ImageBitmap,
     private val stars: Map<Int, ImageBitmap>,
     private val types: Map<CardType, ImageBitmap>,
     private val digits: Map<String, Painter>,
@@ -120,6 +122,7 @@ internal fun rememberCardFace(art: CardArt?, card: Card): ImageBitmap? {
 /** Reads and decodes the 19 shared textures. Call once, at boot. */
 suspend fun loadCardArt(): CardArt = CardArt(
     back = loadImage("back.png"),
+    talk = loadImage("talk.png"),
     stars = Card.RARITY_RANGE.associateWith { loadImage("${it}stars.png") },
     types = CardType.entries.associateWith { loadImage("${it.textureName}.png") },
     digits = sliceDigitAtlas(loadImage("digits.png")),

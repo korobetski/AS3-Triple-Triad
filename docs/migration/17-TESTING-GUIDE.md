@@ -3,7 +3,7 @@
 ## 📋 Document Information
 
 - **Purpose**: Comprehensive guide for testing the Kotlin Multiplatform migration
-- **Status**: PLANNING COMPLETE
+- **Status**: superseded by the code; kept for the decisions in it
 - **Last Updated**: 2026-07-21
 - **Related**: [11-PHASE-7-TESTING.md](./11-PHASE-7-TESTING.md)
 
@@ -1496,6 +1496,3 @@ class CardRepositoryTest : BaseTest() {
 - **Technical Stack**: [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md)
 
 ---
-
-*Generated: 2026-07-21*
-*Status: PLANNING COMPLETE*

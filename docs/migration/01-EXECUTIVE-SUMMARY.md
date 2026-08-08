@@ -5,7 +5,7 @@
 - **Project**: Triple Triad Online (TTO)
 - **Migration**: ActionScript 3 → Kotlin Multiplatform
 - **Date**: 2026-07-21
-- **Status**: PLANNING COMPLETE
+- **Status**: superseded by the code; kept for the decisions in it
 - **Version**: 1.0
 
 ---
@@ -456,5 +456,4 @@ is required, and none is staffed). See **BR-003** in
 
 *This document provides a high-level overview of the migration project. For detailed technical information, see the specific phase documents.*
 
-*Generated: 2026-07-21*  
 *Status: PLANNING COMPLETE - Ready for stakeholder review*

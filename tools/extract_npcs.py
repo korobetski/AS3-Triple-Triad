@@ -53,6 +53,7 @@ NPCS_AS = REPO / "sources/src/tto/datas/NPCs.as"
 CARDS_AS = REPO / "sources/src/tto/datas/cards.as"
 RULES_AS = REPO / "sources/src/tto/datas/tripleTriadRules.as"
 NPC_AS = REPO / "sources/src/tto/datas/NPC.as"
+BOOSTER_AS = REPO / "sources/src/tto/datas/BoosterItem.as"
 
 # Counts read straight off the source, asserted after parsing.
 EXPECTED = {"ff14": 60, "ff8": 25}
@@ -182,6 +183,23 @@ def reward(raw: str) -> dict:
     return {key: int(values.get(key, 0)) for key in ("w", "d", "l")}
 
 
+def boosters() -> dict:
+    """`BoosterItem.BOOSTER_TYPE_PLATINUM` -> `PLATINUM_BOOSTER`.
+
+    No opponent in NPCs.as drops a booster, but the Gold Saucer's King Elmer does
+    (`GSGroupMatchScreen.as:107`) and writes the constant rather than its value.
+    Read once and cached, so a renamed constant fails here rather than producing a
+    drop the Kotlin `BoosterKind` cannot decode.
+    """
+    global _BOOSTERS
+    if _BOOSTERS is None:
+        _BOOSTERS = constants(BOOSTER_AS, "BoosterItem")
+    return _BOOSTERS
+
+
+_BOOSTERS: dict | None = None
+
+
 def item_rewards(raw: str) -> list:
     """A `[{type:"card", card:15, rate:0.25}, ...]` literal."""
     if raw is None:
@@ -193,9 +211,22 @@ def item_rewards(raw: str) -> list:
         # `getRewardItem` branches on the payload key, not on `type`, so an entry
         # with no `type` is still meaningful. Infer it from the payload.
         for key in ("card", "potion", "booster"):
-            value = re.search(rf"\b{key}\s*:\s*(?:(\d+)|[\"']([^\"']+)[\"'])", obj)
-            if value:
-                entry[key] = int(value.group(1)) if value.group(1) else value.group(2)
+            value = re.search(
+                rf"\b{key}\s*:\s*(?:(\d+)|[\"']([^\"']+)[\"']|([\w.]+))", obj
+            )
+            if not value:
+                continue
+            if value.group(1):
+                entry[key] = int(value.group(1))
+            elif value.group(2):
+                entry[key] = value.group(2)
+            else:
+                # A constant reference rather than a literal, which only the
+                # tournament ladders' booster drops use. Resolved, not copied.
+                reference = value.group(3)
+                if reference not in boosters():
+                    raise ValueError(f"unknown constant in an item reward: {reference}")
+                entry[key] = boosters()[reference]
         rate = re.search(r"rate\s*:\s*([\d.]+)", obj)
         if not entry:
             raise ValueError(f"item reward with no payload: {obj}")
@@ -218,14 +249,31 @@ def availability(raw: str) -> dict | None:
     return {"begins": begins, "ends": ends}
 
 
-def parse(text: str, rule_constants: dict, levels: dict, tables: dict) -> list:
+def parse(
+    text: str,
+    rule_constants: dict,
+    levels: dict,
+    tables: dict,
+    require_id: bool = True,
+) -> list:
+    """Every `new NPC({...})` in `text`, as records.
+
+    `require_id` is on for NPCs.as, where every record declares one and a missing
+    one means the parse went wrong. The tournament ladders in tto/screens declare
+    opponents with the same literal but often without an `id` -- the Card Club
+    omits it on all seven -- so extract_campaigns.py turns it off and numbers them
+    by their position in the ladder, which is the only identity that ladder uses.
+    """
     out = []
     for literal in entries(text):
         level_ref = field(literal, "level")
         if level_ref is not None and level_ref not in levels:
             raise ValueError(f"unknown level constant {level_ref!r}")
+        raw_id = field(literal, "id")
+        if raw_id is None and require_id:
+            raise ValueError(f"NPC literal with no id: {literal[:80]}")
         npc = {
-            "id": int(field(literal, "id")),
+            "id": int(raw_id) if raw_id else 0,
             "name": field(literal, "name").strip("'\""),
             "iconID": field(literal, "iconID").strip("'\""),
             "rules": rules(field(literal, "rules"), rule_constants),

@@ -1,3 +1,4 @@
+
 # Phase 1: Infrastructure Setup - Triple Triad Online Migration
 
 ## 📋 Document Information
@@ -23,17 +24,6 @@ Phase 1 establishes the complete Kotlin Multiplatform project infrastructure wit
 4. Set up core utilities and configuration system
 5. Create first production-ready components
 6. Establish complete build and CI/CD pipeline
-
----
-
-## 📅 Timeline
-
-| Week | Focus | Owner |
-|------|-------|-------|
-| Week 3 | Project structure, Gradle config, Android/iOS setup | DevOps + Tech Lead |
-| Week 4 | Platform-specific code, Core utilities | Tech Lead + Senior Kotlin Devs |
-| Week 5 | Data models, JSON files, Localization | Tech Lead + Team |
-| Week 6 | Testing infrastructure, CI/CD, Documentation | QA + DevOps + Tech Lead |
 
 ---
 
@@ -78,25 +68,20 @@ triple-triad-kotlin/
 
 ## 📝 Tasks by Week
 
-### Week 3: Project Foundation
-
 > ⚠️ **Task numbering collides with Phase 0.** Both documents number their tasks
 > 1.1, 1.2, 1.3… so "Task 1.2" is ambiguous across the plan. Renumber Phase 1 tasks
 > as 1.1-1.13 → **P1.1-P1.13** (and likewise for other phases) before using these
 > IDs in a tracker.
 
 #### Task 1.1: Root Project Setup
-**Owner**: DevOps | **Duration**: 1 day | **Priority**: CRITICAL
 
 Create root project files:
+
 - `settings.gradle.kts` - Plugin management and includes
 - `build.gradle.kts` - Root configuration
 - `gradle.properties` - Centralized properties
 - `.gitignore`, `.editorconfig`
 
-**Key configurations**:
-- Kotlin Multiplatform plugin (`androidTarget()`, explicit `iosX64/iosArm64/iosSimulatorArm64`)
-- Compose Multiplatform plugin **plus** `org.jetbrains.kotlin.plugin.compose`
   (required from Kotlin 2.0 — the Compose compiler now ships with Kotlin)
 - Kotlin serialization plugin (`@Serializable` is used throughout the data layer).
   The first PoC used `@Serializable` without ever applying this plugin, which is
@@ -112,62 +97,40 @@ Create root project files:
   first PoC had none, so its own `./gradlew` build instructions could not run. The
   the PoC pins Gradle 9.6.1.
 
-**Acceptance Criteria**:
-- [ ] `./gradlew projects` shows all modules
-- [ ] Basic build succeeds
-- [ ] Version management is centralized
-
 ---
 
 #### Task 1.2: Shared Module Configuration
-**Owner**: Tech Lead | **Duration**: 2 days | **Priority**: CRITICAL
 
 Set up `shared/build.gradle.kts` with:
+
 - All source sets (commonMain, androidMain, iosMain, jvmMain, commonTest)
 - All dependencies (Ktor, Compose, Koin, SQLDelight, etc.)
 - Compose compiler configuration
 - Multiplatform settings
 
-**Acceptance Criteria**:
-- [ ] Shared module builds successfully
-- [ ] All dependencies resolve
-- [ ] All source sets configured properly
-
 ---
 
 #### Task 1.3: Android Application Setup
-**Owner**: Android Specialist | **Duration**: 1 day | **Priority**: HIGH
 
 Configure androidApp module:
+
 - `build.gradle.kts` with Android configuration
 - `AndroidManifest.xml`
 - `MainActivity.kt` with Compose setup
 - Resource directories
 
-**Acceptance Criteria**:
-- [ ] Android app builds
-- [ ] Runs on emulator
-- [ ] Compose configured
-
 ---
 
 #### Task 1.4: iOS Application Setup
-**Owner**: iOS Specialist | **Duration**: 1 day | **Priority**: HIGH
 
 Configure iosApp module:
+
 - `Info.plist`
 - `ContentView.swift` with Compose integration
 - `AppDelegate.swift`, `SceneDelegate.swift`
 - Asset catalog
 
-**Acceptance Criteria**:
-- [ ] iOS app builds
-- [ ] Runs on simulator
-- [ ] Compose integration works
-
 ---
-
-### Week 4: Platform-Specific Code
 
 #### Task 1.5: Platform Audio — ✅ **DONE, on Android, with no new dependency**
 
@@ -177,7 +140,6 @@ and
 sounds imported by [`tools/import_sounds.py`](../../tools/import_sounds.py). Five tests in
 `SoundTest`, nine in `MatchAudioTest`. Full write-up in the [README](../../README.md#audio).
 
-**Acceptance Criteria**:
 - [x] Audio works — on **Android**, confirmed by `dumpsys audio` on a physical device: the
       `MediaPlayer` is `state:started` at 44 100 Hz stereo and no `SoundPool` load failed. Desktop
       is silent by design and iOS is void
@@ -224,33 +186,6 @@ sounds imported by [`tools/import_sounds.py`](../../tools/import_sounds.py). Fiv
 > parameter selects the **channel**, not looping — a detail that an earlier
 > revision of [15-CHEAT-SHEET.md](./15-CHEAT-SHEET.md) got wrong.
 
-<details>
-<summary>The API this task originally sketched, superseded by the four corrections above</summary>
-
-```kotlin
-// commonMain
-enum class AudioChannel { BACKGROUND, EFFECTS }
-
-interface AudioPlayer {
-    fun play(soundId: String, channel: AudioChannel = AudioChannel.EFFECTS, loop: Boolean = false)
-    fun stop(channel: AudioChannel)
-    fun stopAll()
-    fun setVolume(channel: AudioChannel, volume: Float)   // 0f..1f, persisted
-    fun release()
-}
-
-expect fun createAudioPlayer(): AudioPlayer
-```
-
-Implement for Android (Media3 ExoPlayer for music + `SoundPool` for short effects)
-and iOS (`AVAudioPlayer` / `AVAudioEngine`).
-
-> **Overlapping effects**: `ExoPlayer` restarts on each `setMediaItem`, so rapid
-> card-flip sounds cut each other off. Use `SoundPool` on Android and pooled
-> `AVAudioPlayer` instances on iOS for effects; reserve ExoPlayer for music.
-
-</details>
-
 ---
 
 #### Task 1.6: Platform File Access — ✅ **DONE, with a different shape**
@@ -266,7 +201,6 @@ Ten tests in
 [`UserSettingsTest`](../../shared/src/commonTest/kotlin/com/tripletriad/settings/UserSettingsTest.kt).
 Full write-up in the [README](../../README.md#user-settings).
 
-**Acceptance Criteria**:
 - [x] File operations work — verified on a physical Pixel 6a: first launch creates the file, editing
       it changes the language, a second launch does **not** rewrite it
 - [x] Asset loading works — **already did, and needs none of this API**. Compose resources read
@@ -336,12 +270,10 @@ Still outstanding: **`CryptoHelper`**, which is only needed when save games are.
 
 ---
 
-### Week 5: Data and Resources
-
 #### Task 1.8: Data Models
-**Owner**: Tech Lead | **Duration**: 2 days | **Priority**: CRITICAL
 
 Create core data models (see [13-DATA-MODELS.md]):
+
 - `Card.kt` - Card data
 - `Tile.kt` - Board tile
 - `Board.kt` - 3x3 board
@@ -349,25 +281,15 @@ Create core data models (see [13-DATA-MODELS.md]):
 - `GameRules.kt` - Rule definitions
 - `GameState.kt` - Game state
 
-**Acceptance Criteria**:
-- [ ] All models compile
-- [ ] Serialization works
-- [ ] Unit tests pass
-
 ---
 
 #### Task 1.9: JSON Data Files
-**Owner**: Tech Lead | **Duration**: 1 day | **Priority**: HIGH
 
 Convert AS3 data to JSON:
+
 - `shared/src/commonMain/resources/data/cards/ff14.json`
 - `shared/src/commonMain/resources/data/cards/ff8.json`
 - `CardRepository.kt` - Data loading
-
-**Acceptance Criteria**:
-- [ ] All card data converted
-- [ ] JSON loads correctly
-- [ ] Repository works
 
 ---
 
@@ -383,7 +305,6 @@ targets) and
 [`StringsBundleTest`](../../shared/src/desktopTest/kotlin/com/tripletriad/i18n/StringsBundleTest.kt)
 (8). Full write-up in the [README](../../README.md#localisation).
 
-**Acceptance Criteria**:
 - [x] All strings extracted — 691 keys across the four bundles
 - [x] Localization works for all 4 locales — verified on a physical Pixel 6a in French and
       Japanese, plus two UI tests driving the real tree
@@ -414,11 +335,8 @@ targets) and
 
 ---
 
-### Week 6: Testing and Finalization
-
 #### Task 1.11: Testing Infrastructure — ✅ **DONE, with JaCoCo instead of Kover**
 
-**Acceptance Criteria**:
 - [x] Unit tests run successfully — 135 distinct / 240 executions, 0 failures
 - [x] Coverage is measured — **96.7% line, 86.0% branch**, `./gradlew :shared:coverageReport`,
       gated at 90/75 by `coverageVerify` which `check` depends on. Full write-up in the
@@ -445,29 +363,27 @@ fail by raising the line minimum to 99% and watching the build stop.
 ---
 
 #### Task 1.12: CI/CD Enhancement
-**Owner**: DevOps | **Duration**: 1 day | **Priority**: MEDIUM
 
 Enhance pipelines:
+
 - Automatic testing
 - Code coverage upload
 - Static analysis (detekt, ktlint)
 - Artifact management
 - Release automation
 
-**Acceptance Criteria**:
 - [x] All CI pipelines pass — five jobs, green
 - [x] Coverage reported — the `shared` job runs `:shared:coverageReport` and uploads the HTML as
       a `shared-coverage` artifact; the gate itself runs inside `:shared:build`
 - [x] Artifacts built and stored — test results, coverage, and the debug APK
-- [ ] Release automation — **not done**, and deliberately deferred to Phase 8: it needs a signing
       key, which is a secret this repository does not have yet
 
 ---
 
 #### Task 1.13: Documentation
-**Owner**: Tech Lead | **Duration**: 1 day | **Priority**: MEDIUM
 
 Create development guides:
+
 - `docs/development/project-setup.md`
 - `docs/development/build-guide.md`
 - `docs/development/testing-guide.md`
@@ -502,73 +418,6 @@ Create development guides:
 
 ---
 
-## 📊 Phase 1 Deliverables
-
-### Code Deliverables
-
-Ticked against what is in the repository, not against intent.
-
-- [x] Complete project structure — root Gradle build, `:shared` / `:androidApp` / `:desktopApp`
-- [x] All build files — version catalog, ktlint + detekt applied to every module at `maxIssues = 0`
-- [x] Platform-specific implementations — `AndroidSettingsStore` / `DesktopSettingsStore`, as
-      host-module implementations of a common interface rather than `expect`/`actual`; see Task 1.6
-      for why. Audio (P1.5) is the remaining one
-- [x] Core utility classes — the logger is done (P1.7); the rest of `tools.as` is void or
-      already in place, and `CryptoHelper` waits for save games. See the task
-- [x] All data models — `Card`, `Board`, `GameRules`, `Power`, `Match`, `MatchState`
-- [x] JSON data files — `cards.json`, 263 records, generated by `tools/extract_cards.py`
-- [x] Localization files — four imported bundles + four app-owned, see Task 1.10
-- [x] Repository implementations — `CardRepository`, read through the Compose resource bundle
-- [x] Test infrastructure — 165 tests / 275 executions, and coverage measured and gated;
-      **JaCoCo, because Kover cannot be applied here at all** — see Task 1.11
-- [x] CI/CD workflows — five jobs, green
-
-**Phase 1 is complete.** **P1.4** (iOS app) is void — Android only, decided 2026-07-25 — and
-everything else is delivered, including **P1.5** audio and **P1.13** the guides.
-
-### Documentation Deliverables
-- [x] Phase documentation — this file, annotated task by task against what was built
-- [x] Setup guides — [project-setup.md](../development/project-setup.md) +
-      [build-guide.md](../development/build-guide.md) + [CONTRIBUTING.md](../../CONTRIBUTING.md)
-- [x] Testing guide — [testing-guide.md](../development/testing-guide.md), alongside the
-      strategy document it deliberately does not duplicate
-
----
-
-## ✅ Phase 1 Completion Criteria
-
-Ticked against what has been executed. The boxes left empty are left empty on purpose — see the
-note under each group.
-
-### Technical
-- [ ] Project builds on all platforms — **Android, desktop and the iOS *framework* build**
-      (the framework on CI's macOS runner only). There is no `.xcodeproj`, so no iOS **app** has
-      ever been built or run
-- [x] All data models implemented — `Card`, `Board`, `GameRules`, `Power`, `Match`, `MatchState`
-- [x] Core utilities functional — logger, settings, audio, i18n; `CryptoHelper` waits for save
-      games, which do not exist yet (Task 1.7)
-- [x] CI/CD pipeline operational — five jobs, green
-
-### Documentation
-- [x] All Phase 1 documents complete
-- [x] Setup guides available
-
-### Team
-- [x] Team can build locally — insofar as the guides were written by following them; every command
-      in them was run
-- [x] Team can run tests
-- [x] Team understands project structure
-
-### Approvals
-- [ ] Tech Lead approval
-- [ ] QA Engineer approval
-- [ ] DevOps approval
-
-**Nobody has approved anything, and no reviewer other than the author has read any Phase 0 or
-Phase 1 output.** That is a standing gap, not an oversight in this document.
-
----
-
 ## ⚠️ Risks and Mitigation
 
 | Risk | Probability | Impact | Mitigation | Owner |
@@ -576,19 +425,6 @@ Phase 1 output.** That is a standing gap, not an oversight in this document.
 | Gradle complexity | Medium | High | Use templates, experienced DevOps | DevOps |
 | iOS issues | Medium | High | Early validation, dedicated specialist | iOS Specialist |
 | Dependency conflicts | Medium | Medium | Version catalog, test thoroughly | Tech Lead |
-
----
-
-## 🎯 Next Phase: Phase 2 - Data Layer
-
-**Phase 2 Focus** (Weeks 7-8):
-- Complete remaining data models
-- Implement repository pattern
-- Set up SQLDelight database
-- Create data migration scripts
-- Test all data operations
-
-**Prerequisites**: All Phase 1 deliverables complete
 
 ---
 
@@ -604,6 +440,5 @@ Phase 1 output.** That is a standing gap, not an oversight in this document.
 
 ---
 
-*Generated: 2026-07-21*
 *Status: PLANNING COMPLETE - Ready for execution after Phase 0*
 *Review Required: Tech Lead approval before starting*

@@ -3,7 +3,7 @@
 ## 📋 Document Information
 
 - **Purpose**: Identify, analyze, and mitigate risks for the AS3 to Kotlin migration
-- **Status**: PLANNING COMPLETE
+- **Status**: superseded by the code; kept for the decisions in it
 - **Last Updated**: 2026-07-21
 - **Related**: [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md)
 
@@ -870,6 +870,3 @@ QR-002 (Bug Rate).*
 - **Phase 0**: [04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md)
 
 ---
-
-*Generated: 2026-07-21*  
-*Status: PLANNING COMPLETE*

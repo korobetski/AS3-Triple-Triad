@@ -99,6 +99,11 @@ internal fun InventoryScreen(
     var selectedKey by remember(profile.mode) { mutableStateOf<Item?>(null) }
     var note by remember(profile.mode) { mutableStateOf<String?>(null) }
     var armed by remember { mutableStateOf(false) }
+
+    // The card just added to the collection, while it is being shown off. `UnlockCardAnim` is the
+    // one thing the original does here that a line of text cannot: the player has often never seen
+    // this card, and the note names it without showing it.
+    var unlocked by remember(profile.mode) { mutableStateOf<Card?>(null) }
     val selected = profile.bag.firstOrNull { itemKey(it) == selectedKey }
 
     CharacterScaffold(profile = profile, title = strings[StringKeys.INVENTORY], onBack = onBack) {
@@ -138,6 +143,11 @@ internal fun InventoryScreen(
                     val outcome = Inventory.use(profile, item, random)
                     note = useNote(strings, outcome, cards)
                     armed = false
+                    // Only a card *entering the collection* is revealed, which is the single
+                    // branch `useBtnHandler` plays it in (`:236-245`). Opening a pack yields
+                    // another bag item rather than a card, and showing it here would announce a
+                    // card the player does not own yet.
+                    unlocked = (outcome as? ItemUse.CardDrawn)?.let { cards[it.cardId] }
                     scope.launch { onPersist(outcome.save) }
                 },
                 onSell = {
@@ -155,6 +165,12 @@ internal fun InventoryScreen(
                 },
             )
         }
+    }
+
+    // Outside the scaffold, so it is drawn over the whole screen rather than inside the column
+    // that lists the bag.
+    unlocked?.let { card ->
+        UnlockedCard(card = card) { unlocked = null }
     }
 }
 

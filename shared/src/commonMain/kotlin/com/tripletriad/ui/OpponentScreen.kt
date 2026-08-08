@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.tripletriad.data.Campaign
 import com.tripletriad.data.NpcCatalog
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
@@ -29,6 +30,9 @@ import com.tripletriad.ui.theme.LocalTtoColors
 
 const val OPPONENT_LIST_TEST_TAG: String = "opponent-list"
 const val OPPONENT_EMPTY_TEST_TAG: String = "opponent-empty"
+
+/** The campaign entry that opens the lesson. */
+const val TUTORIAL_ROW_TEST_TAG: String = "tutorial-row"
 
 /** `opponent-row-<iconId>` — unique across both tables, which the NPC `id` is not. */
 fun opponentRowTestTag(iconId: String): String = "opponent-row-$iconId"
@@ -55,6 +59,9 @@ internal fun OpponentScreen(
     catalog: NpcCatalog,
     hour: Int,
     onChallenge: (Npc) -> Unit,
+    onTutorial: () -> Unit,
+    campaigns: List<Campaign>,
+    onCampaign: (Campaign) -> Unit,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -66,6 +73,12 @@ internal fun OpponentScreen(
         title = "${strings[StringKeys.OPPONENTS]} ${DOT_SEPARATOR}${collectionLabel(profile.mode)}",
         onBack = onBack,
     ) {
+        CampaignPanel(
+            campaigns = campaigns,
+            onTutorial = onTutorial,
+            onCampaign = onCampaign,
+        )
+
         if (opponents.isEmpty()) {
             Text(
                 text = strings[StringKeys.NO_OPPONENT],
@@ -84,6 +97,69 @@ internal fun OpponentScreen(
             }
         }
     }
+}
+
+/**
+ * `PVEScreen.as:72-96`'s Campaigns panel: the lesson, then this collection's tournament ladders.
+ *
+ * Above the list rather than in it, which is where the original puts it — a campaign is not an
+ * opponent you pick, and putting these among sixty of them would make them ones.
+ *
+ * **One ladder each**, not two: the Card Club is the FF8 tournament and the Gold Saucer the FF14
+ * one, and `PVEScreen` builds each button behind its own `if (MODE == …)`. Here the catalogue has
+ * already filtered, so this takes whatever list it is handed — including an empty one, which is
+ * what a collection with no ladder would give.
+ */
+@Composable
+private fun CampaignPanel(
+    campaigns: List<Campaign>,
+    onTutorial: () -> Unit,
+    onCampaign: (Campaign) -> Unit,
+) {
+    val strings = LocalStrings.current
+
+    Text(
+        text = strings[StringKeys.CAMPAIGNS],
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+    )
+    CampaignRow(
+        label = strings[StringKeys.TUTORIAL],
+        tag = TUTORIAL_ROW_TEST_TAG,
+        onClick = onTutorial,
+    )
+    for (campaign in campaigns) {
+        CampaignRow(
+            label = campaignTitle(strings, campaign),
+            tag = campaignRowTestTag(campaign.key),
+            onClick = { onCampaign(campaign) },
+        )
+    }
+}
+
+/**
+ * One way in — `PVEScreen`'s `tttBtn`, `ccBtn` and `gsBtn`, which are bare textures (`tt_tuto` and
+ * two group logos) with no text at all. They get captions here because this port's asset set has no
+ * such textures, and a word is a better answer than a missing image.
+ */
+@Composable
+private fun CampaignRow(label: String, tag: String, onClick: () -> Unit) {
+    Text(
+        text = label,
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .testTag(tag)
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+            .rowSurface()
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+    )
 }
 
 @Composable
@@ -148,7 +224,6 @@ private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
 
 /**
  * `Difficulty 5 · Match Fee 20 · 47 MGP · 35 XP`.
- *
  * The MGP and XP shown are the **base** payout for a win, before the random top-up
  * ([com.tripletriad.data.MatchRewards]) and before any boon. Showing a range would be more honest
  * still, but `47-67 MGP` invites the reading that the fee is subtracted somewhere in there, and it

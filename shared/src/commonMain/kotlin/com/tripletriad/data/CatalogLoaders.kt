@@ -9,7 +9,7 @@ import tripletriad.shared.generated.resources.Res
  * ### Why these two functions are the whole of what stayed behind
  *
  * When `:core` was extracted so the server could replay matches with the real engine, everything
- * in `model/` moved untouched and almost all of `data/` did too. These four lines are the entire
+ * in `model/` moved untouched and almost all of `data/` did too. These few lines are the entire
  * remainder: the *parsers* are pure and moved, but `Res.readBytes` is Compose, and Compose is
  * exactly what a server must not link against.
  *
@@ -23,6 +23,9 @@ const val CARD_CATALOG_PATH: String = "files/cards.json"
 
 /** Path of the NPC catalog inside `commonMain/composeResources`. */
 const val NPC_CATALOG_PATH: String = "files/npcs.json"
+
+/** Path of the tournament ladders inside `commonMain/composeResources`. */
+const val CAMPAIGN_CATALOG_PATH: String = "files/campaigns.json"
 
 /**
  * Reads and parses `cards.json` out of the Compose Multiplatform resource bundle.
@@ -38,3 +41,8 @@ suspend fun loadCardCatalog(): CardCatalog =
 @OptIn(ExperimentalResourceApi::class)
 suspend fun loadNpcCatalog(): NpcCatalog =
     NpcCatalogParser.parse(Res.readBytes(NPC_CATALOG_PATH).decodeToString())
+
+/** Reads and parses `campaigns.json` out of the Compose Multiplatform resource bundle. */
+@OptIn(ExperimentalResourceApi::class)
+suspend fun loadCampaignCatalog(): CampaignCatalog =
+    CampaignCatalogParser.parse(Res.readBytes(CAMPAIGN_CATALOG_PATH).decodeToString())

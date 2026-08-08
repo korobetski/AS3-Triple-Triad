@@ -1,3 +1,4 @@
+
 # Phase 0: Preparation - Triple Triad Online Migration
 
 ## 📋 Document Information
@@ -147,83 +148,41 @@ Phase 0 establishes the foundation for the entire migration project. This phase 
 
 ---
 
-## 📅 Timeline
-
-| Week | Tasks | Owner | Status |
-|------|-------|-------|--------|
-| Week 1 | Environment setup, PoC development, Analysis completion | Tech Lead + DevOps | ⚠️ IN PROGRESS |
-| Week 2 | Team training, CI/CD setup, Documentation review | Tech Lead + Team | ⚠️ PARTIAL — CI green and standards documented; training void (no team) |
-
-### Task status at a glance
-
-| Task | Status |
-|------|--------|
-| 1.1 Development environment | ⚠️ PARTIAL — local builds work; no shared environments or artifact repository |
-| 1.2 Proof of Concept | ⚠️ 5 of 6 requirements — **no iOS app**; the shared framework does compile for Apple on CI |
-| 1.3 Source code analysis | ✅ DELIVERED — 7 of 7 documents, 8 of 8 sub-tasks; unreviewed |
-| 1.4 Team training | ⛔ VOID — single-developer project, no team planned |
-| 1.5 CI/CD pipeline | ✅ GREEN — all five jobs pass |
-| 1.6 Standards and guidelines | ✅ DELIVERED and enforced |
-
----
-
 ## 📝 Detailed Tasks
 
-### Week 1: Foundation Setup
-
 #### Task 1.1: Development Environment Setup
-**Owner**: DevOps
-**Duration**: 2 days
-**Priority**: HIGH
 **Status**: ⚠️ PARTIAL — the project builds from a clean clone on one machine. Nothing
 shared exists.
 
 **Description**: Set up all development infrastructure and tools required for the migration.
 
-**Sub-tasks**:
 - [x] Prepare existing repo — the Kotlin project lives in [the repository root](../../README.md)
       on the `migration/kotlin-multiplatform` branch. **Note the Gradle root is the repository root,
       not the repository root**, which has consequences for both the IDE and CI
-- [ ] Configure repository structure (branches, protection rules) — branch *conventions*
       are documented in [git-workflow.md](../development/git-workflow.md); **no protection
       rules exist** on this repository
 - [x] Set up GitHub Actions for CI/CD (basic pipeline) — green on all five jobs; see Task 1.5
-- [ ] Configure development IDEs — `.editorconfig` is committed and the IDE reads it, so
       formatting is consistent out of the box. But there is **no IDE configuration guide**,
       and there is a trap that needs one: AGP 9.3.1 requires a recent
       Android Studio
-- [ ] Set up shared development resources — not done
-- [ ] Create development, staging, and production environments — not done, and arguably
       not meaningful until the multiplayer/server question (TR-007) is decided
-- [ ] Configure artifact repositories — not done. CI uploads APKs as workflow artifacts,
       which is not the same thing
 
-**Dependencies**: None
-
-**Deliverables**:
-- [ ] Configured GitHub repository with proper branch structure — conventions documented,
       enforcement absent
 - [x] Working CI/CD pipeline (build, test) — five jobs, all green
 - [x] Development environment documentation —
       [README.md § Prerequisites](../../README.md#prerequisites), including
       the Windows `local.properties` escaping trap that cost half a day
-- [ ] IDE configuration guide for team — not written
 
-**Acceptance Criteria**:
 - [x] The project can be cloned and built — verified from `clean`: `./gradlew build
       assembleRelease` succeeds, 264 tasks
-- [ ] All *developers* can clone and build the project — untested; one machine, one OS
       (Windows 11). Nobody has tried this on macOS or Linux
 - [x] CI pipeline runs successfully on push — all five jobs green
-- [ ] Branch protection rules are configured — no
 - [x] Development environment guide is available — for the build; not for the IDE
 
 ---
 
 #### Task 1.2: Proof of Concept (PoC) Development
-**Owner**: Tech Lead
-**Duration**: 3 days
-**Priority**: CRITICAL
 **Status**: ⚠️ PARTIALLY DELIVERED — the PoC in [the repository root](../../README.md)
 builds and is verified, and now covers requirements **1, 2, 3, 4 and 6**.
 Requirement 5 (runs on iOS) is unmet.
@@ -262,7 +221,6 @@ Requirement 5 (runs on iOS) is unmet.
 
 **Description**: Create a working proof of concept to validate the technology stack and migration approach.
 
-**PoC Requirements**:
 1. **Display a Triple Triad card** using Compose Multiplatform
 2. **Load card data** from JSON file
 3. **Handle touch input** on card
@@ -270,30 +228,13 @@ Requirement 5 (runs on iOS) is unmet.
 5. **Run on both Android and iOS** emulators
 6. **Use Kotlin Multiplatform** shared module
 
-**Technical Specifications**:
-```
-PoC Scope:
-├── shared module (KMP)
-│   ├── data class Card
-│   ├── CardComponent @Composable
-│   ├── Card data JSON
-│   └── Flip animation
-├── androidApp
-│   └── MainActivity displaying card
-└── iosApp
-    └── SwiftUI view displaying card
-```
-
-**Validation Points**:
 - [x] Compose MP renders correctly — **Android and JVM desktop only**; iOS not compiled
-- [ ] Card animations perform smoothly (60+ FPS) — **UNVERIFIED.** `dumpsys gfxinfo`
       recorded zero frames because the test device locked mid-session. The flip looks
       smooth on the device, which is not a measurement. Commands to fill this in:
       [performance-baseline.md](../analysis/performance-baseline.md) §2
 - [x] JSON data loading works — 263 cards read from a JSON resource through the
       Compose resource bundle, covered by 5 end-to-end UI tests
 - [x] Touch handling works correctly — verified under real touch and `adb shell input tap`
-- [ ] App size is reasonable (< 20MB for PoC). **This criterion compares the wrong
       things and must be restated.** MEASURED: Kotlin PoC is 17 679 KB debug /
       14 807 KB release-unsigned (and `isMinifyEnabled = false`, so the release figure
       is an un-shrunk upper bound). 7.00 MB of that is the 263 card faces, now embedded. For comparison, the existing AS3 build
@@ -308,8 +249,6 @@ PoC Scope:
       of which 29.2 MB is the Compose runtime and 3.0 MB graphics. Note this is one
       card with no textures; graphics is the figure to watch once atlases arrive
 
-**Success Criteria**:
-- ✅ PoC runs on Android — **exceeded**: run on a physical Pixel 6a (Android 17 /
   API 37), not an emulator
 - ❌ PoC runs on iOS simulator (iOS 17+) — never compiled
 - ✅ Card renders with the correct layout and power values — **now MET**, and
@@ -327,12 +266,6 @@ PoC Scope:
 - ❌ Performance metrics meet minimum requirements — cold start (658/752 ms) and
   memory (72.4 MB PSS) measured; **frame timing not measured**
 
-**Risk Mitigation**:
-- If Compose MP has issues, evaluate fallback to separate Android/iOS UIs
-- If animation performance is poor, investigate optimization strategies
-- If iOS setup is problematic, consider using KMP iOS template
-
-**Deliverables**:
 - ✅ Working PoC code at the [repository root](../../README.md)
   (the earlier `poc/` directory was deleted — see the history note above)
 - ✅ PoC validation report — [README.md](../../README.md)
@@ -347,9 +280,6 @@ PoC Scope:
 ---
 
 #### Task 1.3: Complete Source Code Analysis
-**Owner**: Tech Lead
-**Duration**: 2 days
-**Priority**: HIGH
 **Status**: ✅ DELIVERED — **7 of 7 documents, 8 of 8 sub-tasks**. The last two were the
 [game-rules specification](../analysis/game-rules.md) and the
 [data-flow diagrams](../analysis/data-flow.md). One acceptance criterion remains unmet and
@@ -358,7 +288,6 @@ cannot be met by writing more: nobody has reviewed any of it. See
 
 **Description**: Finalize the analysis of the ActionScript 3 codebase, creating detailed documentation for migration.
 
-**Sub-tasks**:
 - [x] Create complete class dependency graph — **generated**, not hand-written:
       [dependency-matrix.md](../analysis/dependency-matrix.md), refreshable with
       `python docs/analysis/tools/analyse_as3.py`. Confirms 103 files / 17,066 lines /
@@ -398,14 +327,12 @@ cannot be met by writing more: nobody has reviewed any of it. See
       not reverse engineering — see TR-007 in
       [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md)
 
-**Analysis Documents to Create**:
 1. **Dependency Matrix** - All class dependencies in spreadsheet format
 2. **Event Catalog** - All custom events with their payloads
 3. **API Mapping** - AS3 to Kotlin API translations
 4. **Network Protocol Specification** - Complete message format documentation
 5. **Performance Baseline** - Current AS3 performance metrics
 
-**Deliverables**:
 - [x] [`docs/analysis/game-rules.md`](../analysis/game-rules.md)
 - [x] [`docs/analysis/data-flow.md`](../analysis/data-flow.md)
 - [x] [`docs/analysis/dependency-matrix.md`](../analysis/dependency-matrix.md) (generated)
@@ -415,7 +342,6 @@ cannot be met by writing more: nobody has reviewed any of it. See
 - [x] [`docs/analysis/performance-baseline.md`](../analysis/performance-baseline.md)
 - [x] [`docs/analysis/tools/analyse_as3.py`](../analysis/tools/analyse_as3.py) — the generator
 
-**Acceptance Criteria**:
 - [x] Every class in `sources/src/tto/` is documented — all 103 are listed with line
       count, base class, interfaces and dependency counts in
       [dependency-matrix.md](../analysis/dependency-matrix.md) §8
@@ -423,7 +349,6 @@ cannot be met by writing more: nobody has reviewed any of it. See
       each row, so an unverified equivalent is not mistaken for a verified one
 - [x] Network protocol is fully documented — including the finding that there is
       almost none
-- [ ] Analysis is reviewed and approved by team — **not done**; nobody has reviewed this
 - [x] Game rules specified — [game-rules.md](../analysis/game-rules.md)
 
 **New findings that change scope** (all in
@@ -440,76 +365,14 @@ cannot be met by writing more: nobody has reviewed any of it. See
 
 ---
 
-### Week 2: Team Preparation
-
 #### Task 1.4: Team Training
-**Owner**: Tech Lead + Senior Kotlin Devs
-**Duration**: 3 days
-**Priority**: HIGH
 **Status**: ⏳ NOT STARTED
 
 **Description**: Ensure all team members have the necessary skills for the migration.
 
-**Training Modules**:
-
-**Module 1: Kotlin Fundamentals (1 day)**
-- Kotlin syntax and idioms
-- Null safety
-- Collections and sequences
-- Extension functions
-- Functional programming in Kotlin
-
-**Module 2: Kotlin Multiplatform (1 day)**
-- KMP architecture and concepts
-- Source sets and platform declarations
-- expect/actual mechanism
-- Multiplatform dependencies
-- Cross-platform testing
-
-**Module 3: Compose Multiplatform (1 day)**
-- Compose fundamentals
-- State management with StateFlow
-- Custom components
-- Animation API
-- Multiplatform Compose setup
-
-**Module 4: Triple Triad Domain (0.5 day)**
-- Game rules overview
-- Current codebase walkthrough
-- Migration strategy review
-- Q&A session
-
-**Training Format**:
-- Hands-on workshops with exercises
-- Code review sessions
-- Pair programming on PoC extension
-- Documentation review
-
-**Training Materials**:
-- [ ] Kotlin cheat sheet (customized for team)
-- [ ] Compose MP tutorial project
-- [ ] KMP setup guide
-- [ ] Triple Triad domain primer
-- [ ] Coding standards document
-
-**Deliverables**:
-- Training materials (slides, exercises, solutions)
-- Team skill assessment results
-- Training completion checklist
-
-**Acceptance Criteria**:
-- [ ] All developers can write basic Kotlin code
-- [ ] All developers can create Compose components
-- [ ] All developers understand KMP concepts
-- [ ] Team can extend the PoC
-- [ ] Coding standards are understood and agreed upon
-
 ---
 
 #### Task 1.5: CI/CD Pipeline Setup
-**Owner**: DevOps
-**Duration**: 2 days
-**Priority**: HIGH
 **Status**: ✅ COMPLETE AND GREEN —
 [`.github/workflows/build.yml`](../../.github/workflows/build.yml) exists, all **8 Gradle
 task paths it invokes were verified to exist** with `--dry-run`, and **all five jobs pass**.
@@ -543,7 +406,7 @@ use implies accepting Gradle's Terms of Use. That is a licensing decision for th
 owner; the rationale is recorded in the workflow header.
 
 > **Corrections against the draft that used to live in this document.** The YAML
-> below was aspirational and would have failed on every run:
+> below was aspirational and would have failed on every run.
 > - it triggered on `main`; this repository's default branch is **`master`**
 > - it ran Gradle from the repository root, which at the time was not the Gradle root (the
 >   repository root has no `settings.gradle.kts`)
@@ -557,23 +420,18 @@ owner; the rationale is recorded in the workflow header.
 > compile**, since Kotlin/Native cannot target Apple from the Windows host used so far,
 > and it passed. It deliberately builds the shared framework only, not an iOS app.
 
-**Pipeline Stages**:
-
 **1. Build Stage**
 - [x] Build shared module — `shared` job, `:shared:build`
 - [x] Build Android app — `android` job, debug + release APKs uploaded as artifacts
-- [ ] Build iOS app — **not possible**: no Xcode project. The `ios-framework` job
       builds and tests `:shared` for `iosSimulatorArm64` instead
 - [x] Run on all supported platforms — ubuntu for JVM/Android, macos for Apple
 
 **2. Test Stage**
 - [x] Run unit tests (shared) — part of `:shared:build`; 47 executions
-- [ ] Run Android instrumented tests — none exist yet, and none are needed while the
       Compose UI tests run on the JVM desktop target in seconds
 - [x] Run iOS tests — the `ios-framework` job runs `:shared:iosSimulatorArm64Test` on
       `macos-latest` and it passes. This is the shared module's *common* tests executed on
       an Apple target; there are no iOS-specific tests, and no UI test runs there
-- [ ] Code coverage reporting — **not done.** Needs Kover (JaCoCo does not cover
       Kotlin/Native); not in the build
 - [x] Static analysis (detekt, ktlint) — `quality` job; also wired into `check`, so
       `./gradlew build` fails on a formatting violation
@@ -581,12 +439,8 @@ owner; the rationale is recorded in the workflow header.
 **3. Quality Stage**
 - [x] Code formatting check — ktlint, configured from `.editorconfig`
 - [x] Linting (Android) — `lintDebug`, part of `:shared:build`
-- [ ] Security scanning — **not done.** Note the finding that a `.p12` signing
       certificate is committed to this repository; a secret scanner would have caught
       it. See [git-workflow.md](../development/git-workflow.md#-a-private-key-is-publicly-downloadable)
-- [ ] Dependency vulnerability check — **not done**
-
-**Pipeline Configuration**:
 
 The committed workflow is [`.github/workflows/build.yml`](../../.github/workflows/build.yml).
 It is the authority; the aspirational YAML that used to be reproduced here has been
@@ -617,29 +471,21 @@ Notes for whoever runs it first:
 
 **4. Artifact Stage**
 - [x] Build Android APK — debug + release, uploaded by the `android` job
-- [ ] Build Android AAB — not done; needed for Play, and for `bundletool get-size`
-- [ ] Build iOS IPA — not possible without an Xcode project
 - [x] Publish artifacts — `actions/upload-artifact` for APKs, the iOS framework, test
       results and (on failure) the ktlint/detekt reports
-- [ ] Version management — not done
 
-**Deliverables**:
 - [x] [`.github/workflows/build.yml`](../../.github/workflows/build.yml)
-- [ ] ~~`.github/workflows/test.yml`~~ — **deliberately not created.** Testing is a job
       inside `build.yml`; a second workflow would duplicate checkout, JDK setup and
       Gradle caching for no benefit
-- [ ] ~~`.github/workflows/release.yml`~~ — **deliberately not created.** Signing keys
       and store credentials are Phase 8 concerns; a release pipeline that cannot sign
       anything is theatre. And see the committed-`.p12` finding first
 - [x] detekt configuration — [`detekt/detekt.yml`](../../detekt/detekt.yml),
       every override carrying its reason, `maxIssues = 0`
 - [x] ktlint configuration — [`.editorconfig`](../../.editorconfig), which
       the IDE reads too, so there is one source of truth
-- [ ] Code coverage configuration — **not done**; needs Kover
 - [x] CI/CD documentation — this section plus
       [git-workflow.md](../development/git-workflow.md)
 
-**Acceptance Criteria**:
 - [x] All builds pass on CI — **all five jobs green**, including `ios-framework` on
       `macos-latest`
 - [x] Tests run successfully — locally 47 executions, 0 failures; on CI the `shared` and
@@ -659,54 +505,12 @@ Notes for whoever runs it first:
 ---
 
 #### Task 1.6: Project Standards and Guidelines
-**Owner**: Tech Lead
-**Duration**: 1 day
-**Priority**: MEDIUM
 **Status**: ✅ DELIVERED — see [docs/development/](../development/README.md). The
 standards are **enforced, not advisory**: `./gradlew build` runs ktlint and detekt and
 fails on any finding (`maxIssues = 0`). Verified green on this codebase.
 
 **Description**: Establish coding standards, best practices, and development guidelines for the migration.
 
-**Standards to Define**:
-
-**1. Coding Standards**
-- Code formatting (use ktlint with Kotlin style guide)
-- Naming conventions (see 03-TECHNICAL-STACK.md)
-- File organization
-- Import ordering
-- Documentation requirements
-- Test naming conventions
-
-**2. Architecture Guidelines**
-- Layer separation (presentation, domain, data)
-- Dependency injection patterns
-- State management patterns
-- Error handling patterns
-- Logging conventions
-
-**3. Git Workflow**
-- Branch naming convention
-- Commit message format
-- Pull request process
-- Code review requirements
-- Merge strategy
-
-**4. Testing Strategy**
-- Unit test requirements
-- Integration test requirements
-- UI test requirements
-- Test coverage targets
-- Testing tools and frameworks
-
-**5. Performance Guidelines**
-- Memory usage limits
-- Frame rate targets
-- Load time targets
-- App size limits
-- Profiling requirements
-
-**Deliverables**:
 - [x] [`docs/development/coding-standards.md`](../development/coding-standards.md)
 - [x] [`docs/development/architecture-guidelines.md`](../development/architecture-guidelines.md)
 - [x] [`docs/development/git-workflow.md`](../development/git-workflow.md)
@@ -731,113 +535,6 @@ the *entire* body of some socket handlers — and none of that should be carried
 
 ---
 
-## 📊 Phase 0 Deliverables
-
-### Required Deliverables
-
-| Deliverable | Owner | Status | Notes |
-|-------------|-------|--------|-------|
-| Development environment setup | DevOps | ⚠️ PARTIAL | builds and runs locally; no shared/staging environments, no artifact repository, no IDE config guide |
-| PoC (Proof of Concept) | Tech Lead | ⚠️ 5 of 6 requirements | JSON loading closed; **iOS unmet** |
-| Source code analysis documents | Tech Lead | ⚠️ MOSTLY | all 5 written; game-rules spec and data-flow diagrams outstanding |
-| Team training completion | Tech Lead | ⏳ NOT STARTED | requires a team |
-| CI/CD pipeline | DevOps | ⚠️ WRITTEN, NEVER RUN | tasks verified to exist; no push yet |
-| Standards and guidelines | Tech Lead | ✅ DELIVERED | and mechanically enforced |
-
-### Documentation
-
-- [x] `docs/migration/04-PHASE-0-PREPARATION.md` (this document)
-- [x] [`docs/analysis/README.md`](../analysis/README.md) — index and headline findings
-- [x] [`docs/analysis/game-rules.md`](../analysis/game-rules.md) — rules specification, 35-case test matrix
-- [x] [`docs/analysis/data-flow.md`](../analysis/data-flow.md) — runtime flow, port-or-rewrite verdicts
-- [x] [`docs/analysis/dependency-matrix.md`](../analysis/dependency-matrix.md) (generated)
-- [x] [`docs/analysis/event-catalog.md`](../analysis/event-catalog.md)
-- [x] [`docs/analysis/api-mapping.md`](../analysis/api-mapping.md)
-- [x] [`docs/analysis/network-protocol.md`](../analysis/network-protocol.md)
-- [x] [`docs/analysis/performance-baseline.md`](../analysis/performance-baseline.md)
-- [x] [`docs/development/README.md`](../development/README.md)
-- [x] [`docs/development/coding-standards.md`](../development/coding-standards.md)
-- [x] [`docs/development/architecture-guidelines.md`](../development/architecture-guidelines.md)
-- [x] [`docs/development/git-workflow.md`](../development/git-workflow.md)
-- [x] [`docs/development/testing-strategy.md`](../development/testing-strategy.md)
-- [x] [`docs/development/performance-guidelines.md`](../development/performance-guidelines.md)
-- [x] [`README.md`](../../README.md) — PoC validation report
-- [x] Proof of Concept code at the repository root (builds; 263 cards loaded from JSON;
-      playable 3x3 board with both hands; rules engine; card artwork; no network or AI)
-- [x] [`.github/workflows/build.yml`](../../.github/workflows/build.yml)
-- [ ] Training materials — not started
-- [x] Game-rules specification — [game-rules.md](../analysis/game-rules.md); was the highest-value remaining analysis
-
----
-
-## ✅ Phase 0 Completion Criteria
-
-### Technical Completion
-- [ ] Development environment is fully configured — local builds work; no shared
-      environments, artifact repository or IDE config guide
-- [x] CI/CD pipeline is operational — all five jobs green; see Task 1.5
-- [ ] PoC validates all technology choices — validates the **base UI stack + data
-      loading** on Android and JVM. Does not validate iOS, texture atlases,
-      drag-and-drop, the rules engine, networking, or any of Ktor / SQLDelight / Koin /
-      Media3
-- [x] Source code analysis is complete and documented — 7 of 7 documents, 8 of 8 sub-tasks.
-      **Unreviewed**, which is the separate criterion below
-- [x] All standards and guidelines are defined — and enforced in the build
-
-### Team Readiness
-- [ ] All team members have completed training — no team assembled
-- [ ] Team can build and run the PoC
-- [ ] Team understands the migration strategy
-- [ ] Team is familiar with the codebase
-- [ ] Team is ready to start Phase 1
-
-### Documentation
-- [x] All Phase 0 documents are complete — except training materials
-- [x] All analysis documents are available
-- [ ] All training materials are available
-- [x] All standards are documented
-
-### Approvals
-
-**All five decisions were taken by the project owner on 2026-07-25.** They are recorded
-here as decisions, not as recommendations, and they change the shape of the project: this is
-a single-developer personal project, not a funded team migration. See
-[§ Decisions taken](#-decisions-taken-2026-07-25) below for the full record and its
-consequences.
-
-- [x] **BR-003 (Square Enix IP) — risk accepted.** Not to be widely distributed, marketed
-      or commercialised. The AS3 predecessor has carried the same exposure publicly on
-      GitHub without incident. ⚠️ The technical facts are unchanged and worth keeping
-      visible: the PoC ships `cards.json` with the names and stats of all 263 cards, so it
-      cannot be described as free of Square Enix material. See the
-      [licensing note](../../README.md#licensing-note) and
-      [16-RISK-ASSESSMENT.md](./16-RISK-ASSESSMENT.md)
-- [x] **TR-007 (multiplayer scope) — the original socket protocol is abandoned.** A new
-      architecture will be designed rather than migrated; Bluetooth is under consideration.
-      The premise is confirmed by count: 2 of 29 handlers reachable, and XMLSocket is not
-      wire-compatible with WebSocket. See
-      [network-protocol.md](../analysis/network-protocol.md) and
-      [09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md)
-- [x] **Budget — void, not re-baselined.** There is no budget: one developer, AI-assisted,
-      no salaries and no paid licences. Every cost, timeline and FTE figure in
-      [01-EXECUTIVE-SUMMARY.md](./01-EXECUTIVE-SUMMARY.md) should be read as an artefact of
-      the original team-based framing and ignored
-- [x] **Performance-comparison policy — absolute targets.** The AIR version is abandoned
-      outright, so no AS3 baseline will be produced and no parity claim will be made. See
-      [performance-baseline.md](../analysis/performance-baseline.md) §4
-- [x] **Asset-delivery strategy — assets ship inside the APK.** No runtime asset download.
-      An application *update* mechanism is wanted separately, which is a distribution
-      question rather than an asset question and is still open. See
-      [performance-guidelines.md](../development/performance-guidelines.md) §4
-- [ ] PoC actually builds and runs on Android and iOS — **Android: done** (both
-      APKs produced, 202 test executions green, verified on a physical Pixel 6a).
-      **iOS: not done**, never compiled.
-- [ ] Tech Lead approves phase completion
-- [ ] Team confirms readiness for Phase 1
-- [ ] Stakeholders approve to proceed
-
----
-
 ## ⚠️ Risks and Mitigation
 
 | Risk | Probability | Impact | Mitigation | Owner |
@@ -851,40 +548,6 @@ consequences.
 | PoC reveals technology issues | Medium | High | ✅ it did, and they were fixed: 3 geometry errors, a build-cache poisoning trap, and 6 naming violations found by enabling the linters | Tech Lead |
 | CI/CD setup complexity | ~~Medium~~ **Closed** | Medium | ✅ all five jobs green. One defect (the `gradlew` executable bit) found and fixed; headless Compose UI tests and `compileSdk 36` on the runner both worked | DevOps |
 | iOS development environment issues | Medium | Medium | **Partly mitigated.** The `ios-framework` CI job compiles and tests `:shared` for `iosSimulatorArm64` on `macos-latest` and passes, so Apple compilation is proven. Still no `.xcodeproj` and no simulator run — that needs a Mac | DevOps |
-
----
-
-## 🎯 Next Phase: Phase 1 - Infrastructure
-
-After completing Phase 0, the team will proceed to **Phase 1: Infrastructure Setup** (Weeks 3-6).
-
-**Phase 1 Focus**:
-- Create full project structure
-- Configure all dependencies
-- Set up platform-specific code
-- Implement first production components
-- Establish build and distribution pipeline
-
-**Prerequisites for Phase 1**:
-- All Phase 0 deliverables complete — ⚠️ not yet
-- Technology stack validated (PoC successful) — ⚠️ base stack only
-- Team trained and ready — ❌ no team
-- CI/CD pipeline operational — ✅ all five jobs green
-
-**What Phase 1 should tackle first, based on what Phase 0 found.** In this order,
-because each one is a risk that the PoC did *not* retire:
-
-1. **Texture-atlas spike.** Decide and measure how 263 card images get out of the
-   Starling atlases and into Compose. Highest unvalidated risk; blocks all of Phase 4.
-   See [api-mapping.md](../analysis/api-mapping.md) §7.
-2. **Get iOS to compile once**, even if only the shared framework, via the
-   `ios-framework` CI job or a Mac. Until then "multiplatform" is one platform.
-3. **Verify the remaining library set** — Ktor, SQLDelight, Koin, Media3 — with this
-   Kotlin/Compose combination. Set C in
-   [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md) covers none of them.
-4. **Specify the 20 game rules and their interactions** before porting `TTOCore`. This
-   is the outstanding Task 1.3 sub-task and the correctness core of the game.
-5. **Add Kover and Macrobenchmark**, so coverage and frame timing stop being unmeasured.
 
 ---
 

@@ -1,3 +1,4 @@
+
 # Phase 2: Data Layer - Triple Triad Online Migration
 
 ## 📋 Document Information
@@ -25,15 +26,6 @@ Phase 2 focuses on completing the data layer, including all remaining models, re
 4. Create data migration scripts
 5. Implement caching and offline support
 6. Test all data operations thoroughly
-
----
-
-## 📅 Timeline
-
-| Week | Focus | Owner |
-|------|-------|-------|
-| Week 7 | Remaining data models, Repositories, Database setup | Tech Lead + Team |
-| Week 8 | Migration scripts, Caching, Testing | Tech Lead + QA |
 
 ---
 
@@ -110,17 +102,12 @@ Corrected in [13-DATA-MODELS.md](./13-DATA-MODELS.md); listed here because they 
 
 ## 📝 Tasks
 
-### Week 7: Models and Repositories
-
 > ⚠️ **Week 7 is over-allocated**: Tasks 2.1 (3 d) + 2.2 (2 d) + 2.3 (2 d) +
 > 2.4 (1 d) = **8 days**, all four naming the Tech Lead as owner, inside a 5-day
 > week. Re-level or delegate before committing to this schedule.
 
 #### Task 2.1: Complete Data Models
-**Owner**: Tech Lead + Senior Kotlin Devs | **Duration**: 3 days | **Priority**: CRITICAL
 
-**Models to Complete** (from AS3 analysis):
-- Item hierarchy (Item.kt, **CardItem.kt**, BoosterItem.kt, PotionItem.kt).
   ⚠️ Note `Item` extends `starling.display.Sprite` in the original, so display and
   state must be separated; and all three subclasses extend `Item` directly, not
   `CardItem`. See the corrected hierarchy in
@@ -133,7 +120,6 @@ Corrected in [13-DATA-MODELS.md](./13-DATA-MODELS.md); listed here because they 
 - cardScore.kt
 - Match state models
 
-**Acceptance Criteria**: DONE
 - [x] All AS3 data classes have Kotlin equivalents — `Item`/`CardItem`/`BoosterItem`/`PotionItem`
   (+ `MiscItem`, the `itemize` fallback), `Achievement`, `Npc`, `XpTable` (`Level` + `Rank` merged —
   they are byte-identical), `GameSave`, `MatchRecord`
@@ -146,34 +132,7 @@ Corrected in [13-DATA-MODELS.md](./13-DATA-MODELS.md); listed here because they 
 ---
 
 #### Task 2.2: Implement Repository Pattern
-**Owner**: Tech Lead | **Duration**: 2 days | **Priority**: CRITICAL
 
-**Repositories to Implement**:
-- `CardRepository` - Card data access
-- `SaveRepository` - Save/load operations
-- `AchievementRepository` - Achievement tracking
-- `ItemRepository` - Inventory management
-- `MatchRepository` - Match history
-- `UserRepository` - User profiles
-
-**Repository Interface Example**:
-```kotlin
-interface CardRepository {
-    suspend fun getAllCards(collection: CardCollection): List<Card>
-    suspend fun getCardById(id: UInt, collection: CardCollection): Card?
-    suspend fun getCardsByRarity(rarity: Int): List<Card>
-    suspend fun getCardsByType(type: CardType): List<Card>
-    suspend fun getCardsByElement(element: Element): List<Card>
-    suspend fun searchCards(query: String): List<Card>
-}
-```
-
-**Implementation Strategy**:
-- Use interface + implementation pattern
-- Support both in-memory (for testing) and persistent storage
-- Use Flow for observable data where appropriate
-
-**Acceptance Criteria**: DONE, with two naming changes
 - [x] `CardRepository` (interface, two implementations), `SaveRepository`, `MatchHistoryRepository`,
   `AchievementRepository`
 - [x] **`ItemRepository` is `Inventory`** — an object of `GameSave -> GameSave` functions, not a
@@ -187,41 +146,8 @@ interface CardRepository {
 ---
 
 #### Task 2.3: SQLDelight Database Setup
-**Owner**: Tech Lead + DevOps | **Duration**: 2 days | **Priority**: HIGH
 
 **Database Schema** (SQLDelight files in `shared/src/commonMain/sqldelight/com/tripletriad/data/db/`):
-
-**GameSave.sq**:
-```sql
-CREATE TABLE GameSave (
-    username TEXT PRIMARY KEY,
-    creationDate INTEGER NOT NULL,
-    lastSave INTEGER NOT NULL,
-    saveNumber INTEGER NOT NULL,
-    mode TEXT NOT NULL,
-    admin INTEGER NOT NULL,
-    cards TEXT NOT NULL,  -- JSON array
-    decks TEXT NOT NULL,   -- JSON array
-    stats TEXT NOT NULL,   -- JSON object
-    bag TEXT NOT NULL,     -- JSON array
-    boons TEXT NOT NULL,   -- JSON object
-    mgp INTEGER NOT NULL,
-    xp INTEGER NOT NULL,
-    level INTEGER NOT NULL,
-    pvpXp INTEGER NOT NULL,
-    rank INTEGER NOT NULL,
-    avatarId TEXT NOT NULL,
-    startedMatches INTEGER NOT NULL,
-    endedMatches INTEGER NOT NULL,
-    pveMatches INTEGER NOT NULL,
-    pvpMatches INTEGER NOT NULL,
-    achievements TEXT NOT NULL,
-    npcWins TEXT NOT NULL,
-    rulesWins TEXT NOT NULL
-);
-```
-
-**CardCache.sq**:
 
 > ⚠️ **Naming inconsistency**: [03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md)
 > calls this table `Card`, this document calls it `CardCache`. Pick one — SQLDelight
@@ -232,48 +158,8 @@ CREATE TABLE GameSave (
 > synchronisation bug class for no benefit. Recommended: **drop it** and keep only
 > `GameSave` and `MatchHistory` in the database.
 
-```sql
-CREATE TABLE CardCache (
-    id INTEGER PRIMARY KEY,
-    collection TEXT NOT NULL,
-    nameKey TEXT NOT NULL,
-    power TEXT NOT NULL,  -- JSON array
-    rarity INTEGER NOT NULL,
-    type TEXT,
-    element TEXT
-);
-```
-
-**MatchHistory.sq**:
-```sql
-CREATE TABLE MatchHistory (
-    id TEXT PRIMARY KEY,
-    mode TEXT NOT NULL,
-    opponentType TEXT NOT NULL,  -- NPC, PVP
-    opponentName TEXT,
-    timestamp INTEGER NOT NULL,
-    result TEXT NOT NULL,  -- WIN, LOSE, DRAW
-    duration INTEGER NOT NULL,
-    rules TEXT NOT NULL   -- JSON object
-);
-```
-
-**Database Queries**:
-```kotlin
-// In GameSaveQueries.kt (generated by SQLDelight)
-interface GameSaveQueries {
-    fun selectAll(): List<GameSave>
-    fun selectByUsername(username: String): GameSave?
-    fun insert(gameSave: GameSave)
-    fun update(gameSave: GameSave)
-    fun delete(username: String)
-}
-```
-
-**Acceptance Criteria**: **NOT implemented as specified** — see deviation 1 above
 - [x] Storage exists for every entity that needs it: profiles and match history as JSON documents
   behind `DocumentStore`, cards as bundled read-only data
-- [ ] ~~SQLDelight configuration~~ — deliberately not added
 - [x] Builds and runs on Android and desktop; `SaveRepositoryTest` and
   `MatchHistoryRepositoryTest` cover create / read / update / delete / list
 - [x] `CardCache` dropped, as this document recommended
@@ -281,39 +167,7 @@ interface GameSaveQueries {
 ---
 
 #### Task 2.4: Data Source Layer
-**Owner**: Tech Lead | **Duration**: 1 day | **Priority**: HIGH
 
-**Data Sources to Implement**:
-- `LocalCardDataSource` - Card data from JSON files
-- `LocalSaveDataSource` - Save data from SQLDelight
-- `NetworkDataSource` - Remote data (if applicable)
-- `CacheDataSource` - In-memory caching
-
-**Layer Architecture**:
-```
-Repository
-    ↑
-DataSource (Local/Remote)
-    ↑
-Database / Files / Network
-```
-
-**Example Implementation**:
-```kotlin
-class CardRepositoryImpl(
-    private val localDataSource: LocalCardDataSource,
-    private val cacheDataSource: CacheCardDataSource
-) : CardRepository {
-    override suspend fun getAllCards(collection: CardCollection): List<Card> {
-        return cacheDataSource.getAll(collection)
-            ?: localDataSource.getAll(collection).also {
-                cacheDataSource.cacheAll(collection, it)
-            }
-    }
-}
-```
-
-**Acceptance Criteria**: DONE, collapsed by one layer
 - [x] `LocalCardDataSource` + `CacheCardDataSource` are **one class**, `BundledCardRepository`: with
   263 immutable records the cache *is* the source, and a separate data-source layer would have been
   two interfaces forwarding to each other. `NetworkDataSource` belongs to Phase 5
@@ -322,12 +176,8 @@ class CardRepositoryImpl(
 
 ---
 
-### Week 8: Migration and Testing
-
 #### Task 2.5: AS3 Data Migration Scripts
-**Owner**: Tech Lead | **Duration**: 2 days | **Priority**: HIGH
 
-**Migration Scripts to Create**:
 1. **Card Data Extractor** - Extract card data from AS3 `cards.as` to JSON
    (263 entries: 153 FF14 + 110 FF8, plus the `"Back"` placeholder at index 0 of
    each array). Note power values are **hex** and mix integers with quoted letters
@@ -349,17 +199,9 @@ class CardRepositoryImpl(
    (`My Games/Triple Triad Online/UserSettings.json`: `background_volume`,
    `noise_volume`, `language`) to Multiplatform Settings
 
-**Migration Strategy**:
-- Create standalone scripts (can run independently)
-- Preserve all data from original
-- Validate migration results
-- Create migration reports
-
-**Acceptance Criteria**: 5 of 6 scripts; legacy `.sav` reading deliberately out
 - [x] Cards, atlases, locales, sounds, icons — delivered in Phase 1. **NPCs — new**
   (`extract_npcs.py`, 85 opponents, resolving the two `getCardsByRarities(...)` pools and the
   `tripleTriadRules.*` / `NPC.LEVEL_*` constant references rather than copying them)
-- [ ] Legacy `.sav` conversion — **out of scope by decision**; see deviation 2
 - [x] Automated and re-runnable; each script asserts counts read out of the AS3 source, and
   `NpcBundleTest` / `CardBundleTest` re-assert them against what is actually packaged, because the
   scripts are run by hand and a stale bundle is the one failure their own assertions cannot catch
@@ -369,15 +211,6 @@ class CardRepositoryImpl(
 ---
 
 #### Task 2.6: Caching Implementation
-**Owner**: Tech Lead | **Duration**: 1 day | **Priority**: MEDIUM
-
-**Caching Strategy**:
-- **Card Data**: Cache in memory (loaded once at startup)
-- **Image Assets**: Cache using Coil
-- **Network Responses**: Cache using Ktor client caching
-- **Database Queries**: Use SQLDelight efficiently
-
-**Cache Implementation**:
 
 > ⚠️ **`LruCache` is `android.util.LruCache` — Android-only.** It does not exist in
 > `commonMain` and would break the iOS build. There is no LRU cache in the Kotlin
@@ -391,34 +224,10 @@ class CardRepositoryImpl(
 > (Card *images* are a different matter and are handled by Compose Resources, not
 > by this cache.)
 
-```kotlin
-// commonMain — all 263 cards fit comfortably in memory; no eviction needed.
-class CardCache(private val dataSource: LocalCardDataSource) {
-    private val mutex = Mutex()
-    private var byCollection: Map<CardCollection, List<Card>>? = null
-
-    private suspend fun ensureLoaded(): Map<CardCollection, List<Card>> =
-        byCollection ?: mutex.withLock {
-            byCollection ?: CardCollection.entries
-                .associateWith { dataSource.getAll(it) }
-                .also { byCollection = it }
-        }
-
-    suspend fun getAll(collection: CardCollection): List<Card> =
-        ensureLoaded()[collection].orEmpty()
-
-    suspend fun getById(id: UInt, collection: CardCollection): Card? =
-        getAll(collection).firstOrNull { it.id == id }
-
-    suspend fun clear() = mutex.withLock { byCollection = null }
-}
-```
-
 > If a bounded cache is ever genuinely needed (e.g. for decoded bitmaps), use a
 > multiplatform implementation or an `expect`/`actual` pair — do not reach for
 > `android.util.LruCache` from shared code.
 
-**Acceptance Criteria**: DONE, without an LRU — see deviation 3 above
 - [x] Cards cached in memory; images by Compose Resources; profiles and history read on demand
 - [x] `BundledCardRepository.invalidate()`, covered by `CardRepositoryTest`
 - [x] Bounded by construction: the card set is fixed at 263 records, and match history is capped at
@@ -427,139 +236,21 @@ class CardCache(private val dataSource: LocalCardDataSource) {
 ---
 
 #### Task 2.7: Offline Support
-**Owner**: Tech Lead | **Duration**: 1 day | **Priority**: MEDIUM
 
-**Offline Features**:
-- All card data available offline (bundled with app)
-- Save files stored locally
-- Match history available offline
-- Last known game state cached
-- Offline mode indicator in UI
-
-**Offline Strategy**:
-- Bundle essential data with app
-- Use SQLDelight for persistent storage
-- Sync with server when connection restored
-- Graceful degradation when offline
-
-**Acceptance Criteria**: DONE, and mostly by construction
 - [x] Nothing in the data layer touches the network — cards, artwork, locales and sounds are bundled,
   profiles and history are local files
 - [x] All essential data available offline
-- [ ] Offline **indicator** — nothing to indicate yet. There is no online feature until Phase 5, and
   a permanent "offline" badge would be noise; it belongs with the thing it qualifies
 
 ---
 
 #### Task 2.8: Data Layer Testing
-**Owner**: QA Engineer + Team | **Duration**: 2 days | **Priority**: CRITICAL
 
-**Testing Approach**:
-- Unit tests for all models
-- Unit tests for all repositories
-- Integration tests for data flow
-- Migration test scripts
-- Performance tests for data operations
-
-**Test Coverage Targets**:
-- Models: 100%
-- Repositories: >90%
-- Data Sources: >90%
-- Migration Scripts: 100%
-
-**Test Types**:
-```kotlin
-// Model tests
-class CardTest : BaseTest() {
-    init {
-        test("Card serialization") { /* ... */ }
-        test("Card equality") { /* ... */ }
-        test("Card power comparison") { /* ... */ }
-    }
-}
-
-// Repository tests
-class CardRepositoryTest : BaseTest() {
-    init {
-        test("getAllCards returns all cards") { /* ... */ }
-        test("getCardById returns correct card") { /* ... */ }
-        test("caching works correctly") { /* ... */ }
-    }
-}
-
-// Migration tests
-class MigrationTest : BaseTest() {
-    init {
-        test("AS3 card data converts correctly") { /* ... */ }
-        test("AS3 save file converts correctly") { /* ... */ }
-    }
-}
-```
-
-**Acceptance Criteria**: DONE
 - [x] All pass, on desktop and on the Android host source set
 - [x] Coverage 97.6% line / 88.3% branch across `:shared`, gated by `coverageVerify`. Models and
   repositories are among the best-covered packages; the target was >90%, and 100% for models
 - [x] `extract_npcs.py` runs against the real `NPCs.as`; `NpcBundleTest` and `CardBundleTest` verify
   the packaged output
-
----
-
-## 📊 Phase 2 Deliverables
-
-### Code Deliverables
-- [x] All data models complete
-- [x] Repository implementations
-- [ ] ~~SQLDelight database and queries~~ — replaced by `DocumentStore`; deviation 1
-- [x] Data source implementations (collapsed into `BundledCardRepository`)
-- [x] Migration scripts — `extract_npcs.py` new, five pre-existing; legacy `.sav` excluded
-- [x] Caching implementation
-- [x] Offline support
-- [x] Data layer tests
-
-### Documentation Deliverables
-- [x] Data model mapping — [13-DATA-MODELS.md](./13-DATA-MODELS.md), corrected against the source
-- [x] Storage documentation — the KDoc on `DocumentStore` and `SaveCodec` carries it, including the
-  save format and why it is not AS3-compatible
-- [x] Migration notes — the § What was built section, plus each script's module docstring
-- [x] Caching strategy — deviation 3 and the KDoc on `BundledCardRepository`
-
----
-
-## ✅ Phase 2 Completion Criteria
-
-### Technical
-- [x] All data models implemented and tested
-- [x] Repository pattern fully implemented
-- [x] Persistence operational (documents, not SQL — deviation 1)
-- [x] Migration scripts work
-- [x] Caching in place
-- [x] Offline support functional
-
-### Testing
-- [x] All data layer tests pass
-- [x] Test coverage >90% for data layer — 97.6% line / 88.3% branch, gated
-- [x] Migration validated against the real `NPCs.as` and the packaged bundle
-
-### Approvals
-- [ ] Tech Lead approval
-- [ ] QA Engineer approval
-
-**Nothing here is reviewed or approved.** As with Phase 1, the work is done and self-verified;
-sign-off is a separate step and has not happened.
-
----
-
-## 🎯 Next Phase: Phase 3 - Core Logic
-
-**Phase 3 Focus** (Weeks 9-12):
-- Migrate TTOCore (core game logic)
-- Migrate tripleTriadRules
-- Implement game state management
-- Create game flow system
-- Test all game rules thoroughly
-
-**Prerequisites**: All Phase 2 deliverables complete
 
 ---
 
@@ -573,6 +264,3 @@ sign-off is a separate step and has not happened.
 - **Cheat Sheet**: [15-CHEAT-SHEET.md](./15-CHEAT-SHEET.md)
 
 ---
-
-*Generated: 2026-07-21*
-*Status: PLANNING COMPLETE*

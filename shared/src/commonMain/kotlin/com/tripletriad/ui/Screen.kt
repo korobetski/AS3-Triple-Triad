@@ -3,7 +3,7 @@ package com.tripletriad.ui
 /**
  * Which screen is showing.
  *
- * A `remember`ed value and not a navigation library. There are fifteen destinations now and the
+ * A `remember`ed value and not a navigation library. There are nineteen destinations now and the
  * flow is still a **tree of depth three** — menu → characters → dashboard → one of seven — with one
  * [up] per screen and no deep links, no arguments beyond what the session already holds, and no
  * state to restore across process death that is not already on disk. Compose Navigation would buy a
@@ -25,6 +25,9 @@ internal enum class Screen {
     DASHBOARD,
     OPPONENTS,
     MATCH,
+    TUTORIAL,
+    CAMPAIGN,
+    CAMPAIGN_MATCH,
     STATS,
     CARDS,
     DECKS,
@@ -58,6 +61,7 @@ internal enum class Screen {
             PROFILE_NEW -> PROFILES
             DASHBOARD -> PROFILES
             OPPONENTS, STATS, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
-            MATCH -> OPPONENTS
+            MATCH, TUTORIAL, CAMPAIGN -> OPPONENTS
+            CAMPAIGN_MATCH -> CAMPAIGN
         }
 }

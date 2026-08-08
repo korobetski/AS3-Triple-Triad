@@ -1,0 +1,801 @@
+{
+  "campaigns": [
+    {
+      "key": "cc",
+      "nameKey": "STR_CCGROUP",
+      "collection": "ff8_",
+      "fee": 500,
+      "steps": [
+        {
+          "npc": {
+            "id": 1,
+            "name": "STR_NPC_JACK",
+            "iconID": "jack",
+            "rules": [
+              "RULE_ALL_OPEN",
+              "RULE_SUDDEN_DEATH",
+              "RULE_ELEMENTAL"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              8,
+              11,
+              15,
+              17,
+              18,
+              19,
+              20,
+              24,
+              25,
+              26,
+              27,
+              29,
+              30,
+              85
+            ],
+            "level": "STR_NPC_LEVEL_INITIATE",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 20,
+              "d": 11,
+              "l": 5
+            },
+            "itemRewards": [
+              {
+                "card": 29,
+                "type": "card",
+                "rate": 0.25
+              },
+              {
+                "card": 30,
+                "type": "card",
+                "rate": 0.25
+              },
+              {
+                "card": 85,
+                "type": "card",
+                "rate": 0.01
+              }
+            ],
+            "difficulty": 0
+          },
+          "messages": {}
+        },
+        {
+          "npc": {
+            "id": 2,
+            "name": "STR_NPC_CLUB",
+            "iconID": "club",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_RANDOM",
+              "RULE_ELEMENTAL"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              8,
+              11,
+              15,
+              17,
+              18,
+              19,
+              20,
+              24,
+              25,
+              26,
+              27,
+              29,
+              30,
+              86
+            ],
+            "level": "STR_NPC_LEVEL_INITIATE",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 25,
+              "d": 13,
+              "l": 6
+            },
+            "itemRewards": [
+              {
+                "card": 26,
+                "type": "card",
+                "rate": 0.33
+              },
+              {
+                "card": 27,
+                "type": "card",
+                "rate": 0.33
+              },
+              {
+                "card": 86,
+                "type": "card",
+                "rate": 0.02
+              }
+            ],
+            "difficulty": 0
+          },
+          "messages": {}
+        },
+        {
+          "npc": {
+            "id": 3,
+            "name": "STR_NPC_DIAMOND",
+            "iconID": "diamond",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_SAME",
+              "RULE_PLUS"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              29,
+              30
+            ],
+            "level": "STR_NPC_LEVEL_AVERAGE",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 36,
+              "d": 18,
+              "l": 9
+            },
+            "itemRewards": [
+              {
+                "potion": "MGP_BOOST",
+                "type": "potion",
+                "rate": 1.0
+              },
+              {
+                "card": 67,
+                "type": "card",
+                "rate": 0.1
+              },
+              {
+                "card": 68,
+                "type": "card",
+                "rate": 0.1
+              }
+            ],
+            "difficulty": 0
+          },
+          "messages": {}
+        },
+        {
+          "npc": {
+            "id": 4,
+            "name": "STR_NPC_SPADE",
+            "iconID": "spade",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_RANDOM",
+              "RULE_PLUS"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              29,
+              30,
+              98
+            ],
+            "level": "STR_NPC_LEVEL_AVERAGE",
+            "matchFee": 15,
+            "MGPReward": {
+              "w": 40,
+              "d": 20,
+              "l": 10
+            },
+            "itemRewards": [
+              {
+                "card": 98,
+                "type": "card",
+                "rate": 0.01
+              }
+            ],
+            "difficulty": 0
+          },
+          "messages": {}
+        },
+        {
+          "npc": {
+            "id": 5,
+            "name": "STR_NPC_JOCKER",
+            "iconID": "jocker",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_RANDOM",
+              "RULE_SAME",
+              "RULE_SAME_WALL",
+              "RULE_PLUS",
+              "RULE_SUDDEN_DEATH"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              91
+            ],
+            "level": "STR_NPC_LEVEL_ADVANCED",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 54,
+              "d": 27,
+              "l": 13
+            },
+            "itemRewards": [
+              {
+                "potion": "MGP_BOOST",
+                "type": "potion",
+                "rate": 1.0
+              },
+              {
+                "card": 91,
+                "type": "card",
+                "rate": 0.01
+              }
+            ],
+            "difficulty": 0
+          },
+          "messages": {}
+        },
+        {
+          "npc": {
+            "id": 6,
+            "name": "STR_NPC_HEART",
+            "iconID": "heart",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_RANDOM",
+              "RULE_SAME",
+              "RULE_PLUS"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              89
+            ],
+            "level": "STR_NPC_LEVEL_EXPERT",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 110,
+              "d": 40,
+              "l": 20
+            },
+            "itemRewards": [
+              {
+                "potion": "MGP_BOOST",
+                "type": "potion",
+                "rate": 1.0
+              },
+              {
+                "card": 89,
+                "type": "card",
+                "rate": 0.01
+              }
+            ],
+            "difficulty": 0
+          },
+          "messages": {}
+        },
+        {
+          "npc": {
+            "id": 7,
+            "name": "STR_NPC_KING",
+            "iconID": "king",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_RANDOM",
+              "RULE_SAME",
+              "RULE_SAME_WALL",
+              "RULE_PLUS"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              108
+            ],
+            "level": "STR_NPC_LEVEL_EXPERT",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 110,
+              "d": 40,
+              "l": 20
+            },
+            "itemRewards": [
+              {
+                "potion": "MGP_BOOST",
+                "type": "potion",
+                "rate": 1.0
+              },
+              {
+                "card": 108,
+                "type": "card",
+                "rate": 0.01
+              }
+            ],
+            "difficulty": 0
+          },
+          "messages": {}
+        }
+      ]
+    },
+    {
+      "key": "gs",
+      "nameKey": "STR_GSGROUP",
+      "collection": "ff14_",
+      "fee": 500,
+      "steps": [
+        {
+          "npc": {
+            "id": 1,
+            "name": "STR_NPC_TT_Master",
+            "iconID": "tt-master",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_ALL_OPEN"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              81,
+              101
+            ],
+            "level": "STR_NPC_LEVEL_NOVICE",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 22,
+              "d": 8,
+              "l": 3
+            },
+            "itemRewards": [
+              {
+                "potion": "MGP_BOOST",
+                "type": "potion",
+                "rate": 0.02
+              },
+              {
+                "card": 4,
+                "type": "card",
+                "rate": 0.25
+              },
+              {
+                "card": 13,
+                "type": "card",
+                "rate": 0.2
+              }
+            ],
+            "difficulty": 0
+          },
+          "messages": {
+            "start": "Let's see what you got in a serious match.",
+            "win": "Good luck for the future.",
+            "lose": "It was perhaps a little early..."
+          }
+        },
+        {
+          "npc": {
+            "id": 2,
+            "name": "STR_NPC_Jonas",
+            "iconID": "jonas",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_ALL_OPEN",
+              "RULE_SAME"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              3,
+              4,
+              11,
+              15,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26
+            ],
+            "level": "STR_NPC_LEVEL_NOVICE",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 22,
+              "d": 8,
+              "l": 3
+            },
+            "itemRewards": [
+              {
+                "card": 15,
+                "type": "card",
+                "rate": 0.25
+              },
+              {
+                "card": 20,
+                "type": "card",
+                "rate": 0.2
+              }
+            ],
+            "difficulty": 3
+          },
+          "messages": {
+            "start": "I will not let me!",
+            "win": "You are strong, but this is only the beginning.",
+            "lose": "YATAAH !"
+          }
+        },
+        {
+          "npc": {
+            "id": 3,
+            "name": "STR_NPC_Guhtwint",
+            "iconID": "guhtwint",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_THREE_OPEN",
+              "RULE_PLUS"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              41,
+              27,
+              13,
+              11,
+              38,
+              26,
+              23,
+              39,
+              40,
+              41
+            ],
+            "level": "STR_NPC_LEVEL_INITIATE",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 32,
+              "d": 12,
+              "l": 4
+            },
+            "itemRewards": [
+              {
+                "card": 9,
+                "type": "card",
+                "rate": 0.2
+              },
+              {
+                "card": 13,
+                "type": "card",
+                "rate": 0.2
+              },
+              {
+                "card": 27,
+                "type": "card",
+                "rate": 0.125
+              }
+            ],
+            "difficulty": 3
+          },
+          "messages": {}
+        },
+        {
+          "npc": {
+            "id": 4,
+            "name": "STR_NPC_Aurifort",
+            "iconID": "aurifort",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_THREE_OPEN",
+              "RULE_RANDOM"
+            ],
+            "fetishesCards": [],
+            "cards": [
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              82,
+              83,
+              84,
+              85,
+              86,
+              87,
+              88,
+              89,
+              90,
+              91,
+              92,
+              93,
+              94,
+              95,
+              102,
+              103,
+              104,
+              105,
+              106,
+              107,
+              108,
+              109,
+              110,
+              111,
+              112,
+              113,
+              114,
+              115,
+              116,
+              117,
+              121,
+              122,
+              123,
+              124,
+              125,
+              126,
+              127,
+              128,
+              129,
+              130,
+              131,
+              132,
+              133,
+              134,
+              141,
+              142,
+              143,
+              144,
+              145,
+              146
+            ],
+            "level": "STR_NPC_LEVEL_AVERAGE",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 50,
+              "d": 20,
+              "l": 7
+            },
+            "itemRewards": [
+              {
+                "card": 12,
+                "type": "card",
+                "rate": 0.2
+              },
+              {
+                "card": 27,
+                "type": "card",
+                "rate": 0.125
+              }
+            ],
+            "difficulty": 3
+          },
+          "messages": {}
+        },
+        {
+          "npc": {
+            "id": 5,
+            "name": "STR_NPC_Ruhtwyda",
+            "iconID": "ruhtwyda",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_ASCENSION",
+              "RULE_ALL_OPEN"
+            ],
+            "fetishesCards": [
+              59,
+              56,
+              47
+            ],
+            "cards": [
+              58,
+              50,
+              57,
+              45
+            ],
+            "level": "STR_NPC_LEVEL_AVERAGE",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 59,
+              "d": 0,
+              "l": 8
+            },
+            "itemRewards": [
+              {
+                "card": 45,
+                "type": "card",
+                "rate": 0.15
+              },
+              {
+                "card": 50,
+                "type": "card",
+                "rate": 0.125
+              }
+            ],
+            "difficulty": 9
+          },
+          "messages": {}
+        },
+        {
+          "npc": {
+            "id": 6,
+            "name": "STR_NPC_King_Elmer",
+            "iconID": "elmer",
+            "rules": [
+              "RULE_SUDDEN_DEATH",
+              "RULE_PLUS"
+            ],
+            "fetishesCards": [
+              61,
+              50,
+              45
+            ],
+            "cards": [
+              62,
+              39,
+              49,
+              41
+            ],
+            "level": "STR_NPC_LEVEL_EXPERT",
+            "matchFee": 0,
+            "MGPReward": {
+              "w": 617,
+              "d": 46,
+              "l": 17
+            },
+            "itemRewards": [
+              {
+                "potion": "MGP_BOOST",
+                "type": "potion",
+                "rate": 0.25
+              },
+              {
+                "card": 45,
+                "type": "card",
+                "rate": 0.125
+              },
+              {
+                "card": 61,
+                "type": "card",
+                "rate": 0.05
+              },
+              {
+                "booster": "PLATINUM_BOOSTER",
+                "type": "booster",
+                "rate": 0.25
+              }
+            ],
+            "difficulty": 7
+          },
+          "messages": {
+            "start": "It's the last lap, give everything you have.",
+            "win": "I admit my defeat...",
+            "lose": "Come see me in hundred years."
+          }
+        }
+      ]
+    }
+  ]
+}

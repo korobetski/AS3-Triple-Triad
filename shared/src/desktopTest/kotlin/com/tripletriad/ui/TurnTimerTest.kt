@@ -96,12 +96,20 @@ class TurnTimerTest {
      *
      * `razTimer()` on the side that is *not* to play is what the absence stands for. Red's own bar
      * is not drawn at all — see [TurnTimerBar] for why the original's second one is decoration.
+     *
+     * The track is up from the first frame; the **fill** waits for the pre-match announcements, so
+     * this waits for it. That gap is the mechanic rather than a delay to work around: the original
+     * arms the clock in `nextTurn`, which runs after the whole cascade, so the player's turn does
+     * not start counting down behind the Start banner.
      */
     @Test
     fun theBarIsUpOnlyOnThePlayersTurn() = runComposeUiTest {
         openMatch(limit = 1.seconds)
 
         onNodeWithTag(TURN_TIMER_TEST_TAG).assertExists()
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            exists(TURN_TIMER_FILL_TEST_TAG) || !isPlayerTurn() || isFinished()
+        }
         assertTrue(exists(TURN_TIMER_FILL_TEST_TAG), "the player is to move, so it should run")
 
         // Play, and the turn passes to an opponent that thinks for `OPPONENT_PAUSE_MS`.

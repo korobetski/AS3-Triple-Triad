@@ -14,15 +14,15 @@ This directory contains the complete migration plan for moving **Triple Triad On
 3. **[03-TECHNICAL-STACK.md](./03-TECHNICAL-STACK.md) - Technology decisions and architecture**
 
 ### Migration Phases
-4. **[04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md) - Preparation and analysis (Weeks 1-2)**
-5. **[05-PHASE-1-INFRASTRUCTURE.md](./05-PHASE-1-INFRASTRUCTURE.md) - Project setup (Weeks 3-6)**
-6. **[06-PHASE-2-DATA-LAYER.md](./06-PHASE-2-DATA-LAYER.md) - Data models and repositories (Weeks 7-8)**
-7. **[07-PHASE-3-CORE-LOGIC.md](./07-PHASE-3-CORE-LOGIC.md) - Game core migration (Weeks 9-12)**
-8. **[08-PHASE-4-UI-LAYER.md](./08-PHASE-4-UI-LAYER.md) - User interface (Weeks 13-20)**
-9. **[09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md) - Network communication (Weeks 21-23)**
-10. **[10-PHASE-6-ANIMATIONS.md](./10-PHASE-6-ANIMATIONS.md) - Animations (Weeks 24-26)**
-11. **[11-PHASE-7-TESTING.md](./11-PHASE-7-TESTING.md) - Testing and QA (Weeks 27-30)**
-12. **[12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md) - Beta and release (Weeks 31-32)**
+4. **[04-PHASE-0-PREPARATION.md](./04-PHASE-0-PREPARATION.md) - Preparation and analysis**
+5. **[05-PHASE-1-INFRASTRUCTURE.md](./05-PHASE-1-INFRASTRUCTURE.md) - Project setup**
+6. **[06-PHASE-2-DATA-LAYER.md](./06-PHASE-2-DATA-LAYER.md) - Data models and repositories**
+7. **[07-PHASE-3-CORE-LOGIC.md](./07-PHASE-3-CORE-LOGIC.md) - Game core migration**
+8. **[08-PHASE-4-UI-LAYER.md](./08-PHASE-4-UI-LAYER.md) - User interface**
+9. **[09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md) - Network communication**
+10. **[10-PHASE-6-ANIMATIONS.md](./10-PHASE-6-ANIMATIONS.md) - Animations**
+11. **[11-PHASE-7-TESTING.md](./11-PHASE-7-TESTING.md) - Testing and QA**
+12. **[12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md) - Beta and release**
 
 ### Supporting Documents
 13. **[13-DATA-MODELS.md](./13-DATA-MODELS.md) - AS3 to Kotlin model mappings**
@@ -115,17 +115,28 @@ see its [licensing note](../../README.md#licensing-note). The risk was accepted 
 | Phase 1: Infrastructure | ✅ DONE — the structure, build, models, data and CI were delivered during Phase 0's PoC; **1.5** (audio, on device), **1.6** (file access / user settings), **1.7** (logger), **1.10** (4 locales, on device), **1.11** (coverage, 97.8% line, gated) and **1.13** (setup / build / testing guides + [CONTRIBUTING.md](../../CONTRIBUTING.md)) followed. **1.4** (iOS app) is void — Android only. Nothing is reviewed or approved. See [05-PHASE-1-INFRASTRUCTURE.md](./05-PHASE-1-INFRASTRUCTURE.md) | - | - | - |
 | Phase 2: Data Layer | ✅ DONE — 2026-07-30. **2.1** (Item hierarchy, GameSave, Npc, Achievement, MatchRecord, XpTable), **2.2** (five repositories), **2.4**, **2.6**, **2.7** and **2.8** (coverage 97.6% line / 88.3% branch, gated) delivered. **2.3 is deliberately not SQLDelight** — profiles and match history are JSON documents behind a host-supplied `DocumentStore`, extending Phase 1's `SettingsStore` pattern. **2.5**: `extract_npcs.py` is new (85 opponents); five of the six scripts already existed; legacy AES `.sav` reading is out of scope by decision, replaced by a new obfuscated save format. Five AS3 bugs found and fixed, six documentation errors corrected. Nothing is reviewed or approved. See [06-PHASE-2-DATA-LAYER.md](./06-PHASE-2-DATA-LAYER.md) § What was built | - | - | - |
 | Phase 3: Core Logic | ✅ DONE — 2026-08-02, and **two thirds of it was already built**: `RulesEngine`, `GameRules`/`RuleKeys`, `Board`, `Power` and `MatchState` came with Phase 0's PoC and Phase 1, so **3.1** and **3.3** were delivered before the phase opened. New here: **3.2**'s roulette (`Roulette`, the two per-collection pools), **3.4**'s pre-match chain (`MatchSetup` — Random hand, Swap, Open visibility, coin flip, Sudden Death rematch), the **opponent AI** (`MatchAi`, absent from the plan's task list), **3.5** and **3.6** (4.8 µs per placement; every target met by 2-3 orders of magnitude, no optimisation applied). Five deviations from the plan, three more AS3 defects decided on. **The roulette, Open and the AI are not reachable from the UI** — that needs an opponent-selection screen and is carried into Phase 4. Nothing is reviewed or approved. See [07-PHASE-3-CORE-LOGIC.md](./07-PHASE-3-CORE-LOGIC.md) § What was built | - | - | - |
-| Phase 4: UI Layer | 🔄 IN PROGRESS — 2026-08-06. **The game is playable end to end** and **20 of the 32 screens exist**: character creation with the collection choice, the dashboard and everything behind it (collection browser, deck editor, bag, shop, record with achievements, rules), opponent selection filtered by the hour, deck selection, and the match itself. Also done: the **theme system** (the AS3 palette and Raleway — the plan named the wrong font), **drag-and-drop** alongside tap, and the **turn timer** that `playerPanel` held and that had been missed as a game mechanic. **The `ff8_` collection is reachable for the first time**: the AS3 hard-codes `MODE = 'ff14_'` and never changes it. Of the 12 screens left, only **two** are blocked on Phase 5 — six more are filed under multiplayer and are single-player ladders, two wait on Phase 6's `TalkAnim`, and two (`EmptyScreen`, `BackstageScreen`) will not be ported and say why. Not done: the pre-match animations. Nothing is reviewed or approved. See [08-PHASE-4-UI-LAYER.md](./08-PHASE-4-UI-LAYER.md) § What was built | - | - | - |
-| Phase 5: Network | ⏳ NOT STARTED — **design in progress, 2026-08-06.** The legacy socket layer is abandoned (TR-007 re-scoped). The replacement: one mechanism — a **replayable, signed transcript** the server verifies by re-running the real rules — covering solo, local and online alike, which is only possible because the Phase 3 engine is pure and deterministic. Local play is peer-to-peer with commit-reveal, so **offline play still counts**. Progression moves to server-held profiles, which is what adds accounts, a datastore and backups. Nothing prototyped; transport undecided. Prerequisites that depend on no remaining decision: pin determinism with replay tests, extract `:core` (two one-line functions). See [09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md) § The shape of the network layer | - | - | - |
-| Phase 6: Animations | ⏳ NOT STARTED | - | - | - |
+| Phase 4: UI Layer | 🔄 IN PROGRESS — 2026-08-06. **The game is playable end to end** and **28 of the 32 screens exist**: character creation with the collection choice, the dashboard and everything behind it (collection browser, deck editor, bag, shop, record with achievements, rules), opponent selection filtered by the hour, deck selection, and the match itself. Also done: the **theme system** (the AS3 palette and Raleway — the plan named the wrong font), **drag-and-drop** alongside tap, and the **turn timer** that `playerPanel` held and that had been missed as a game mechanic. **The `ff8_` collection is reachable for the first time**: the AS3 hard-codes `MODE = 'ff14_'` and never changes it. **The tutorial and both tournament ladders are done**: all three are scripted matches built as data on the ordinary match screen — the tutorial with the three of its nine lines the original could never reach now restored, the ladders with their thirteen inline opponents extracted to `campaigns.json` and their 500 MGP fee, the only money the game ever takes. Of the **4 screens left, only two are blocked on Phase 5** (`PVPScreen` and `PVPMatchScreen`, the only two that touch a socket); the other two (`EmptyScreen`, `BackstageScreen`) will not be ported and say why. Not done: the pre-match animations. Nothing is reviewed or approved. See [08-PHASE-4-UI-LAYER.md](./08-PHASE-4-UI-LAYER.md) § What was built | - | - | - |
+| Phase 5: Network | 🔄 IN PROGRESS — **the solo-vs-server half is built and running, 2026-08-08.** The legacy socket layer is abandoned (TR-007 re-scoped). The mechanism is a **replayable, signed transcript** the server verifies by re-running the real rules, which is only possible because the Phase 3 engine is pure and deterministic. Delivered: `:core` extracted and published, the transcript and `TranscriptVerifier`, the offline queue, the **version gate** (426 before the body is read), **accounts replacing the local profile** with progression held server-side (aggregates plus per-match history), **several servers** with per-server sessions and queues, five-state connectivity, and **update notices** — a `ClientRelease` announced by the deployment and opened by the app, with no auto-updater and reasons given. Verified end to end against the local Docker/Postgres container. **Left: local PvP** — `MatchView` and the peer protocol; transport still undecided. See [09-PHASE-5-NETWORK.md](./09-PHASE-5-NETWORK.md) § Sequencing | - | - | - |
+| Phase 6: Animations | ✅ DONE — 2026-08-08. **The match is animated end to end**, and the phase was re-scoped on the way: of the 24 classes in `tto/anims/`, **nineteen are the same fifty lines with a different texture**, so the bulk of this phase is four motion shapes and a table (`MatchBanner`), not 24 pieces of work. Delivered: the twenty captions transcribed from the AS3 tweens, their artwork in **four locales** (80 files — the captions are pictures of words, which was not anticipated), the pre-match chain read from Phase 3's own `MatchSetup.intro`, **`PileOuFace`** driven by the model's coin flip, the per-placement captions, the turn and outcome banners, and **pacing computed from the animations** instead of the original's `1000 + rand(4) * 1000` guess. One defect found by the work: **the turn clock had been running under the intro**, so the player's thirty seconds began behind the Start banner; it now waits, as `nextTurn` does. Also **the card motion on placement**: the capture flip shipped with Phase 4 and the landing (`Card.afterFly`) is new here. Also delivered outside the match: **`UnlockCardAnim`**, wired to the inventory's Use on a card item only (a pack yields another bag item, not a card, and showing one there would announce a card the player does not own yet), and **`TalkAnim` as `TalkBubble`**, which now speaks the tutorial's nine lines. The twenty-fourth class, **`Mogu`, is dead code**: nothing constructs it, its asset carries this tree's disabled-file hyphen, and it extends `flash.display.MovieClip` rather than a Starling object, so it could never have been on the stage. It is struck from the phase — the third such find after `RULE_COMBO` and `ElementalAnim`. **Nothing animation-side is left; the tutorial screen it waits on is Phase 4's work.** See [10-PHASE-6-ANIMATIONS.md](./10-PHASE-6-ANIMATIONS.md) | - | - | - |
 | Phase 7: Testing | ⏳ NOT STARTED | - | - | - |
 | Phase 8: Release | ⛔ VOID AS WRITTEN — re-scoped 2026-07-25, no store release. See [12-PHASE-8-RELEASE.md](./12-PHASE-8-RELEASE.md) | - | - | - |
 
-**Overall Status**: ⚠️ **PHASE 0 NEARLY COMPLETE — the blocking decisions are resolved.**
+**Overall Status**: 🔄 **PHASES 1-3 DONE, PHASE 6 DONE, PHASES 4 AND 5 PART DONE — the game is
+playable end to end against a real server, it announces its rules while you play, and it now teaches
+you how.**
 
-The technical groundwork is real: the PoC builds and runs on a physical device, the
-source analysis exists, the standards are enforced in the build, and CI is green on all
-five jobs — including the project's first successful Apple compilation.
+The technical groundwork is real: the app builds and runs on a physical device, the standards are
+enforced in the build, and CI is green — including the project's first successful Apple
+compilation. What is left is local PvP (Phase 5), four screens (Phase 4) — of which two are
+the PvP pair Phase 5 unblocks and two will not be ported — and the test pass (Phase 7). Phase 6 is
+finished.
+
+> **A note on this documentation set, 2026-08-08.** The phase documents have been reduced to what
+> they still tell you: the decisions taken, the AS3 defects found, the departures from the plan and
+> why. The sketched implementations they used to carry were deleted once the real code existed —
+> a sketch that disagrees with the shipped code is worse than no sketch, and the code is linked
+> from each task. Week-by-week schedules, effort estimates and sign-off checklists went with them,
+> for the reason given below: they are artefacts of a team-based framing that does not apply.
 
 **All five blocking decisions were resolved on 2026-07-25** — see
 [04-PHASE-0-PREPARATION.md § Decisions taken](./04-PHASE-0-PREPARATION.md#-decisions-taken-2026-07-25).
@@ -181,7 +192,7 @@ compiled and carried 12 build-blocking defects.
 | 1 - Infrastructure | 4 weeks | Project structure, CI/CD |
 | 2 - Data Layer | 2 weeks | Models, Repositories |
 | 3 - Core Logic | 4 weeks | TTOCore, Rules Engine |
-| 4 - UI Layer | 8 weeks | 22 screens + 9 embedded components |
+| 4 - UI Layer | 8 weeks | 28 screens + 9 embedded components |
 | 5 - Network | 3 weeks | WebSocket, SocketManager |
 | 6 - Animations | 3 weeks | All 24 animation classes |
 | 7 - Testing | 4 weeks | Unit, Integration, UI tests |

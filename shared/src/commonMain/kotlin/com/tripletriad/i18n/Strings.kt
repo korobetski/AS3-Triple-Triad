@@ -154,13 +154,14 @@ fun rememberStrings(locale: AppLocale): Strings {
  * | `app-<tag>.json` | this port, for text the original never had | yes |
  *
  * The split is about provenance. `tto-*` is 687 keys of Square Enix wording that must stay
- * exactly what the original displayed; `app-*` is five keys this port needed because the AS3
- * showed whose turn it was graphically and never wrote the sentence. Keeping them apart means a
+ * exactly what the original displayed; `app-*` is 41 keys this port needed — mostly because the
+ * AS3 showed something graphically and never wrote the sentence, and in the tutorial's case
+ * because it wrote the sentences as Flash literals with no key at all. Keeping them apart means a
  * re-import cannot quietly revert hand-written text, and `APP_` on a key says at a glance which
  * side of that line it came from.
  *
  * `app-de_DE.json` and `app-ja_JA.json` are `{}` — deliberately present and deliberately empty.
- * Those five sentences are not translated into German or Japanese, so they resolve through the
+ * Those sentences are not translated into German or Japanese, so they resolve through the
  * fallback to English while the other 647/680 keys stay in the device's language. An empty file
  * states that; a missing file would just look like an oversight.
  */

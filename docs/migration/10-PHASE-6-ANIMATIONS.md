@@ -3,544 +3,204 @@
 ## 📋 Document Information
 
 - **Phase**: 6 - Animations
-- **Duration**: 3 weeks (Weeks 24-26)
-- **Status**: NOT STARTED
-- **Version**: 1.0
-- **Last Updated**: 2026-07-21
+- **Duration**: the original 3-week budget assumed 24 pieces of work. It is not 24 — see below
+- **Status**: re-scoped 2026-08-08. **All twenty-four classes are done or accounted
+  for.** The match is animated end to end; the inventory reveals what it unlocks; the
+  tutorial speaks. One class, `Mogu`, turned out to be dead code — see below
+- **Version**: 2.0
+- **Last Updated**: 2026-08-08
 - **Prerequisites**: Phases 1-5
 
 ---
 
-## 🎯 Phase Overview
+## 🎯 The finding that re-scoped this phase
 
-### Purpose
-Complete and polish all 24 animation classes from the AS3 codebase, ensuring smooth performance and visual fidelity on mobile devices.
+**`sources/src/tto/anims/` holds 24 classes. Nineteen of them are the same animation.**
 
-### Key Objectives
-1. Complete any remaining animations
-2. Polish existing animations
-3. Performance optimization
-4. Testing and validation
+They average 56 lines and each one is: load a texture, tween it in, hold, tween it out, dispose.
+What differs between `SameAnim` and `ReverseAnim` is a six-digit texture id and a duration. The
+earlier version of this document read that directory as 24 pieces of work and budgeted three
+weeks for it. It is **four motion shapes and a table**, plus four animations that genuinely differ.
 
----
+That table is [`MatchBanner`](../../shared/src/commonMain/kotlin/com/tripletriad/ui/MatchBanner.kt)
+— one enum entry per caption, carrying its texture id, its motion and its three durations,
+transcribed from the AS3 tween it came from.
 
-## 📅 Timeline
+### Reading an AS3 tween pair
 
-| Week | Focus | Owner |
-|------|-------|-------|
-| Week 24 | Remaining animations | UI/UX + Team |
-| Week 25 | Polish and optimization | UI/UX + Team |
-| Week 26 | Testing and validation | QA + Team |
+Worth recording once, because getting it wrong changes every duration in the table. The exit tween
+is created inside `predispose()`, which is the **entry's** `onComplete` — so the exit's `delay` is
+measured from the moment the entry finishes and is therefore the *hold*. The entry's own `delay`,
+where it has one, is a wait before anything appears at all.
 
----
-
-## 📝 Animations List
-
-**From `sources/src/tto/anims/` — 24 classes, verified against the directory**:
-
-> WARNING: the previous version of this list claimed 25 animations, named only 23,
-> **invented `ElementalAnim`** (no such file exists), and **omitted `ThreeOpenAnim`
-> and `UnlockCardAnim`** (both do exist). Corrected below.
->
-> The Elemental rule has no dedicated animation class: it is applied as a power
-> modifier in `TTOCore.applyRules` and shown via the tile element sprite. Do not
-> plan work for an animation that was never there.
-
-### Game Flow Animations
-- **StartAnim** - Game start animation
-- **AllOpenAnim** - All cards revealed (Open rule)
-- **DrawAnim** - Game draw/tie
-
-### Turn Animations
-- **BlueTurnAnim** - Blue player's turn indicator
-- **RedTurnAnim** - Red player's turn indicator
-
-### Result Animations
-- **BlueWinAnim** - Blue player wins
-- **RedWinAnim** - Red player wins
-
-### Rule Animations
-- **AscensionAnim** - Ascension rule activation
-- **ChaosAnim** - Chaos rule activation
-- **ComboAnim** - Combo chain animation
-- **DescensionAnim** - Descension rule activation
-- **FallenAceAnim** - Fallen Ace rule activation
-- **OrderAnim** - Order rule activation
-- **PlusAnim** - Plus rule activation
-- **RandomAnim** - Random rule activation
-- **ReverseAnim** - Reverse rule activation
-- **SameAnim** - Same rule activation
-- **SuddenDeathAnim** - Sudden Death rule activation
-- **SwapAnim** - Swap rule activation
-- **ThreeOpenAnim** - Three Open rule reveal *(was missing from this list)*
-
-### Special Animations
-- **Mogu** - Moogle mascot animation
-- **PileOuFace** - Coin flip for turn order
-- **TalkAnim** - NPC dialogue bubble
-- **UnlockCardAnim** - Card unlocked reward *(was missing from this list)*
-
-**Count check**: 3 + 2 + 2 + 13 + 4 = **24**, matching the 24 files in
-`sources/src/tto/anims/`.
+Read as if both delays ran from one clock, `ComboAnim` appears to fade out before it fades in. Read
+correctly, it waits 0.8s for the Same or Plus caption that caused it to clear. Two banners were
+initially transcribed with the wrong hold because of this.
 
 ---
 
-## 🎨 Animation Implementation Guide
+## ✅ What shipped
 
-### Animation Patterns
+### The twenty captions
 
-#### 1. Card Flip Animation
-**Used by**: Card placement, rule activation, combo chains
+| Group | Banners |
+|---|---|
+| Flow | Start, Blue Turn, Red Turn, Blue Win, Red Win, Draw |
+| Rules, announced before the match | Random, All Open, Three Open, Order, Chaos, Reverse, Fallen Ace, Swap |
+| Rules, announced when they fire | Same, Plus, Combo, Ascension, Descension, Sudden Death |
 
-```kotlin
-// WARNING: `.graphicsLayer { rotationY = rotationY }` is a SELF-ASSIGNMENT.
-// Inside the lambda, `rotationY` resolves to the GraphicsLayerScope property, so
-// the animated state is shadowed and never applied. Rename the state.
-@Composable
-fun CardFlipAnimation(
-    card: Card,
-    isFlipped: Boolean,
-    duration: Int = 400,
-    onComplete: () -> Unit = {}
-) {
-    val angle by animateFloatAsState(        // NOT named rotationY
-        targetValue = if (isFlipped) 180f else 0f,
-        animationSpec = tween(duration, easing = LinearOutSlowInEasing),
-        finishedListener = { onComplete() },
-        label = "cardFlip"
-    )
+Four motion shapes cover all twenty — zoom, zoom-and-fade, slide, and slide-off-an-edge — plus
+Sudden Death's bounced tilt, which is the one variant that earns its own case.
 
-    Box(
-        modifier = Modifier.graphicsLayer {
-            rotationY = angle
-            cameraDistance = 12f * density   // without this it looks like a squash
-        },
-        contentAlignment = Alignment.Center
-    ) {
-        if (angle <= 90f) {
-            CardFront(card = card)
-        } else {
-            // Counter-rotate or the back face renders mirrored.
-            Box(modifier = Modifier.graphicsLayer { rotationY = 180f }) { CardBack() }
-        }
-    }
-}
-```
+### The captions are localised text images
 
-#### 2. Card Fly Animation
-**Used by**: Card movement, placement
+Not a detail that was anticipated. Each banner is a **picture of a word**, 600×90, and the asset
+tree carries a full set per language: 20 ids × 4 locales = 80 files, 1.4 MB, imported by
+[`tools/import_rule_banners.py`](../../tools/import_rule_banners.py). That is what makes
+`BannerArt` a per-locale cache rather than a single map — sharing one would show the previous
+language's captions until the app restarted.
 
-```kotlin
-@Composable
-fun CardFlyAnimation(
-    card: Card,
-    from: Offset,
-    to: Offset,
-    duration: Int = 400,
-    onComplete: () -> Unit = {}
-) {
-    var position by remember { mutableStateOf(from) }
+Eleven of the twenty Japanese captions are byte-identical to the English ones: the original's
+Japanese UI keeps START, PLUS, SAME, COMBO and the turn and outcome words in Latin script. French
+is the only set that differs on all twenty, which is why the per-locale test asserts against it.
 
-    LaunchedEffect(Unit) {
-        animate(
-            initialValue = from,
-            targetValue = to,
-            animationSpec = tween(duration),
-            typeConverter = Offset.VectorConverter
-        ) { value, _ ->
-            position = value
-        }
-        onComplete()
-    }
+### The unlock reveal
 
-    CardComponent(card = card, modifier = Modifier.offset { position.toIntOffset() })
-}
-```
+`UnlockCardAnim` plays in exactly one branch of `InventoryScreen.useBtnHandler` (`:236-245`): a
+**card item** being used, which is the moment a card enters the collection. Opening a pack does
+not play it, because a pack yields another bag item rather than a card. That distinction is easy
+to lose — `PackOpened` carries a card id too, so "play it whenever Use produces one" would show
+off a card the player does not own yet — and it is asserted.
 
-#### 3. Color Pulse Animation
-**Used by**: Turn indicators, active elements
+The card is drawn half again as large as a card ever is elsewhere (`scaleX: 1.5`), which is the
+original saying that this one is a prize rather than a game piece.
 
-```kotlin
-// WARNING: `animateFloatAsState` with an `infiniteRepeatable` spec is a misuse -
-// that API animates TOWARDS a target and settles, so an infinite spec leaves it
-// permanently unsettled. For a looping pulse use rememberInfiniteTransition.
-@Composable
-fun TurnIndicatorPulse(
-    color: Color,
-    isActive: Boolean
-) {
-    val scale = if (isActive) {
-        val transition = rememberInfiniteTransition(label = "turnPulse")
-        transition.animateFloat(
-            initialValue = 1.0f,
-            targetValue = 1.1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1000, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "pulseScale"
-        ).value
-    } else 1.0f
+### The coin flip
 
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .scale(scale)
-            .background(color, CircleShape)
-    )
-}
-```
+`PileOuFace` is the one pre-match animation that is not a picture of a word: three card backs,
+blue or red, and the majority takes the first move. It **shows the player a result** rather than
+announcing a rule, so its rolls come from the `CoinFlip` the model already drew — drawing a fresh
+one in the view would show a result contradicting whose turn it then is.
 
-#### 4. Sequential Animation
-**Used by**: Combo chains, multi-step animations
+It plays through the same queue as the captions, between Swap and Start, because that position is
+load-bearing: Start announcing a match whose first player has not been drawn yet is the wrong
+order, and appending the flip to the end is exactly the shortcut that produces it.
 
-```kotlin
-@Composable
-fun SequentialAnimation(
-    animations: List<() -> Unit>,
-    delayBetween: Long = 100
-) {
-    var currentIndex by remember { mutableStateOf(0) }
+### The sequencing, which is the part with decisions in it
 
-    LaunchedEffect(currentIndex) {
-        if (currentIndex < animations.size) {
-            animations[currentIndex]()
-            delay(delayBetween)
-            currentIndex++
-        }
-    }
-}
-```
+The motion is transcription and can be checked by eye. *When* a caption plays is a decision, and it
+is the one that fails invisibly — a missing Same reads as a dropped frame, and a Same played three
+times for three flipped cards reads as a stutter.
 
-#### 5. Parallel Animation
-**Used by**: Simultaneous effects
+- **The pre-match chain** comes from `MatchSetup.intro`, which Phase 3 already built: Random → Open
+  → Order/Chaos → Reverse → Fallen Ace → Swap → coin flip → Start. The first implementation
+  re-derived this list from `GameRules` and was wrong in one case — a sudden-death rematch is
+  played under the same Random rule but its hand was *not* re-dealt, so the rules say announce it
+  and the setup says do not. Reading the setup is both less code and the only correct source.
+- **Per placement**: the capture captions, then Ascension or Descension, then the turn change or
+  the result. One caption per *rule*, not per flipped card.
+- **A sudden-death draw says both** — the draw, then that it is not over — and its rematch
+  re-announces the rules but not the deal, since the hands were not re-dealt.
+- **Elemental has no caption at all.** `openPhase` paints the board and announces nothing. Neither
+  do Same, Same Wall and Plus up front; they announce themselves when they fire.
 
-```kotlin
-@Composable
-fun ParallelAnimation(
-    animations: List<() -> Unit>
-) {
-    LaunchedEffect(Unit) {
-        animations.forEach { it() }
-    }
-}
-```
+Everything above is derived from `MatchState` rather than fired from the placement handler, because
+the handler is not the only thing that plays a card — the turn timer auto-plays and the opponent
+plays on its own, and a caption wired to one call site would be missing from the other two.
+
+### A defect the animations exposed: the turn clock was running under the intro
+
+The original arms both players' clocks in `nextTurn`, which `letsGetStarted` calls **after** the
+whole phase cascade (`BaseMatchScreen.as:250`, `:377-387`). This port started the clock when the
+match screen composed, which nothing revealed while there was no intro to run against it. With the
+announcements in place, the player's thirty seconds began behind the Start banner — a few seconds
+of every first turn silently spent, and, in a test with a deliberately short limit, a match that
+played itself out before the intro had finished.
+
+The clock now waits for the intro. **Input does not**: the captions are drawn over the board
+without consuming touches, deliberately, so a player who already knows the rules can open with a
+card while Reverse is still on screen. What they must not do is lose part of their first turn to
+an announcement.
+
+### Pacing replaced a guess with a sum
+
+`PVEMatchScreen` waits `1000 + rand(4) * 1000` before the AI moves. That range was never thinking
+time; it was cover for the `setTimeout` cascade announcing the turn and the captures. Now that each
+caption states its own duration, the cover is **added up** rather than guessed at: the opponent
+waits for what the last placement earned, plus a short fixed pause.
 
 ---
 
-## 📝 Tasks
+## 📝 What remains
 
-### Week 24: Complete Remaining Animations
+### `Mogu` is dead code
 
-#### Task 6.1: Review Animation Status
-**Owner**: UI/UX Designer | **Duration**: 1 day | **Priority**: HIGH
+**Nothing constructs it.** `Mogu.as` is the only file in the source tree that names it, and its
+asset — `-mogu_anime_en.xml`, `-mogu_anime_en_01.psd` — carries the leading hyphen this tree uses
+to mark disabled files. It is also the only animation in the directory that extends
+`flash.display.MovieClip` rather than a Starling display object, so it could not have been added
+to the stage everything else lives on even if something had tried.
 
-**Actions**:
-- Review all 24 animations from AS3
-- Identify which are already implemented in Phase 4
-- Prioritize remaining animations
-- Assign animations to team members
+It is a leftover from a pre-Starling iteration, and it is the third such find in this port after
+`RULE_COMBO` and the `ElementalAnim` that never existed. **Do not plan work for it.**
 
-**Acceptance Criteria**:
-- [ ] Complete inventory of animations
-- [ ] Clear assignment of work
-- [ ] Prioritization complete
+### `TalkBubble` now has its caller
 
----
+It was built a day ahead of one, as the dependency `TutorialScreen` and `TutorialRematchPanel` were
+listed in Phase 4 as blocked on. **Both of those shipped on 2026-08-08**, and the tutorial is what
+the bubble was for: nine lines over a scripted match, spaced 6.1s apart exactly as
+`setTimeout(talk, 6100, n)` spaced them. See
+[08-PHASE-4-UI-LAYER.md](./08-PHASE-4-UI-LAYER.md) § The tutorial.
 
-#### Task 6.2: Implement Remaining Animations
-**Owner**: Team | **Duration**: 4 days | **Priority**: HIGH
+Its remaining two callers are the group ladders, which are Phase 4 work still to come.
 
-**Animations to Complete**:
-- Mogu
-- PileOuFace (coin flip)
-- TalkAnim
-- ThreeOpenAnim
-- UnlockCardAnim
-- Any rule animations not completed
+Unlike the rule captions it holds **live text over one language-independent frame**, which is why
+there is one `talk.png` rather than four sets of twenty. The tutorial's own nine sentences turned
+out to be untranslated in the original too — Flash literals with no `gettext` and no bundle key —
+so they enter through this port's `app-*` bundle instead.
 
-**Implementation Approach**:
-1. Analyze AS3 animation code
-2. Determine animation requirements
-3. Implement using Compose Animation API
-4. Test animation behavior
-5. Integrate with game flow
+### The scoreboard
 
-**Acceptance Criteria**:
-- [ ] All animations implemented
-- [ ] Animations match original visuals
-- [ ] Animations integrate with game
+| Class | State |
+|---|---|
+| The 19 caption classes | Done — one table, four motion shapes |
+| `PileOuFace` | Done, driven by the model's own coin flip |
+| `UnlockCardAnim` | Done, wired to the inventory's Use |
+| `TalkAnim` | Done as `TalkBubble`, speaking the tutorial's nine lines |
+| `Mogu` | **Dead code.** Nothing to port |
 
----
+Card motion is not in `tto/anims/` at all — the original keeps it on `Card` — and is now done in
+both directions:
 
-### Week 25: Polish and Optimization
+- **The capture flip** (`Card.flip`, `:249-291`) shipped with Phase 4: four 0.1 s tweens
+  squashing the card to an edge and back, twice, with the colour switching at the first pinch.
+  Worth recording that an earlier revision used a `rotationY` half-turn instead, which *mirrored
+  the card's contents* between 90° and 180° — every glyph drawn backwards for a fifth of a second.
+  A squash cannot do that, because the scale never goes negative. The original's choice was right.
+- **The landing** (`Card.afterFly`, `:199-207`): the card drops into its cell from up and to the
+  right, turning three quarters anticlockwise, from 1.2× and transparent to at rest.
 
-#### Task 6.3: Polish Existing Animations
-**Owner**: UI/UX Designer + Team | **Duration**: 3 days | **Priority**: HIGH
-
-**Polish Items**:
-- Fine-tune timing and easing
-- Ensure visual consistency
-- Add sound effects (if applicable)
-- Improve transitions between animations
-- Add animation callbacks for game logic
-
-**Polish Checklist per Animation**:
-- [ ] Correct duration
-- [ ] Smooth easing
-- [ ] Visual match with original
-- [ ] Proper callbacks
-- [ ] Sound integration (if any)
-
-**Acceptance Criteria**:
-- [ ] All animations polished
-- [ ] Visual quality matches original
-- [ ] Callbacks work correctly
+`Card.fly`'s **first** half — raising the card 100px out of the hand and fading it — is
+deliberately not ported. This port removes the card from the hand the instant it is played, so
+there is nothing left there to raise; and under a drag it would be wrong as well as absent, since
+the player's own finger has already carried the card across and replaying that journey would show
+it twice.
 
 ---
 
-#### Task 6.4: Performance Optimization
-**Owner**: Tech Lead + Team | **Duration**: 3 days | **Priority**: CRITICAL
+## ✅ Completion criteria
 
-**Optimization Goals**:
-- All animations > 60 FPS on mid-range devices
-- No frame drops during animations
-- Memory usage within budget
-- Smooth transitions
-
-**Optimization Techniques**:
-- Use `remember` for animation values
-- Avoid unnecessary recompositions
-- Use appropriate animation specs
-- Limit concurrent animations
-- Use `LaunchedEffect` for one-time animations
-
-**Performance Testing**:
-```kotlin
-// AnimationPerformanceTest.kt
-class AnimationPerformanceTest : BaseTest() {
-    init {
-        test("Card flip animation > 60 FPS") {
-            // Use Android Benchmark library
-            // Measure frame time
-            // Assert FPS > 60
-        }
-
-        test("Multiple animations don't drop frames") {
-            // Test 10 concurrent card flips
-            // Measure FPS
-            // Assert no frame drops
-        }
-
-        test("Combo animation performance") {
-            // Test combo chain of 5 cards
-            // Measure FPS
-            // Assert > 60 FPS
-        }
-    }
-}
-```
-
-**Performance Monitoring**:
-```kotlin
-// AnimationMonitor.kt
-// WARNING: System.nanoTime() is JVM-only. In commonMain take the frame time from
-// Compose itself, which is multiplatform and gives the real frame clock:
-//     LaunchedEffect(Unit) {
-//         while (true) withFrameNanos { nanos -> monitor.onFrame(nanos) }
-//     }
-class AnimationMonitor {
-    private val frameTimes = mutableListOf<Long>()
-    private var lastFrameTime = 0L
-
-    fun onFrame(currentTime: Long) {
-        if (lastFrameTime > 0) {
-            val frameTime = currentTime - lastFrameTime
-            frameTimes.add(frameTime)
-            if (frameTimes.size > 60) {
-                frameTimes.removeAt(0)
-            }
-        }
-        lastFrameTime = currentTime
-    }
-
-
-
-    fun getCurrentFPS(): Float {
-        if (frameTimes.isEmpty()) return 0f
-        val avgFrameTime = frameTimes.average() / 1_000_000
-        return 1000f / avgFrameTime
-    }
-
-    fun getFrameTimeStats(): FrameStats {
-        return FrameStats(
-            average = frameTimes.average() / 1_000_000,
-            min = frameTimes.minOrNull()?.toFloat()?.div(1_000_000) ?: 0f,
-            max = frameTimes.maxOrNull()?.toFloat()?.div(1_000_000) ?: 0f
-        )
-    }
-}
-
-data class FrameStats(
-    val average: Float,
-    val min: Float,
-    val max: Float
-)
-```
-
-**Acceptance Criteria**:
-- [ ] All animations > 60 FPS
-- [ ] No frame drops in normal use
-- [ ] Memory usage controlled
-
----
-
-### Week 26: Testing and Validation
-
-#### Task 6.5: Animation Testing
-**Owner**: QA Engineer + Team | **Duration**: 3 days | **Priority**: CRITICAL
-
-**Testing Strategy**:
-1. **Visual Testing**: Manual verification of animation appearance
-2. **Functional Testing**: Verify animation triggers and callbacks
-3. **Performance Testing**: Verify FPS and memory usage
-4. **Stress Testing**: Test many concurrent animations
-5. **Cross-Platform Testing**: Verify on both Android and iOS
-
-**Test Types**:
-```kotlin
-// Visual testing
-class CardFlipVisualTest : BaseTest() {
-    @Test
-    fun cardFlip_showsCorrectFrames() {
-        // Use Compose screenshot testing
-        // Capture frames during animation
-        // Verify frames match expected
-    }
-}
-
-// Functional testing
-class CardFlipFunctionalTest : BaseTest() {
-    @Test
-    fun cardFlip_callsOnComplete() = runTest {
-        var completed = false
-
-        composeTestRule.setContent {
-            CardFlipAnimation(
-                card = testCard,
-                isFlipping = true,
-                onComplete = { completed = true }
-            )
-        }
-
-        // Wait for animation
-        // `waitUntilTimeout` does not exist. The API is
-        // waitUntil(timeoutMillis) { condition }
-        composeTestRule.waitUntil(timeoutMillis = 1000) { completed }
-
-        assertTrue(completed)
-    }
-}
-
-// Integration testing
-class AnimationIntegrationTest : BaseTest() {
-    @Test
-    fun comboAnimation_triggersCardFlips() = runTest {
-        // Test that combo animation triggers appropriate card flips
-    }
-}
-```
-
-**Test Coverage Targets**:
-- Animation components: 100%
-- Animation callbacks: 100%
-- Animation triggers: 100%
-
-**Acceptance Criteria**:
-- [ ] All animation tests pass
-- [ ] Visual quality verified
-- [ ] Performance validated
-
----
-
-#### Task 6.6: User Acceptance Testing
-**Owner**: QA Engineer | **Duration**: 2 days | **Priority**: HIGH
-
-**UAT Process**:
-1. Recruit test users (5-10)
-2. Create test scenarios
-3. Collect feedback on animations
-4. Iterate based on feedback
-5. Final validation
-
-**Test Scenarios**:
-- Single card flip
-- Combo chain
-- Turn transition
-- Game win/loss
-- Rule activation
-- Multiple simultaneous animations
-
-**Feedback Questions**:
-- Do animations feel smooth?
-- Do animations match the original?
-- Are any animations distracting?
-- Do animations enhance gameplay?
-- Any visual issues?
-
-**Acceptance Criteria**:
-- [ ] Positive feedback from testers
-- [ ] All issues addressed
-- [ ] Final approval from UI/UX
-
----
-
-## 📊 Phase 6 Deliverables
-
-### Code Deliverables
-- [ ] All 24 animations implemented
-- [ ] Animation utilities and helpers
-- [ ] Performance monitoring
-- [ ] Animation tests
-
-### Documentation Deliverables
-- [ ] Animation catalog
-- [ ] Animation usage guide
-- [ ] Performance optimization guide
-
----
-
-## ✅ Phase 6 Completion Criteria
-
-### Technical
-- [ ] All animations implemented
-- [ ] All animations polished
-- [ ] Performance > 60 FPS
-- [ ] Memory usage controlled
-
-### Testing
-- [ ] All animation tests pass
-- [ ] Visual quality verified
-- [ ] Performance validated
-- [ ] UAT complete
-
-### Approvals
-- [ ] Tech Lead approval
-- [ ] UI/UX Designer approval
-- [ ] QA Engineer approval
-
----
-
-## 🎯 Next Phase: Phase 7 - Testing
-
-**Phase 7 Focus** (Weeks 27-30):
-- Comprehensive testing
-- Bug fixing
-- Performance testing
-- User acceptance testing
-- Final validation
-
-**Prerequisites**: All Phase 6 deliverables complete
+- [x] Every caption implemented, in four locales
+- [x] `PileOuFace`, sequenced in position and driven by the model's own coin flip
+- [x] Sequencing derived from state and setup, covering all three ways a card gets played
+- [x] Pacing computed from the animations rather than a fixed guess, and the turn clock waiting
+      for the intro
+- [x] Tests: the caption table, the intro assembly, the sequencing, the artwork bundle, and the
+      overlay playing through a real composition
+- [x] Card motion on placement: the capture flip (Phase 4) and the landing
+- [x] `UnlockCardAnim`, wired to the inventory
+- [x] `TalkBubble` built and tested; `Mogu` established as dead code
+- [x] A tutorial screen for `TalkBubble` to live on — delivered under Phase 4
 
 ---
 
@@ -549,9 +209,3 @@ class AnimationIntegrationTest : BaseTest() {
 - **Phase Overview**: [00-INDEX.md](./00-INDEX.md)
 - **Phase 4**: [08-PHASE-4-UI-LAYER.md](./08-PHASE-4-UI-LAYER.md)
 - **Phase 7**: [11-PHASE-7-TESTING.md](./11-PHASE-7-TESTING.md)
-- **Cheat Sheet**: [15-CHEAT-SHEET.md](./15-CHEAT-SHEET.md)
-
----
-
-*Generated: 2026-07-21*
-*Status: PLANNING COMPLETE*

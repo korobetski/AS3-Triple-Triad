@@ -301,6 +301,32 @@ class MatchAiTest {
         }
     }
 
+    /**
+     * The tutor refuses the capture it can see — `MatchAiOptions.TUTOR`.
+     *
+     * The same board as [theCapturingMoveIsPreferredToTheSaferOne], so the two read as a pair: the
+     * capture is there, the default AI takes it, and the tutorial's takes the bottom of the same
+     * ranking instead. `// c'est le tuto, le pnj jour toujours la pire solution`.
+     */
+    @Test
+    fun theTutorPlaysTheWorstMoveItCanFind() {
+        val board = Board().place(At.TOP_MID, card(id = 9, bottom = 3), CardColor.BLUE)
+        val attacker = card(id = 1, top = 9, right = 1, bottom = 1, left = 1)
+        val tutor = ai(MatchAiOptions.TUTOR)
+
+        for (seed in seeds) {
+            val situation = state(listOf(attacker), board = board)
+            val move = assertNotNull(tutor.choose(situation, Random(seed)))
+
+            assertEquals(0, move.captures, "seed $seed took a capture it was meant to decline")
+            assertEquals(
+                tutor.candidates(situation, Random(seed)).last(),
+                move,
+                "seed $seed did not play the bottom of the ranking",
+            )
+        }
+    }
+
     @Test
     fun theMoveCapturingTheMostIsChosen() {
         // Three blue cards surround the centre, each losing to a 9.

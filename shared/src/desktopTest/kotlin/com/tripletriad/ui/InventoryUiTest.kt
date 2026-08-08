@@ -131,6 +131,54 @@ class InventoryUiTest {
     }
 
     /**
+     * The card is **shown**, not merely named.
+     *
+     * `UnlockCardAnim` is the one thing the original does on this screen that a line of text
+     * cannot. The player has usually never seen the card — that is what makes it worth having —
+     * and the note beside the button gives them its name and nothing else.
+     *
+     * The reveal clears itself, which is the half worth asserting: it is drawn over the whole
+     * screen, so one that never left would cover the bag for the rest of the session.
+     */
+    @Test
+    fun usingACardShowsIt() = runComposeUiTest {
+        val documents = seeded(withBag())
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        select(CardItem(SELLABLE_CARD))
+        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(UNLOCKED_CARD_TEST_TAG) }
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { !exists(UNLOCKED_CARD_TEST_TAG) }
+    }
+
+    /**
+     * Opening a pack reveals nothing, because nothing was unlocked.
+     *
+     * `useBtnHandler` plays the animation in the card branch alone (`:236-245`). A pack yields
+     * another **bag** item, so revealing it here would show off a card the player does not own —
+     * and the obvious implementation, "play it whenever Use produces a card id", does exactly
+     * that: `PackOpened` carries one too.
+     */
+    @Test
+    fun openingAPackRevealsNothing() = runComposeUiTest {
+        val documents = seeded(withBag())
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openBag(documents)
+
+        select(BoosterItem(BoosterType.BRONZE))
+        onNodeWithTag(INVENTORY_USE_TEST_TAG).performClick()
+        // The pack leaving the bag is the signal the use went through. Its own size is not: a
+        // pack out and a card in leaves it unchanged.
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) {
+            Inventory.count(storedSave(documents), BoosterItem(BoosterType.BRONZE)) == 0
+        }
+
+        assertFalse(exists(UNLOCKED_CARD_TEST_TAG), "a pack unlocked nothing to show")
+    }
+
+    /**
      * Use is refused for a card the profile already owns.
      *
      * The one case where the item's own [Item.useable] says yes and the screen says no — the AS3

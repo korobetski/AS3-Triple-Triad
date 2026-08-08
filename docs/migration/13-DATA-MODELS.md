@@ -73,75 +73,6 @@
 
 ### Card Model
 
-**AS3 `display/Card.as`** (Partial):
-```actionscript
-public class Card extends Sprite implements IDragSource {
-    private var _id:uint;
-    private var _collection:String;
-    private var _texId:String;
-    private var _data:Object;
-    private var _color:String; // BLUE, RED, GREY
-    private var _tile:Tile;
-    private var _draggable:Boolean;
-    private var _flipping:Boolean;
-    private var _selected:Boolean;
-    
-    // Methods
-    public function draw(newID:String, collection:String):void { ... }
-    public function fly(_x:int, _y:int):void { ... }
-    public function flipTo(horizon:Boolean, color:String):void { ... }
-    public function flip(horizon:Boolean):void { ... }
-    
-    // Getters/Setters
-    public function get topPow():uint { return uint("0x" + _data.power[0]); }
-    public function get rightPow():uint { return uint("0x" + _data.power[1]); }
-    // ... etc
-}
-```
-
-**Kotlin `data/models/Card.kt`**:
-```kotlin
-@Serializable
-data class Card(
-    val id: UInt,
-    val collection: CardCollection,
-    val nameKey: String,
-    val power: List<String>, // [top, right, bottom, left]
-    val rarity: Int,
-    val type: CardType?,
-    val element: Element? = null
-) {
-    // Computed properties
-    val topPow: UInt get() = power[0].hexToUInt()
-    val rightPow: UInt get() = power[1].hexToUInt()
-    val bottomPow: UInt get() = power[2].hexToUInt()
-    val leftPow: UInt get() = power[3].hexToUInt()
-    
-    // Methods
-    fun canFlipAgainst(other: Card, direction: Direction): Boolean {
-        val thisPower = when (direction) {
-            Direction.TOP -> topPow
-            Direction.RIGHT -> rightPow
-            Direction.BOTTOM -> bottomPow
-            Direction.LEFT -> leftPow
-        }
-        val otherPower = when (direction) {
-            Direction.TOP -> other.bottomPow
-            Direction.RIGHT -> other.leftPow
-            Direction.BOTTOM -> other.topPow
-            Direction.LEFT -> other.rightPow
-        }
-        return thisPower > otherPower
-    }
-}
-
-@Serializable
-enum class CardCollection { FF14, FF8 }
-
-@Serializable
-enum class Direction { TOP, RIGHT, BOTTOM, LEFT }
-```
-
 > ⚠️ **Runtime state removed from `Card`.** The previous version added
 > `@Transient var color`, `isDraggable`, `isFlipping` and `isSelected` as mutable
 > body properties. Three problems:
@@ -179,23 +110,6 @@ enum class Direction { TOP, RIGHT, BOTTOM, LEFT }
 
 ### Tile Model
 
-**AS3 `display/Tile.as`** (Partial):
-```actionscript
-public class Tile extends Sprite implements IDropTarget {
-    private var _card:Card;
-    private var _taken:Boolean;
-    private var _element:String;
-    private var _id:uint;
-    private var _color:String;
-    private var _leftTile:Tile, _rightTile:Tile, _topTile:Tile, _bottomTile:Tile;
-    private var _leftPow:uint, _rightPow:uint, _bottomPow:uint, _topPow:uint;
-    
-    public function onDragDrop(event:DragDropEvent):void { ... }
-}
-```
-
-**Kotlin `data/models/Tile.kt`**:
-
 > ⚠️ **Redesigned.** The previous version could not work:
 > - `@Transient` in kotlinx.serialization applies only to **primary-constructor**
 >   properties. On body properties it is at best a no-op and at worst a compile
@@ -210,44 +124,6 @@ public class Tile extends Sprite implements IDropTarget {
 >
 > Adjacency is a **property of the 3×3 grid, not of a tile**. Store it as index
 > arithmetic on `Board` and keep `Tile` a flat, fully-serialisable value type:
-
-```kotlin
-@Serializable
-data class Tile(
-    val id: Int,                            // 0..8, row-major
-    val card: Card? = null,
-    val color: CardColor = CardColor.GREY,
-    val element: Element = Element.NONE,
-    // Effective powers after Ascension/Descension/Elemental modifiers are applied.
-    // Null while the tile is empty.
-    val topPow: UInt? = null,
-    val rightPow: UInt? = null,
-    val bottomPow: UInt? = null,
-    val leftPow: UInt? = null
-) {
-    val row: Int get() = id / 3
-    val col: Int get() = id % 3
-    val isTaken: Boolean get() = card != null
-
-    fun placeCard(card: Card, color: CardColor): Tile = copy(
-        card = card,
-        color = color,
-        topPow = card.topPow,
-        rightPow = card.rightPow,
-        bottomPow = card.bottomPow,
-        leftPow = card.leftPow
-    )
-
-    fun cleared(): Tile = Tile(id = id, element = element)
-    fun flipped(): Tile = copy(
-        color = when (color) {
-            CardColor.BLUE -> CardColor.RED
-            CardColor.RED -> CardColor.BLUE
-            CardColor.GREY -> CardColor.GREY
-        }
-    )
-}
-```
 
 > **Verified against `display/Tile.as`**: `_taken` is assigned only inside
 > `set card()` — `true` when a non-null card is set, `false` when cleared — so it
@@ -265,85 +141,12 @@ data class Tile(
 
 ### Board Model
 
-**AS3 `screens/Board.as`**:
-```actionscript
-public class Board {
-    public var tiles:Vector.<Tile>;
-    
-    public function Board() {
-        tiles = new Vector.<Tile>();
-        for (var i:uint = 0; i < 9; i++) {
-            tiles.push(new Tile(i));
-        }
-        // Connect adjacent tiles
-    }
-    
-    public function razBoard():void { /* clear all cards */ }
-    public function elements(predefined:Array):void { /* set elements */ }
-    public function getRemainingTiles():Array { /* get empty tiles */ }
-}
-```
-
-**Kotlin `data/models/Board.kt`**:
-
 > ⚠️ **Redesigned.** The previous version held its state in a `private val _tiles`
 > **body** property of a `@Serializable data class`. kotlinx.serialization only
 > serialises primary-constructor properties, so `_tiles` was never written; a
 > round-tripped `Board` would come back empty and re-run `init`, silently
 > discarding the entire board. Since `GameState` embeds a `Board`, **no game state
 > was actually persistable**. Tiles must live in the constructor.
-
-```kotlin
-@Serializable
-data class Board(
-    val tiles: List<Tile> = List(SIZE * SIZE) { Tile(id = it) }
-) {
-    init {
-        require(tiles.size == SIZE * SIZE) { "Board must have ${SIZE * SIZE} tiles" }
-    }
-
-    operator fun get(id: Int): Tile = tiles[id]
-
-    fun tileAt(row: Int, col: Int): Tile? =
-        if (row in 0 until SIZE && col in 0 until SIZE) tiles[row * SIZE + col] else null
-
-    // Adjacency by index arithmetic — no cyclic references, no mutable back-links.
-    // Column guards prevent wrapping from col 2 to col 0 across a row boundary.
-    fun neighbourId(id: Int, direction: Direction): Int? {
-        val row = id / SIZE
-        val col = id % SIZE
-        return when (direction) {
-            Direction.TOP    -> if (row > 0) id - SIZE else null
-            Direction.BOTTOM -> if (row < SIZE - 1) id + SIZE else null
-            Direction.LEFT   -> if (col > 0) id - 1 else null
-            Direction.RIGHT  -> if (col < SIZE - 1) id + 1 else null
-        }
-    }
-
-    fun neighbour(id: Int, direction: Direction): Tile? =
-        neighbourId(id, direction)?.let { tiles[it] }
-
-    /** Adjacent tiles paired with the direction from `id` towards them. */
-    fun neighbours(id: Int): List<Pair<Direction, Tile>> =
-        Direction.entries.mapNotNull { dir -> neighbour(id, dir)?.let { dir to it } }
-
-    fun emptyTiles(): List<Tile> = tiles.filterNot { it.isTaken }
-
-    // All mutators return a new Board.
-    fun withTile(tile: Tile): Board =
-        copy(tiles = tiles.map { if (it.id == tile.id) tile else it })
-
-    fun placeCard(card: Card, tileId: Int, color: CardColor): Board =
-        withTile(tiles[tileId].placeCard(card, color))
-
-    fun flipTile(tileId: Int): Board = withTile(tiles[tileId].flipped())
-
-    /** Equivalent of AS3 `razBoard()` — clears cards, preserves elements. */
-    fun cleared(): Board = copy(tiles = tiles.map { it.cleared() })
-
-    companion object { const val SIZE = 3 }
-}
-```
 
 > **Why `neighbours()` returns the direction too**: the flip comparison is
 > direction-dependent (`source.rightPow` vs `target.leftPow`). Returning bare
@@ -355,90 +158,6 @@ data class Board(
 ---
 
 ### Save Model
-
-**AS3 `datas/Save.as`** (Partial):
-```actionscript
-public class Save {
-    public static var DATAS:Object = {
-        CREATION_DATE: new Date().getTime(),
-        LAST_SAVE: new Date().getTime(),
-        SAVE_NUMBER: 0,
-        USERNAME: 'Kuplu Kopo',
-        MODE: "ff14_",
-        ADMIN: 0,
-        CARDS: [1, 3, 6, 7, 10],
-        DECKS: [{name:'Starter deck', cards:[1, 3, 6, 7, 10]}],
-        STATS: { WINS:0, DEFEATS:0, DRAWS:0, FORFEITS:0 },
-        BAG: [],
-        BOONS: {MGP:0, XP:0, LUCK:0},
-        MGP: 100,
-        XP: 0,
-        LEVEL: 1,
-        PVP_XP: 0,
-        RANK: 1,
-        AVATAR_ID: 'ffxiv_twi03005',
-        STARTED_MATCHES: 0,
-        ENDED_MATCHES: 0,
-        PVE_MATCHES: 0,
-        PVP_MATCHES: 0,
-        ACHIEVEMENTS: {},
-        NPC_W: {},
-        RULES_W: {}
-    };
-    
-    public static function save():void { /* ... */ }
-    public static function load(profile_name:String):Object { /* ... */ }
-}
-```
-
-**Kotlin `model/GameSave.kt`** — the plan below; see the notes after it for what changed.
-```kotlin
-@Serializable
-data class GameSave(
-    val username: String,
-    val creationDate: Long,
-    val lastSave: Long,
-    val saveNumber: Int,
-    val mode: CardCollection,
-    val admin: Int,
-    val cards: List<UInt>,
-    val decks: List<Deck>,
-    val stats: Stats,
-    val bag: List<UInt>,
-    val boons: Boons,
-    val mgp: Int,
-    val xp: Int,
-    val level: Int,
-    val pvpXp: Int,
-    val rank: Int,
-    val avatarId: String,
-    val startedMatches: Int,
-    val endedMatches: Int,
-    val pveMatches: Int,
-    val pvpMatches: Int,
-    val achievements: Map<String, Boolean>,
-    val npcWins: Map<String, Int>,
-    val rulesWins: Map<String, Int>
-)
-
-@Serializable
-data class Deck(val name: String, val cards: List<UInt>)
-
-@Serializable
-data class Stats(
-    val wins: Int = 0,
-    val defeats: Int = 0,
-    val draws: Int = 0,
-    val forfeits: Int = 0
-)
-
-@Serializable
-data class Boons(
-    val mgp: Int = 0,
-    val xp: Int = 0,
-    val luck: Int = 0
-)
-```
 
 > ⚠️ **CORRECTED 2026-07-30 — four things about this class were wrong.**
 >
@@ -467,68 +186,6 @@ data class Boons(
 
 ### Item Hierarchy
 
-**AS3 `datas/Item.as`, `CardItem.as`, `BoosterItem.as`, `PotionItem.as`** — actual code:
-
-```actionscript
-// Item.as — note: extends starling.display.Sprite (display object, not a POJO)
-public class Item extends Sprite {
-    public static const ITEM_TYPE_CARD:String      = 'item-type-card';
-    public static const ITEM_TYPE_BOOSTER:String   = 'item-type-booster';
-    public static const ITEM_TYPE_POTION:String    = 'item-type-potion';
-    public static const ITEM_TYPE_ACCESSORY:String = 'item-type-accessory';
-    public static const ITEM_TYPE_MISC:String      = 'item-type-misc';
-
-    private var _bagIndex:uint;
-    private var _icon:ItemIcon;      // child display object
-    private var _description:String;
-    private var _type:String;        // one of ITEM_TYPE_*
-    private var _stack:uint;         // default 1
-    private var _sellable:Boolean;   // default true
-    private var _stackable:Boolean;  // default true
-    private var _useable:Boolean;    // default false
-    private var _dropable:Boolean;   // default true
-    private var _value:uint;         // default 1 (MGP price)
-
-    public function __toJSON():Object {
-        return {type: this.type, stack: this.stack};  // only these two persist
-    }
-}
-
-// CardItem.as — extends Item
-public class CardItem extends Item {
-    private var _cardId:uint;
-    public function CardItem(cardId:uint) { ... }
-}
-
-// BoosterItem.as — extends Item (NOT CardItem)
-public class BoosterItem extends Item {
-    // 9 booster kinds
-    public static const BOOSTER_TYPE_BRONZE:String   = 'BRONZE_BOOSTER';
-    public static const BOOSTER_TYPE_SILVER:String   = 'SILVER_BOOSTER';
-    public static const BOOSTER_TYPE_GOLD:String     = 'GOLD_BOOSTER';
-    public static const BOOSTER_TYPE_MITHRIL:String  = 'MITHRIL_BOOSTER';
-    public static const BOOSTER_TYPE_PLATINUM:String = 'PLATINUM_BOOSTER';
-    public static const BOOSTER_TYPE_BEAST:String    = 'BEAST_BOOSTER';
-    public static const BOOSTER_TYPE_PRIMAL:String   = 'PRIMAL_BOOSTER';
-    public static const BOOSTER_TYPE_SCION:String    = 'SCION_BOOSTER';
-    public static const BOOSTER_TYPE_GARLEAN:String  = 'GARLEAN_BOOSTER';
-
-    // each kind has a fixed card pool, e.g.
-    public static const BRONZE_BOOSTER_CARDS:Vector.<uint> = new <uint>[4,5,8,12,27,38];
-    // ...and an icon id, e.g. BEAST_BOOSTER_ICON = 'beast_booster'
-
-    private var _boosterType:String;
-    private var _boosterCards:Vector.<uint>;
-    public function open():uint { ... }   // draws one card id from the pool
-}
-
-// PotionItem.as — extends Item
-public class PotionItem extends Item {
-    private var _potionType:String;
-    public function get modifier():Object { ... }
-}
-```
-
 > ⚠️ **Corrected.** The previous revision of this section invented the AS3 field
 > names (`id`, `nameKey`, `descriptionKey`, `iconId`, `rarity`) and stated that
 > `BoosterItem` inherits from `CardItem`. Neither is true. `Item` has no `id`,
@@ -555,89 +212,6 @@ public class PotionItem extends Item {
 > And one bug worth naming here rather than in the model: **nothing in the AS3 ever merges stacks.**
 > `Achievements.check()` and `shopScreen` both `BAG.push(...)` unconditionally, so a second copy of a
 > stackable item becomes a second row showing "1". `data/Inventory.kt` merges in one place.
-
-**Kotlin `data/models/Item.kt`** — modelled on the fields that actually exist:
-
-```kotlin
-@Serializable
-sealed class Item {
-    abstract val descriptionKey: String
-    abstract val iconId: String
-    abstract val stack: UInt
-    abstract val value: UInt        // MGP price
-    abstract val sellable: Boolean
-    abstract val stackable: Boolean
-    abstract val useable: Boolean
-    abstract val dropable: Boolean
-}
-
-@Serializable
-@SerialName("item-type-card")        // @SerialName, not Gson's @SerializedName
-data class CardItem(
-    val cardId: UInt,
-    override val descriptionKey: String = "",
-    override val iconId: String = "card_icon",
-    override val stack: UInt = 1u,
-    override val value: UInt = 1u,
-    override val sellable: Boolean = true,
-    override val stackable: Boolean = true,
-    override val useable: Boolean = false,
-    override val dropable: Boolean = true
-) : Item()
-
-@Serializable
-@SerialName("item-type-booster")
-data class BoosterItem(
-    val boosterType: BoosterType,
-    override val descriptionKey: String = "",
-    override val iconId: String = "booster_pack_icon",
-    override val stack: UInt = 1u,
-    override val value: UInt = 1u,
-    override val sellable: Boolean = true,
-    override val stackable: Boolean = true,
-    override val useable: Boolean = true,
-    override val dropable: Boolean = true
-) : Item() {
-    val cardPool: List<UInt> get() = BOOSTER_POOLS.getValue(boosterType)
-}
-
-@Serializable
-@SerialName("item-type-potion")
-data class PotionItem(
-    val potionType: PotionType,
-    override val descriptionKey: String = "",
-    override val iconId: String = "potion_icon",
-    override val stack: UInt = 1u,
-    override val value: UInt = 1u,
-    override val sellable: Boolean = true,
-    override val stackable: Boolean = true,
-    override val useable: Boolean = true,
-    override val dropable: Boolean = true
-) : Item()
-
-// 9 booster kinds, matching BoosterItem.BOOSTER_TYPE_* in AS3
-@Serializable
-enum class BoosterType { BRONZE, SILVER, GOLD, MITHRIL, PLATINUM, BEAST, PRIMAL, SCION, GARLEAN }
-
-// Extract the actual pools from BoosterItem.as *_BOOSTER_CARDS constants.
-val BOOSTER_POOLS: Map<BoosterType, List<UInt>> = mapOf(
-    BoosterType.BRONZE to listOf(4u, 5u, 8u, 12u, 27u, 38u),
-    // ... transcribe the remaining 8 pools verbatim; do not re-derive them
-)
-
-// Transcribed 2026-07-30 from datas/PotionItem.as:11-23. Two boons, three tiers each; the
-// serial names are the raw AS3 strings, which are also the i18n key stems and the values stored
-// in Save.DATAS.BAG and named by NPCs.as reward tables (`potion:'MGP_BOOST'`).
-@Serializable
-enum class PotionType(val modifier: BoonModifier) {
-    @SerialName("SMALL_XP_BOOST")  SMALL_XP(BoonModifier(BoonType.XP, 2)),
-    @SerialName("SMALL_MGP_BOOST") SMALL_MGP(BoonModifier(BoonType.MGP, 2)),
-    @SerialName("XP_BOOST")        XP(BoonModifier(BoonType.XP, 5)),
-    @SerialName("MGP_BOOST")       MGP(BoonModifier(BoonType.MGP, 5)),
-    @SerialName("BIG_XP_BOOST")    BIG_XP(BoonModifier(BoonType.XP, 10)),
-    @SerialName("BIG_MGP_BOOST")   BIG_MGP(BoonModifier(BoonType.MGP, 10)),
-}
-```
 
 > **`Save.DATAS.BOONS` has a third slot, `LUCK`, that no potion grants** — there is no
 > `LUCK_BOOST_MOD` and nothing ever writes it. `Boons.luck` exists so a profile round-trips;
@@ -666,134 +240,9 @@ enum class PotionType(val modifier: BoonModifier) {
 
 ### Game Rules Model
 
-**AS3 `datas/tripleTriadRules.as`** (Constants):
-```actionscript
-public static const RULE_OPEN:String = 'STR_OPEN';
-public static const RULE_DEFAULT_OPEN:String = 'RULE_DEFAULT_OPEN';
-public static const RULE_ALL_OPEN:String = 'RULE_ALL_OPEN';
-public static const RULE_THREE_OPEN:String = 'RULE_THREE_OPEN';
-public static const RULE_SUDDEN_DEATH:String = 'RULE_SUDDEN_DEATH';
-public static const RULE_RANDOM:String = 'RULE_RANDOM';
-public static const RULE_DEFAULT_ORDER:String = 'RULE_DEFAULT_ORDER';
-public static const RULE_ORDER:String = 'RULE_ORDER';
-public static const RULE_CHAOS:String = 'RULE_CHAOS';
-public static const RULE_REVERSE:String = 'RULE_REVERSE';
-public static const RULE_FALLEN_ACE:String = 'RULE_FALLEN_ACE';
-public static const RULE_SAME:String = 'RULE_SAME';
-public static const RULE_SAME_WALL:String = 'RULE_SAME_WALL';
-public static const RULE_PLUS:String = 'RULE_PLUS';
-public static const RULE_COMBO:String = 'RULE_COMBO';
-public static const RULE_TYPE:String = 'STR_TYPE';   // note: STR_ prefix, like RULE_OPEN
-public static const RULE_DEFAULT_TYPE:String = 'RULE_DEFAULT_TYPE';
-public static const RULE_ASCENSION:String = 'RULE_ASCENSION';
-public static const RULE_DESCENSION:String = 'RULE_DESCENSION';
-public static const RULE_ELEMENTAL:String = 'RULE_ELEMENTAL';
-public static const RULE_SWAP:String = 'RULE_SWAP';
-public static const RULE_ROULETTE:String = 'RULE_ROULETTE';
-```
-
-**Kotlin `core/game/GameRules.kt`**:
-```kotlin
-@Serializable
-data class GameRules(
-    var openRule: OpenRule = OpenRule.DEFAULT_OPEN,
-    var order: OrderRule = OrderRule.DEFAULT_ORDER,
-    var typeRule: TypeRule = TypeRule.DEFAULT_TYPE,
-    var suddenDeath: Boolean = false,
-    var random: Boolean = false,
-    var reverse: Boolean = false,
-    var fallenAce: Boolean = false,
-    var same: Boolean = false,
-    var sameWall: Boolean = false,
-    var plus: Boolean = false,
-    var combo: Boolean = false,
-    var swap: Boolean = false,
-    var roulette: Boolean = false
-) {
-    fun hasSpecialRules(): Boolean = listOf(
-        suddenDeath, random, reverse, fallenAce,
-        same, sameWall, plus, combo, swap, roulette
-    ).any { it }
-    
-    companion object {
-        fun roulette(mode: GameMode): GameRules { /* ... */ }
-    }
-}
-
-enum class OpenRule { DEFAULT_OPEN, ALL_OPEN, THREE_OPEN }
-enum class OrderRule { DEFAULT_ORDER, ORDER, CHAOS }
-enum class TypeRule { DEFAULT_TYPE, ASCENSION, DESCENSION, ELEMENTAL }
-```
-
 ---
 
 ## 🔧 Utility Types
-
-```kotlin
-// Enums for game types
-@Serializable
-enum class CardColor { BLUE, RED, GREY }
-
-enum class Element {
-    NONE, EARTH, FIRE, HOLY, ICE, LIGHTNING, POISON, WATER, WIND
-}
-
-enum class CardType {
-    NONE, BEAST, GARLEAN, PRIMALS, SCIONS,
-    EARTH, FIRE, HOLY, ICE, LIGHTNING, POISON, WATER, WIND
-}
-
-enum class GameMode { FF14, FF8 }
-
-enum class GamePhase {
-    DECK_SELECTION, OPEN_PHASE, ORDER_PHASE, REVERSE_PHASE,
-    FALLEN_ACE_PHASE, SWAP_PHASE, PILE_OU_FACE, STARTING, PLAYING, ENDED
-}
-
-// Data classes for state — every type embedded in GameState must itself be
-// @Serializable, or the GameState declaration will not compile.
-@Serializable
-data class Player(
-    val name: String,
-    val color: CardColor,
-    val score: Int = 0
-)
-
-@Serializable
-data class TurnState(
-    /**
-     * Index into [timeline], 0..9. The match ends after index 9 (10 cards placed).
-     * This is NOT a modular player toggle — see the note below.
-     */
-    val turnIndex: Int = 0,
-    val timeline: List<CardColor> = emptyList(),
-    val cardsPlaced: Int = 0
-) {
-    val currentPlayer: CardColor? get() = timeline.getOrNull(turnIndex)
-    val isComplete: Boolean get() = turnIndex >= timeline.size
-
-    fun next(): TurnState = copy(turnIndex = turnIndex + 1, cardsPlaced = cardsPlaced + 1)
-}
-
-@Serializable
-data class GameState(
-    val id: String,                 // supplied by the caller — see note on UUID below
-    val mode: GameMode = GameMode.FF14,
-    val rules: GameRules = GameRules(),
-    val phase: GamePhase = GamePhase.DECK_SELECTION,
-    val turn: TurnState = TurnState(),
-    val board: Board = Board(),
-    val bluePlayer: Player = Player("Player", CardColor.BLUE),
-    val redPlayer: Player = Player("Opponent", CardColor.RED),
-    val blueDeck: List<Card> = emptyList(),
-    val redDeck: List<Card> = emptyList(),
-    val selectedCard: Card? = null,
-    val scores: Map<CardColor, Int> = mapOf(CardColor.BLUE to 0, CardColor.RED to 0),
-    val isGameOver: Boolean = false,
-    val winner: CardColor? = null,
-    val timestamp: Long           // supplied by the caller — see note below
-)
-```
 
 > ⚠️ **Four corrections applied**:
 >
@@ -901,5 +350,4 @@ data class GameState(
 
 ---
 
-*Generated: 2026-07-21*  
 *Status: IMPLEMENTED — Phase 2, 2026-07-30. See the CORRECTED notes above.*

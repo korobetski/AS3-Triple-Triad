@@ -217,6 +217,41 @@ object StringKeys {
     /** No AS3 key: an achievement list with nothing in it rendered as an empty group. */
     const val NO_ACHIEVEMENT: String = "APP_NO_ACHIEVEMENT"
 
+    // ---- The tutorial's nine lines.
+    /**
+     * `TutorialScreen.helpTexts` — and `APP_` keys although the text is nine years old, because
+     * **the original never translated them**. They are Flash string literals in the middle of a
+     * screen class, with no `i18n.gettext` around them and no matching key in any of the four
+     * bundles: a French player was taught Triple Triad in English.
+     *
+     * So they enter through the port's own bundle, where they can be. The wording is the AS3's,
+     * with one correction — its line 9 reads "the winnner".
+     */
+    const val TUTORIAL_1: String = "APP_TUTORIAL_1"
+    const val TUTORIAL_2: String = "APP_TUTORIAL_2"
+    const val TUTORIAL_3: String = "APP_TUTORIAL_3"
+    const val TUTORIAL_4: String = "APP_TUTORIAL_4"
+    const val TUTORIAL_5: String = "APP_TUTORIAL_5"
+    const val TUTORIAL_6: String = "APP_TUTORIAL_6"
+    const val TUTORIAL_7: String = "APP_TUTORIAL_7"
+    const val TUTORIAL_8: String = "APP_TUTORIAL_8"
+    const val TUTORIAL_9: String = "APP_TUTORIAL_9"
+
+    /** The campaign entry `PVEScreen.as:79` draws as a bare `tt_tuto` texture with no label. */
+    const val TUTORIAL: String = "APP_TUTORIAL"
+
+    // ---- The two tournament ladders.
+    /** `Campaigns` — the panel `PVEScreen.as:73` puts above the opponent list. */
+    const val CAMPAIGNS: String = "STR_CAMPAIGNS"
+
+    /**
+     * `Match {0} of {1}` — how far up a ladder the player is.
+     *
+     * No AS3 equivalent: the original tracks `STEP` and never shows it, so a player seven matches
+     * into the Card Club has no way to know how many are left.
+     */
+    const val CAMPAIGN_STEP: String = "APP_CAMPAIGN_STEP"
+
     /** Every key above, for the tests that assert each resolves. */
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
@@ -235,6 +270,9 @@ object StringKeys {
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
         ACHIEVEMENTS_LIST, FORFEITS, MATCHES, WIN_RATE, BOONS, NO_ACHIEVEMENT,
+        TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
+        TUTORIAL_6, TUTORIAL_7, TUTORIAL_8, TUTORIAL_9,
+        CAMPAIGNS, CAMPAIGN_STEP,
     )
 
     /** The subset this port authored, which is the subset that may be untranslated. */

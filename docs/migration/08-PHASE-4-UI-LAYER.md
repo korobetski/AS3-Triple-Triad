@@ -1,15 +1,17 @@
+
 # Phase 4: UI Layer - Triple Triad Online Migration
 
 ## 📋 Document Information
 
 - **Phase**: 4 - UI Layer
 - **Duration**: 8 weeks (Weeks 13-20)
-- **Status**: IN PROGRESS — 2026-08-06. The playable loop, all of Tier 3, the deck selector, the
-  theme system, drag-and-drop and the turn timer are done: **20 of the 32 screens**. Of the twelve
-  left, only two are blocked on Phase 5 — six more are filed under multiplayer and are single-player
-  ladders, two wait on Phase 6, and two will not be ported. See § What was built.
-- **Version**: 1.2
-- **Last Updated**: 2026-08-06
+- **Status**: IN PROGRESS — 2026-08-08. The playable loop, all of Tier 3, the deck selector, the
+  theme system, drag-and-drop, the turn timer, the tutorial and both tournament ladders are done:
+  **28 of the 32 screens**. Of the four left, **two are blocked on Phase 5** (`PVPScreen`,
+  `PVPMatchScreen` — the only two that touch a socket) and two will not be ported. See § What was
+  built.
+- **Version**: 1.4
+- **Last Updated**: 2026-08-08
 - **Prerequisites**: Phases 1-3
 
 ---
@@ -27,7 +29,12 @@ and the rules. Everything Phase 2 built a data layer for is now reachable, and e
 screens change is written through `ProfileSession` like the match result already was. The **deck
 selector** landed with them, which is what turns "I built four decks" into a choice.
 
-**20 of the 32 screens exist and 12 are left**, of which only two — `PVPScreen` and
+**2026-08-08 — the tutorial teaches.** `TutorialScreen` and `TutorialRematchPanel`, which had been
+waiting on Phase 6's speech bubble. They are not a second match screen: everything the AS3 expressed
+by subclassing `PVEMatchScreen` is one data object the ordinary match screen takes as a parameter.
+See § The tutorial.
+
+**22 of the 32 screens exist and 10 are left**, of which only two — `PVPScreen` and
 `PVPMatchScreen` — are blocked on Phase 5. Six more are filed under multiplayer and are nothing of
 the kind; two will not be ported at all. See § Screens, against the plan's tiers.
 
@@ -357,24 +364,140 @@ opponent that plays itself, Open visibility, the rules strip, the result panel),
 | `playerPanel` | ✅ Tier 2 — its **turn timer** is what it held; the hand and the name were already drawn |
 | `PVPScreen`, `PVPMatchScreen` | ⏳ Tier 4 / Tier 2 — the only two that touch the socket, so the only two Phase 5 blocks |
 | `CCGroupScreen`, `GSGroupScreen`, `CCGroupMatchScreen`, `GSGroupMatchScreen`, `CCGroupRematchPanel`, `GSGroupRematchPanel` | ⏳ Tier 4 on paper, **single-player in fact** — see below |
-| `TutorialScreen`, `TutorialRematchPanel` | ⏳ Tier 5 / Tier 4 — scripted PvE; waits on `TalkAnim`, which is Phase 6 |
+| `TutorialScreen`, `TutorialRematchPanel` | ✅ Tier 5 / Tier 4 — scripted PvE, on `TalkBubble` (Phase 6) |
 | `BackstageScreen`, `EmptyScreen` | ⏳ Tier 5, and **neither is reachable** — see below |
 
-**20 of the 32 are done and 12 are left.** That tally was wrong in earlier revisions of this
+**22 of the 32 are done and 10 are left.** That tally was wrong in earlier revisions of this
 document — it read fifteen and seventeen — because each pass incremented the previous number instead
-of recounting against the plan's own tier lists. Per tier: 4 of 4, 9 of 10, 5 of 5, 2 of 10, 0 of 3.
+of recounting against the plan's own tier lists. Per tier: 4 of 4, 9 of 10, 5 of 5, 3 of 10, 1 of 3.
 
-### Six of the eight "multiplayer" screens are not multiplayer
+## The tutorial (2026-08-08)
+
+`TutorialScreen extends PVEMatchScreen` and overrides four methods. Composables do not subclass,
+so what the overrides *say* is now one data object — [`MatchScript`] — that an ordinary
+[`MatchScreen`] takes as a parameter: the deal, who starts, how long a turn is, how the opponent
+plays, and what is said before each placement. `TutorialRematchPanel` is not a second panel either;
+it swapped one button, so [`MatchScreen`] takes the replacement.
+
+The alternative was a second copy of a 400-line screen with five lines different, which is the same
+trade the phase refused for `RematchPanel` and for the deck selector.
+
+### The opponent loses on purpose
+
+`// c'est le tuto, le pnj jour toujours la pire solution` — it scores all 45 placements exactly as
+the real AI does and then plays `powers[powers.length - 1]`, the bottom of the ranking. That is
+`MatchAiOptions.TUTOR`, and it is a better answer than a random opponent would be: random would
+occasionally capture three cards in a row and teach the opposite of what the script is saying at
+that moment.
+
+### Three of its nine lines never appeared in the original
+
+`opponentPhase` is reached from exactly one place, the **red** branch of
+`BaseMatchScreen.nextTurn` (`:380`). `TutorialScreen` overrides it with branches on `turn == 2` and
+`turn == 4`, which are the *player's* turns — so they never ran. The three lines behind them are
+also the three most instructional ones the tutorial has:
+
+> "Now it's your turn! Place a card in one of the empty spaces adjacent to my card."
+> "The numbers you can see each correspond to one side of the card…"
+> "Try to capture and control more cards than your opponent!"
+
+Written for the player's turn, hooked to a callback that only fires on the opponent's. Here the
+lesson is driven off the placement count for both sides, so all nine play — and `TutorialLessonTest`
+asserts that, because a UI test can see that a bubble appeared but not that every line the author
+wrote is reachable.
+
+### Its nine lines were never translated either
+
+They are Flash string literals in the middle of the screen class, with no `i18n.gettext` around them
+and no matching key in any of the four bundles: a French player was taught Triple Triad in English.
+They enter through `app-*` here, in English and French, with German and Japanese falling through as
+the other app-owned strings do.
+
+### Two smaller departures
+
+- **It charges the fee and pays the full reward.** The AS3 declares its own `NPC` inline with
+  `matchFee: 0` and a third of the catalogue's drop rates — data written into a screen, the shape
+  `shopScreen` had before Phase 2 pulled its prices into `ShopCatalog`. Reading the shipped
+  `tt-master` costs five MGP against a starting balance of several hundred, and avoids a second
+  record whose only purpose is to be slightly different from the first. It is not farmable either
+  way: the end panel's Rematch is *replaced* by the rule book, which is what the original does.
+- **An `ff8_` character is taught by Kid.** The tutor is the collection's id-1 opponent, and the
+  choice is not arbitrary — `tt-master` and `kid` are both `LEVEL_NOVICE` and both declare
+  `RULE_ALL_OPEN` and nothing else, which is what the lesson's second line announces. The original
+  could only ever have been the first, since it hard-codes `MODE = 'ff14_'`.
+
+The transcript is **not** submitted. A script forces the coin flip, fixes the deal and hands the
+opponent a different strategy, none of which the seed carries — the server would replay it, fail,
+and a rejection is indistinguishable from being caught cheating.
+
+---
+
+## The tournament ladders (2026-08-08)
+
+### Six of the eight "multiplayer" screens were not multiplayer
 
 `grep -c Socket` is **0** on all six of the group screens and panels, and `CCGroupScreen.as:98` /
 `GSGroupScreen.as:98` increment `PVE_MATCHES`, not `PVP_MATCHES`. They are single-player tournament
-ladders — pay 500 MGP, then play five to seven fixed opponents in sequence — and nothing blocks
-them. Only `PVPScreen` and `PVPMatchScreen` reach `tto.net.Socket`.
+ladders — pay 500 MGP, then play six or seven fixed opponents in sequence — and nothing blocked
+them. Only `PVPScreen` and `PVPMatchScreen` reach `tto.net.Socket`, which is why Phase 4 now has
+**two** screens waiting on Phase 5 rather than eight.
 
-The work in them is **data, not UI**: `CCGroupMatchScreen.as:30-70` declares its opponents inline as
-`NPC` records with their own rules, card pools and drop tables. That is the shape `shopScreen` had
-before Phase 2 pulled its price tables out into `ShopCatalog`, and it wants the same treatment
-first.
+**One ladder per collection**, which is easy to read backwards from the class names: the Card Club
+(`cc`, seven rungs) is the FF8 tournament and the Gold Saucer (`gs`, six) the FF14 one. A character
+sees one entry on the opponent list, never two.
+
+The six files are **two screens, not six**. `CCGroupScreen` and `GSGroupScreen` are the same 121
+lines with a different title and a different list of names; `CCGroupMatchScreen` and
+`GSGroupMatchScreen` are `PVEMatchScreen` with a step counter; the two rematch panels swap one
+button. So the port is one entry screen and one match screen over a `Campaign`, plus the extractor
+that turned the AS3 into data.
+
+### The work in them was data
+
+`CCGroupMatchScreen.as:30-70` declares its opponents inline as `NPC` records with their own rules,
+card pools and drop tables — the shape `shopScreen` had before Phase 2 pulled its prices into
+`ShopCatalog`. `tools/extract_campaigns.py` now emits `campaigns.json` from those declarations, and
+`Campaign`/`CampaignStep`/`CampaignMessages` in `:core` are the model.
+
+**A rung is a whole record, not an override.** All thirteen ladder opponents also exist in
+`npcs.json` under the same `iconID`, and **every one of them differs** — rules, fee, card pools,
+rewards. Sharing an icon is the only thing they share, so the extractor carries the full record and
+reports the differences against `npcs.json` on every run rather than silently preferring one.
+
+### The 500 MGP is the only money the game ever takes
+
+`NPC.matchFee` is declared on all 85 catalogue opponents and **charged nowhere**, in the original or
+in this port. The ladders' entry fee is the one exception: `Game.PROFILE_DATAS.MGP -= 500` in both
+entry screens. It is what makes a ladder a stake — a defeat sends the player back to the first rung
+(`nextStep`), and a second attempt costs another 500. `cc/spade`'s own `matchFee: 15` is dead data;
+it is carried through unchanged and pinned by a test that says so.
+
+### A rung is a `MatchScript`, like the lesson
+
+`TutorialScreen`, `CCGroupMatchScreen` and `GSGroupMatchScreen` all extend `PVEMatchScreen`.
+Composables do not subclass, so all three overrides are one lambda-free `MatchScript` on the
+ordinary match screen — the alternative was three copies of a 400-line screen. The ladders use
+almost the opposite half of it from the tutorial: they change no deal, no flip and no clock, and
+say at most two sentences. `ScriptExit` is what replaces Rematch, and **null past the last rung**,
+which is how `CCGroupRematchPanel` ends a ladder: `if (_params.NEXT_STEP < 7)` simply does not build
+the button. Their transcripts are not submitted, for the reason given above.
+
+### Both ladders' titles were broken in the shipped game
+
+- **`STR_CCGROUP` is defined in none of the four bundles.** The Card Club's panel title rendered as
+  the literal key, in every language the game shipped in.
+- **`STR_GSGROUP` exists only in `fr_FR`.** English, German and Japanese showed the key.
+
+`campaignTitle` prefers the AS3 key where a bundle has it — so a French player still reads the
+sentence Square Enix wrote — and falls back to an `APP_CAMPAIGN_<KEY>` this port authored. Nobody
+reads a key.
+
+The rung dialogue is **untranslated by construction**: the three lines the Gold Saucer's opponents
+speak are Flash string literals with no `gettext` and no bundle key, exactly like the tutorial's
+nine. They are carried as literals and pass through `Strings[key]`, whose documented fallback is to
+return the key itself.
+
+---
 
 ### Two Tier 5 screens will not be ported, and here is why
 
@@ -481,19 +604,6 @@ components + 1 abstract base), custom components, theme system, and navigation.
 
 ---
 
-## 📅 Timeline
-
-| Weeks | Focus | Screens | Owner |
-|-------|-------|---------|-------|
-| 13-14 | Foundation: Theme, Components, Navigation | 4 (Tier 1) | UI/UX + Team |
-| 15-16 | Core Screens: Menu, Game, Match | 10 (Tier 2) | Senior Devs |
-| 17-18 | Collection + Multiplayer screens | 15 (Tiers 3-4) | Team |
-| 19-20 | Secondary screens, Polish, Animations, Testing | 3 (Tier 5) + all | QA + Team |
-
-**Total: 32** (4 + 10 + 15 + 3), matching the 32 files in `sources/src/tto/screens/`.
-
----
-
 ## 📝 Screen Migration Priority
 
 > ⚠️ **The lists below were incomplete.** They named 28 items, but `screens/`
@@ -573,17 +683,7 @@ See [14-COMPONENT-MAPPING.md](./14-COMPONENT-MAPPING.md) for detailed mappings.
 
 ## 📝 Key Tasks
 
-### Week 13: Foundation
-
 #### Task 4.1: Theme System
-**Owner**: UI/UX Designer | **Duration**: 2 days | **Priority**: CRITICAL
-
-**TTOTheme.as Analysis**:
-- Theme configuration for Feathers UI
-- Colors, fonts, styling
-- Two themes: BaseTTOTheme, TTOTheme
-
-**Compose Theme Implementation**:
 
 > ⚠️ **Three errors in the previous version of this snippet**:
 > 1. `val AppTheme = MaterialTheme(...)` — `MaterialTheme` is a `@Composable`
@@ -612,64 +712,6 @@ See [14-COMPONENT-MAPPING.md](./14-COMPONENT-MAPPING.md) for detailed mappings.
 > `0xFF1a1a1a` and `0xFF2a2a2a` in the old snippet were invented. Transcribe the
 > remaining constants from `BaseTTOTheme.as:124-137` rather than approximating.
 
-```kotlin
-// Colors.kt — values transcribed from the AS3 source
-val CardBlue   = Color(0xFF2D4660)   // Card.BLUE_COLOR
-val CardRed    = Color(0xFF602D2D)   // Card.RED_COLOR
-val CardGrey   = Color(0xFF5A595A)   // Card.GREY_COLOR
-val TextBlue   = Color(0xFF43A7C8)   // largeBlueElementFormat
-val TextRed    = Color(0xFFBB594F)   // largeRedElementFormat
-val BackgroundColor  = Color(0xFF202020)  // PRIMARY_BACKGROUND_COLOR
-val SurfaceColor     = Color(0xFF383430)  // LIST_BACKGROUND_COLOR
-val LightTextColor   = Color(0xFFE5E5E5)  // LIGHT_TEXT_COLOR
-val SelectedTextColor = Color(0xFFFF9900) // SELECTED_TEXT_COLOR
-val DisabledTextColor = Color(0xFF8A8A8A) // DISABLED_TEXT_COLOR
-
-// Game colours that Material's ColorScheme has no slot for.
-@Immutable
-data class TtoColors(
-    val cardBlue: Color = CardBlue,
-    val cardRed: Color = CardRed,
-    val cardGrey: Color = CardGrey,
-    val textBlue: Color = TextBlue,
-    val textRed: Color = TextRed
-)
-
-val LocalTtoColors = staticCompositionLocalOf { TtoColors() }
-
-// Typography.kt — @Composable, because Compose Resources font loading is.
-@Composable
-fun appTypography(): Typography {
-    val gameFont = FontFamily(Font(Res.font.eurostile))
-    return Typography(
-        headlineLarge = TextStyle(fontFamily = gameFont, fontSize = 24.sp),
-        bodyLarge     = TextStyle(fontFamily = gameFont, fontSize = 16.sp),
-        labelSmall    = TextStyle(fontFamily = gameFont, fontSize = 12.sp)
-    )
-}
-
-// Theme.kt
-private val TtoColorScheme = darkColorScheme(
-    primary    = TextBlue,
-    secondary  = TextRed,
-    background = BackgroundColor,
-    surface    = SurfaceColor,
-    onBackground = LightTextColor,
-    onSurface    = LightTextColor
-)
-
-@Composable
-fun TripleTriadTheme(content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalTtoColors provides TtoColors()) {
-        MaterialTheme(
-            colorScheme = TtoColorScheme,
-            typography = appTypography(),
-            content = content
-        )
-    }
-}
-```
-
 > **Note**: do not set `color` inside `TextStyle` *and* rely on
 > `colorScheme.onBackground` — pick one source of truth for text colour, otherwise
 > the typography silently overrides the scheme everywhere.
@@ -679,7 +721,6 @@ fun TripleTriadTheme(content: @Composable () -> Unit) {
 > `sources/bin/assets/fonts/` during Task 4.1, and note that redistributing
 > Eurostile may itself require a licence.
 
-**Acceptance Criteria**:
 - [x] Theme colors match original — transcribed from `BaseTTOTheme.as:124-137`, pinned by `ThemeTest`
 - [x] Typography matches original — Raleway, the two weights the AS3 embeds; the *scale* is
       re-anchored for density rather than transcribed, and § The theme system says why
@@ -691,77 +732,6 @@ Done 2026-08-06. See § The theme system for what this document got wrong about 
 ---
 
 #### Task 4.2: Common Components
-**Owner**: UI/UX + Team | **Duration**: 3 days | **Priority**: CRITICAL
-
-**Components to Create** (from `controls/` and `display/`):
-- **MainButton** - Primary button
-- **MGPLabel** - MGP (currency) display
-- **XPLabel** - XP display
-- **RoundChart** - Round progress chart
-- **TouchLabel** - Interactive label
-- **AvatarChooser** - Avatar selection
-- **CardDigits** - Card power digits
-- **CardThumb** - Card thumbnail
-- **CardListThumb** - Card list thumbnail
-- **ImageExtended** - Extended image
-- **InventoryItem** - Inventory item
-- **ItemIcon** - Item icon
-- **UserBar** - User info bar
-
-**Example Component**:
-```kotlin
-// CardComponent.kt
-@Composable
-fun CardComponent(
-    card: Card,
-    modifier: Modifier = Modifier,
-    isSelected: Boolean = false,
-    isDraggable: Boolean = false,
-    onClick: () -> Unit = {},
-    onDragStart: () -> Unit = {}
-) {
-    // See the dimensions note below.
-    val cardWidth = 88.dp
-    val cardHeight = 118.dp
-    
-    Box(
-        modifier = modifier
-            .size(cardWidth, cardHeight)
-            .clip(RoundedCornerShape(8.dp))
-            .background(when (card.color) {
-                CardColor.BLUE -> BlueColor
-                CardColor.RED -> RedColor
-                CardColor.GREY -> GreyColor
-            })
-            .then(if (isDraggable) Modifier.draggable() else Modifier)
-            .clickable { onClick() }
-            .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = Color.White
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        // Card image
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data("file:///android_asset/cards/${card.collection}/${card.id}.png")
-                .placeholder(R.drawable.card_back)
-                .build(),
-            contentDescription = card.nameKey,
-            modifier = Modifier.fillMaxSize()
-        )
-        
-        // Card power digits
-        CardDigits(
-            top = card.topPow,
-            right = card.rightPow,
-            bottom = card.bottomPow,
-            left = card.leftPow,
-            modifier = Modifier.align(Alignment.Center)
-        )
-    }
-}
-```
 
 > **Dimensions**: verified against the AS3 source — card `88 x 118`
 > (`display/Card.as:73`, `new Quad(88, 118, 0x5a595a)`), tile `136 x 136`
@@ -769,11 +739,6 @@ fun CardComponent(
 > appears nowhere in the source. Note that AS3 values are **pixels at a fixed
 > 1280x720 landscape stage**, not density-independent units — treat them as design
 > ratios (card ≈ 0.65 x tile) and scale to the viewport rather than hardcoding dp.
-
-**Acceptance Criteria**:
-- [ ] All common components created
-- [ ] Components match original look
-- [ ] Components are reusable
 
 ---
 
@@ -796,79 +761,7 @@ Write-up in the [README](../../README.md#screens-and-navigation).
 > so it needs no Android-only source set, but it does need the `ui-backhandler` artifact, which
 > `compose.ui` does not pull in.
 
-**Owner**: Tech Lead | **Duration**: 2 days | **Priority**: CRITICAL
-
-**Navigation Implementation**:
-```kotlin
-// AppNavigation.kt
-@Composable
-fun AppNavigation() {
-    val navController = rememberNavController()
-    
-    NavHost(
-        navController = navController,
-        startDestination = "splash"
-    ) {
-        // Splash
-        composable("splash") { SplashScreen(navController) }
-        
-        // Main menu
-        composable("menu") { MenuScreen(navController) }
-        
-        // Game
-        composable(
-            "game/{mode}",
-            arguments = listOf(navArgument("mode") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val mode = backStackEntry.arguments?.getString("mode") ?: "ff14"
-            GameScreen(mode = GameMode.valueOf(mode.uppercase()), navController)
-        }
-        
-        // PvE
-        composable("pve") { PVEScreen(navController) }
-        composable("pve/match") { PVEMatchScreen(navController) }
-        
-        // PvP
-        composable("pvp") { PVPScreen(navController) }
-        composable("pvp/match") { PVPMatchScreen(navController) }
-        
-        // Collection
-        composable("decks") { DecksScreen(navController) }
-        composable("inventory") { InventoryScreen(navController) }
-        composable("cards") { CardListScreen(navController) }
-        
-        // Settings
-        composable("settings") { SettingsScreen(navController) }
-        composable("help") { HelpScreen(navController) }
-        composable("profile") { ProfileScreen(navController) }
-        
-        // Tutorial
-        composable("tutorial") { TutorialScreen(navController) }
-    }
-}
-
-// Navigation extensions
-fun NavController.navigateToGame(mode: GameMode) {
-    navigate("game/${mode.name.lowercase()}")
-}
-
-fun NavController.navigateToPvE() {
-    navigate("pve")
-}
-
-fun NavController.navigateToPvP() {
-    navigate("pvp")
-}
-```
-
-**Acceptance Criteria**:
-- [ ] All screens are navigable
-- [ ] Navigation works on both platforms
-- [ ] Back stack works correctly
-
 ---
-
-### Week 14: Core Screens
 
 #### Task 4.4: Menu Screen — ✅ **done, with three actions**
 
@@ -886,317 +779,24 @@ order to grow the list back in.
 carried a resolution picker, a fullscreen toggle and an account section. What is here is what
 `UserSettings.json` holds: language and the two volumes.
 
-**Owner**: Senior Kotlin Dev | **Duration**: 2 days | **Priority**: HIGH
-
-> ⚠️ **Week 14 is over-allocated**: Task 4.4 (2 d) + Task 4.5 (5 d) + Task 4.6 (3 d)
-> = 10 days in a single week, and Task 4.5 and 4.6 share the Tech Lead / Senior Dev
-> pool. The Tier 2 heading says "Weeks 14-16" while these tasks are all filed under
-> Week 14. Re-level against the tier schedule.
-
-**MenuScreen.as Features**:
-- Main menu with multiple options
-- New Game button
-- PvP button
-- Decks button
-- Inventory button
-- Settings button
-- Help button
-- Exit button
-
-**Compose Implementation**:
-```kotlin
-@Composable
-fun MenuScreen(navController: NavController) {
-    TripleTriadTheme {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Title
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
-            
-            // Menu buttons
-            MainButton(
-                text = stringResource(R.string.new_game),
-                onClick = { navController.navigateToNewGame() }
-            )
-            
-            MainButton(
-                text = stringResource(R.string.pvp),
-                onClick = { navController.navigateToPvP() }
-            )
-            
-            MainButton(
-                text = stringResource(R.string.decks),
-                onClick = { navController.navigateToDecks() }
-            )
-            
-            MainButton(
-                text = stringResource(R.string.inventory),
-                onClick = { navController.navigateToInventory() }
-            )
-            
-            MainButton(
-                text = stringResource(R.string.settings),
-                onClick = { navController.navigateToSettings() }
-            )
-            
-            MainButton(
-                text = stringResource(R.string.help),
-                onClick = { navController.navigateToHelp() }
-            )
-        }
-    }
-}
-```
-
-**Acceptance Criteria**:
-- [ ] Menu displays all options
-- [ ] Navigation works
-- [ ] Matches original design
-
 ---
 
 #### Task 4.5: BaseMatchScreen (Most Complex)
-**Owner**: Tech Lead + Senior Kotlin Devs | **Duration**: 5 days | **Priority**: CRITICAL
-
-**BaseMatchScreen.as Analysis**:
-- Base class for all match screens
-- Manages game flow through phases
-- Handles card placement and rules
-- Manages turn system
-- 447 lines
-- Uses setTimeout for phase delays
-- Complex event handling
-
-**Components to Create**:
-- `BaseMatchScreen.kt` - Base class
-- `BoardComponent.kt` - Board display
-- `PlayerPanel.kt` - Player status
-- `DeckSelectorComponent.kt` - Deck selection UI
-- `CardScoreComponent.kt` - Score display
-
-**Compose Implementation**:
-```kotlin
-@Composable
-fun BaseMatchScreen(
-    viewModel: GameViewModel,
-    navController: NavController
-) {
-    TripleTriadTheme {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Background
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-            )
-            
-            // Board in center
-            BoardComponent(
-                board = viewModel.state.collectAsState().value.board,
-                onTileClick = { tile -> viewModel.onTileClicked(tile) },
-                modifier = Modifier.align(Alignment.Center)
-            )
-            
-            // Blue player panel (top)
-            PlayerPanel(
-                player = viewModel.state.collectAsState().value.bluePlayer,
-                color = CardColor.BLUE,
-                isActive = viewModel.state.collectAsState().value.turn.currentPlayer == CardColor.BLUE,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-            
-            // Red player panel (bottom)
-            PlayerPanel(
-                player = viewModel.state.collectAsState().value.redPlayer,
-                color = CardColor.RED,
-                isActive = viewModel.state.collectAsState().value.turn.currentPlayer == CardColor.RED,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
-            
-            // Selected card (draggable)
-            viewModel.state.collectAsState().value.selectedCard?.let { card ->
-                DraggableCard(
-                    card = card,
-                    onDragStart = { viewModel.onCardDragStart(card) },
-                    onDragEnd = { viewModel.onCardDragEnd() },
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-            
-            // Deck selector (when in deck selection phase)
-            if (viewModel.state.collectAsState().value.phase == GamePhase.DECK_SELECTION) {
-                DeckSelectorComponent(
-                    cards = viewModel.state.collectAsState().value.blueDeck,
-                    onCardSelected = { card -> viewModel.selectCard(card) },
-                    modifier = Modifier.align(Alignment.BottomStart)
-                )
-            }
-            
-            // Phase indicators
-            PhaseIndicator(
-                phase = viewModel.state.collectAsState().value.phase,
-                modifier = Modifier.align(Alignment.TopStart)
-            )
-        }
-    }
-}
-```
-
-**Phase-Specific UI**:
-```kotlin
-@Composable
-fun PhaseIndicator(phase: GamePhase, modifier: Modifier = Modifier) {
-    val phaseText = when (phase) {
-        GamePhase.DECK_SELECTION -> stringResource(R.string.select_deck)
-        GamePhase.OPEN_PHASE -> stringResource(R.string.open_phase)
-        GamePhase.ORDER_PHASE -> stringResource(R.string.order_phase)
-        // ... etc
-        GamePhase.PLAYING -> stringResource(R.string.your_turn)
-        GamePhase.ENDED -> stringResource(R.string.game_over)
-    }
-    
-    Box(
-        modifier = modifier
-            .padding(16.dp)
-            .background(Color.Black.copy(alpha = 0.7f))
-            .padding(8.dp)
-    ) {
-        Text(
-            text = phaseText,
-            color = Color.White,
-            style = MaterialTheme.typography.bodyLarge
-        )
-    }
-}
-```
-
-**Acceptance Criteria**:
-- [ ] All match UI components created
-- [ ] Game flow UI works
-- [ ] Card placement works
-- [ ] Phase indicators work
 
 ---
 
 #### Task 4.6: Board Component
-**Owner**: Senior Kotlin Dev | **Duration**: 3 days | **Priority**: CRITICAL
-
-**Board.as Analysis**:
-- Manages 3x3 game board
-- Contains 9 tiles
-- Handles board layout
-- Connects adjacent tiles
-- 82 lines
-
-**Compose Implementation**:
-```kotlin
-@Composable
-fun BoardComponent(
-    board: Board,
-    onTileClick: (Tile) -> Unit,
-    modifier: Modifier = Modifier,
-    isInteractive: Boolean = true
-) {
-    val tileSize = 136.dp
-    val boardSize = tileSize * 3
-    
-    Box(
-        modifier = modifier.size(boardSize, boardSize),
-        contentAlignment = Alignment.Center
-    ) {
-        // Board background
-        Box(
-            modifier = Modifier
-                .size(boardSize, boardSize)
-                .background(Color.Black.copy(alpha = 0.3f))
-        )
-        
-        // Grid of tiles
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            modifier = Modifier.size(boardSize, boardSize)
-        ) {
-            items(board.tiles.size) { index ->
-                val tile = board.tiles[index]
-                TileComponent(
-                    tile = tile,
-                    onClick = { if (isInteractive) onTileClick(tile) },
-                    modifier = Modifier.size(tileSize)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun TileComponent(
-    tile: Tile,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val hasCard = tile.card != null
-    
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(4.dp))
-            .background(when (tile.color) {
-                CardColor.BLUE -> BlueColor.copy(alpha = 0.3f)
-                CardColor.RED -> RedColor.copy(alpha = 0.3f)
-                CardColor.GREY -> Color.Transparent
-            })
-            .border(
-                width = 1.dp,
-                color = when (tile.element) {
-                    Element.NONE -> Color.Transparent
-                    else -> ElementColor.get(tile.element)
-                }
-            )
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        if (hasCard) {
-            CardComponent(
-                card = tile.card!!,
-                color = tile.color,
-                modifier = Modifier.size(88.dp, 118.dp)
-            )
-        }
-    }
-}
-```
-
-**Acceptance Criteria**:
-- [ ] Board displays correctly
-- [ ] Tiles are clickable
-- [ ] Element borders work
-- [ ] Adjacent connections visible
 
 ---
 
-### Week 15-18: Remaining Screens
-
 **Screens to Migrate**: See priority list above.
 
-Each screen follows similar pattern:
+Each screen follows similar pattern.
 1. Analyze AS3 implementation
 2. Map to Compose components
 3. Implement with ViewModel
 4. Test functionality
 
-**Acceptance Criteria per Screen**:
 - [ ] UI matches original design
 - [ ] All functionality works
 - [ ] Navigation works
@@ -1204,187 +804,13 @@ Each screen follows similar pattern:
 
 ---
 
-### Week 19-20: Drag & Drop and Animations
-
 #### Task 4.7: Drag and Drop Implementation
-**Owner**: UI/UX + Senior Kotlin Devs | **Duration**: 3 days | **Priority**: CRITICAL
-
-**AS3 Drag & Drop** (from Feathers):
-- `IDragSource` interface for draggable items
-- `IDropTarget` interface for drop targets
-- `DragDropManager` for coordination
-- Drag ghost visualization
-- Drop validation
-
-**Compose Implementation**:
-```kotlin
-// DraggableCard.kt
-@Composable
-fun DraggableCard(
-    card: Card,
-    onDragStart: (Card) -> Unit,
-    onDragEnd: () -> Unit,
-    onDrag: (Offset) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var isDragging by remember { mutableStateOf(false) }
-    var dragPosition by remember { mutableStateOf(Offset.Zero) }
-    
-    Box(
-        modifier = modifier
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        isDragging = true
-                        dragPosition = offset
-                        onDragStart(card)
-                    },
-                    onDragEnd = {
-                        isDragging = false
-                        dragPosition = Offset.Zero
-                        onDragEnd()
-                    },
-                    onDrag = { change, offset ->
-                        change.consume()
-                        dragPosition += offset
-                        onDrag(dragPosition)
-                    }
-                )
-            }
-    ) {
-        CardComponent(
-            card = card,
-            modifier = Modifier
-                .offset { dragPosition.toIntOffset() }
-                .alpha(if (isDragging) 0.7f else 1f)
-        )
-    }
-}
-
-// ⚠️ `detectDragGestures` has NO onDragEnter / onDragExit parameters. Its
-// signature is (onDragStart, onDragEnd, onDragCancel, onDrag) — the previous
-// version of this snippet would not compile.
-//
-// Compose has no built-in "drop target" for in-process drags (the
-// Modifier.dragAndDropTarget API targets cross-application drag & drop). The
-// standard approach is a single shared drag state plus per-tile bounds
-// registration, with hit-testing done in the parent's coordinate space.
-
-// DragState.kt — one instance per board, hoisted above both card and tiles.
-class BoardDragState {
-    var draggedCard by mutableStateOf<Card?>(null)
-        private set
-    var dragPosition by mutableStateOf(Offset.Unspecified)
-        private set
-
-    /** Tile bounds in the board's coordinate space, keyed by tile id. */
-    private val tileBounds = mutableMapOf<Int, Rect>()
-
-    fun registerTile(id: Int, bounds: Rect) { tileBounds[id] = bounds }
-    fun unregisterTile(id: Int) { tileBounds.remove(id) }
-
-    fun startDrag(card: Card, position: Offset) {
-        draggedCard = card
-        dragPosition = position
-    }
-
-    fun updateDrag(delta: Offset) {
-        if (dragPosition != Offset.Unspecified) dragPosition += delta
-    }
-
-    /** Tile currently under the pointer, or null. */
-    fun hoveredTileId(): Int? =
-        if (dragPosition == Offset.Unspecified) null
-        else tileBounds.entries.firstOrNull { it.value.contains(dragPosition) }?.key
-
-    /** Returns the drop target, then clears the drag. */
-    fun endDrag(): Pair<Card, Int>? {
-        val card = draggedCard
-        val tileId = hoveredTileId()
-        draggedCard = null
-        dragPosition = Offset.Unspecified
-        return if (card != null && tileId != null) card to tileId else null
-    }
-
-    fun cancelDrag() {
-        draggedCard = null
-        dragPosition = Offset.Unspecified
-    }
-}
-
-// DropTargetTile.kt — registers its bounds; no gesture detector of its own.
-@Composable
-fun DropTargetTile(
-    tile: Tile,
-    dragState: BoardDragState,
-    boardCoordinates: LayoutCoordinates?,
-    modifier: Modifier = Modifier
-) {
-    val isHovered = dragState.hoveredTileId() == tile.id && !tile.isTaken
-
-    Box(
-        modifier = modifier
-            .onGloballyPositioned { coords ->
-                // Convert to the board's coordinate space so hit-testing matches
-                // the drag position.
-                boardCoordinates?.let {
-                    val topLeft = it.localPositionOf(coords, Offset.Zero)
-                    dragState.registerTile(
-                        tile.id,
-                        Rect(topLeft, coords.size.toSize())
-                    )
-                }
-            }
-            .border(
-                width = if (isHovered) 2.dp else 0.dp,
-                color = if (isHovered) Color.Green else Color.Transparent
-            )
-    ) {
-        TileComponent(tile = tile, onClick = {})
-    }
-
-    DisposableEffect(tile.id) {
-        onDispose { dragState.unregisterTile(tile.id) }
-    }
-}
-
-// DraggableCard.kt
-@Composable
-fun DraggableCard(
-    card: Card,
-    dragState: BoardDragState,
-    onDrop: (Card, Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isDragging = dragState.draggedCard == card
-
-    Box(
-        modifier = modifier.pointerInput(card.id) {
-            detectDragGestures(
-                onDragStart = { offset -> dragState.startDrag(card, offset) },
-                onDrag = { change, delta ->
-                    change.consume()
-                    dragState.updateDrag(delta)
-                },
-                onDragEnd = { dragState.endDrag()?.let { (c, id) -> onDrop(c, id) } },
-                onDragCancel = { dragState.cancelDrag() }
-            )
-        }
-    ) {
-        CardComponent(
-            card = card,
-            modifier = Modifier.alpha(if (isDragging) 0.7f else 1f)
-        )
-    }
-}
-```
 
 > **Also support tap-to-select + tap-tile-to-place.** The AS3 code offers both
 > interactions (`Card.onTouch` for drag, `Tile.onTouch` + `BaseMatchScreen.tileTouched`
 > for tap), and tapping is significantly easier on a phone than dragging a card to
 > a 3×3 grid. Do not ship drag-only.
 
-**Acceptance Criteria**:
 - [x] Cards can be dragged — the player's own playable ones; see § Drag and drop for the gate
 - [x] Cards can be dropped on tiles
 - [x] Drop validation works — an occupied cell never registers, so it never highlights either
@@ -1396,218 +822,6 @@ Done 2026-08-06, tapping kept alongside it as the task asks. `DragAndDropTest` c
 ---
 
 #### Task 4.8: UI Animations
-**Owner**: UI/UX Designer + Team | **Duration**: 5 days | **Priority**: HIGH
-
-**Animations to Implement** (all 24 classes in `anims/`):
-- AllOpenAnim - All cards revealed
-- AscensionAnim - Ascension rule
-- BlueTurnAnim - Blue player's turn
-- BlueWinAnim - Blue player wins
-- ChaosAnim - Chaos rule
-- ComboAnim - Combo chain
-- DescensionAnim - Descension rule
-- DrawAnim - Draw/game tie
-- FallenAceAnim - Fallen Ace rule
-- Mogu - Special animation
-- OrderAnim - Order rule
-- PileOuFace - Coin flip
-- PlusAnim - Plus rule
-- RandomAnim - Random rule
-- RedTurnAnim - Red player's turn
-- RedWinAnim - Red player wins
-- ReverseAnim - Reverse rule
-- SameAnim - Same rule
-- StartAnim - Game start
-- SuddenDeathAnim - Sudden Death rule
-- SwapAnim - Swap rule
-- TalkAnim - Chat/talk
-- ThreeOpenAnim - Three Open rule *(was missing from this list)*
-- UnlockCardAnim - Card unlocked reward *(was missing from this list)*
-
-**Animation Implementation**:
-```kotlin
-// CardFlipAnimation.kt
-//
-// ⚠️ The previous version of this snippet had two bugs:
-//   1. `.graphicsLayer { rotationY = rotationY }` — inside the graphicsLayer
-//      lambda, `rotationY` resolves to the SCOPE's own property, so this is a
-//      self-assignment that does nothing. The animated value is shadowed and
-//      never applied. The state must have a different name.
-//   2. Without `cameraDistance`, a 180° Y-rotation looks like a flat squash
-//      rather than a card turning, and the back face renders mirrored.
-@Composable
-fun CardFlipAnimation(
-    card: Card,
-    isFlipped: Boolean,
-    modifier: Modifier = Modifier,
-    durationMillis: Int = 400,
-    onFlipFinished: () -> Unit = {}
-) {
-    val angle by animateFloatAsState(          // note: NOT named rotationY
-        targetValue = if (isFlipped) 180f else 0f,
-        animationSpec = tween(durationMillis, easing = LinearOutSlowInEasing),
-        finishedListener = { onFlipFinished() },
-        label = "cardFlip"
-    )
-
-    Box(
-        modifier = modifier.graphicsLayer {
-            rotationY = angle                  // scope property = animated state
-            cameraDistance = 12f * density     // avoids the flat-squash look
-        }
-    ) {
-        if (angle <= 90f) {
-            CardFront(card = card)
-        } else {
-            // Counter-rotate, otherwise the back face is drawn mirrored.
-            Box(modifier = Modifier.graphicsLayer { rotationY = 180f }) {
-                CardBack()
-            }
-        }
-    }
-}
-
-// CardFlyAnimation.kt
-@Composable
-fun CardFlyAnimation(
-    card: Card,
-    from: Offset,
-    to: Offset,
-    onComplete: () -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    var position by remember { mutableStateOf(from) }
-    
-    LaunchedEffect(Unit) {
-        animate(
-            initialValue = from,
-            targetValue = to,
-            animationSpec = tween(400),
-            typeConverter = Offset.VectorConverter
-        ) { value, _ ->
-            position = value
-        }
-        onComplete()
-    }
-    
-    CardComponent(
-        card = card,
-        modifier = modifier.offset { position.toIntOffset() }
-    )
-}
-
-// FlipAndChangeAnimation.kt
-@Composable
-fun FlipAndChangeAnimation(
-    oldCard: Card,
-    newCard: Card,
-    onComplete: () -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    // Animation that flips card and shows new card
-    // Uses AnimatedVisibility or custom animation
-}
-```
-
-**Animation System**:
-```kotlin
-// AnimationManager.kt
-class AnimationManager {
-    private val activeAnimations = mutableListOf<AnimationJob>()
-    
-    fun playCardFlip(card: Card, onComplete: () -> Unit): AnimationJob {
-        val job = AnimationJob("card_flip_${card.id}")
-        activeAnimations.add(job)
-        // Start animation
-        return job
-    }
-    
-    fun playCardFly(card: Card, from: Offset, to: Offset, onComplete: () -> Unit): AnimationJob {
-        val job = AnimationJob("card_fly_${card.id}")
-        activeAnimations.add(job)
-        // Start animation
-        return job
-    }
-    
-    fun cancelAll() {
-        activeAnimations.forEach { it.cancel() }
-        activeAnimations.clear()
-    }
-}
-
-data class AnimationJob(val id: String) {
-    private var isCancelled = false
-    
-    fun cancel() {
-        isCancelled = true
-    }
-    
-    fun isActive(): Boolean = !isCancelled
-}
-```
-
-**Acceptance Criteria**:
-- [ ] All animations implemented
-- [ ] Animations match original look
-- [ ] Performance > 60 FPS
-- [ ] Animations can be cancelled
-
----
-
-## 📊 Phase 4 Deliverables
-
-### Code Deliverables
-- [ ] Theme system
-- [ ] All common components (13 listed in Task 4.2)
-- [ ] Navigation system
-- [ ] All 32 screen/panel classes
-- [ ] Drag and drop implementation
-- [ ] All 24 animations
-- [ ] Screen tests
-- [ ] Animation tests
-
-### Documentation Deliverables
-- [ ] Component library documentation
-- [ ] Screen migration notes
-- [ ] Animation guide
-
----
-
-## ✅ Phase 4 Completion Criteria
-
-### Technical
-- [ ] All screens migrated
-- [ ] All components created
-- [ ] All animations implemented
-- [ ] Navigation works
-- [ ] Drag and drop works
-- [ ] Performance > 60 FPS
-
-### Testing
-- [ ] All UI tests pass
-- [ ] Test coverage >80% for UI
-- [ ] Manual testing complete
-
-### Approvals
-- [ ] Tech Lead approval
-- [ ] UI/UX Designer approval
-- [ ] QA Engineer approval
-
-**Nothing here is reviewed or approved**, as in Phases 1-3. The work is done and self-verified;
-sign-off is a separate step and has not happened.
-
----
-
-## 🎯 Next Phase: Phase 5 - Network
-
-**Phase 5 Focus** (Weeks 21-23):
-- Migrate Socket.as (WebSocket)
-- Implement network layer
-- Message handling
-- Connection management
-- Testing
-
-**Prerequisites**: All Phase 4 deliverables complete
 
 ---
 
@@ -1622,5 +836,4 @@ sign-off is a separate step and has not happened.
 
 ---
 
-*Generated: 2026-07-21*  
 *Status: IN PROGRESS — 2026-08-06. The playable loop, Tier 3, the deck selector, the theme, drag-and-drop and the turn timer are done: 20 of 32 screens. Of the 12 left, only 2 are blocked on Phase 5. See § What was built.*

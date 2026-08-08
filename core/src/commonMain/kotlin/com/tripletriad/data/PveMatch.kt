@@ -2,6 +2,7 @@ package com.tripletriad.data
 
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardCollection
+import com.tripletriad.model.CoinFlip
 import com.tripletriad.model.Deck
 import com.tripletriad.model.GameRules
 import com.tripletriad.model.GameSave
@@ -61,18 +62,23 @@ object PveMatches {
     /**
      * Assembles a match between [profile] and [npc].
      *
+     * @param forcedFlip who starts, when something other than a coin has already decided — the
+     *   tutorial, which needs the opponent to move first so it has something to demonstrate
+     *   (`TutorialScreen.as:64`). Left null, the flip is a real toss.
      * @throws IllegalArgumentException if either side cannot field five cards — a card id naming a
      *   card that is not in the collection, or a profile that owns fewer than five. Both are data
      * faults rather than states a player can reach: `NpcBundleTest` holds every shipped opponent to
      * a full hand and to resolvable ids, and [GameSave.sane] keeps a profile's card list clean. A
      * loud failure is better than a match quietly played with four cards.
      */
+    @Suppress("LongParameterList")
     fun assemble(
         profile: GameSave,
         npc: Npc,
         catalog: CardCatalog,
         random: Random = Random.Default,
         plan: MatchPlan = MatchPlan(rulesFor(npc, profile.mode, random), playerDeck(profile)),
+        forcedFlip: CoinFlip? = null,
     ): PveMatch {
         val (rules, deck) = plan
         val cards = catalog.collection(profile.mode.prefix).associateBy { it.id }
@@ -86,6 +92,7 @@ object PveMatches {
                 redHand = redHand,
                 rules = rules,
                 random = random,
+                forcedFlip = forcedFlip,
             ),
             npc = npc,
             rules = rules,

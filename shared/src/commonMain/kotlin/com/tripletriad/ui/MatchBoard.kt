@@ -283,8 +283,16 @@ private fun TileCell(
 private fun BoardCard(placed: PlacedCard, scale: Float) {
     val squashY = remember { Animatable(1f) }
     val stretchX = remember { Animatable(1f) }
+    val landing = remember { Animatable(0f) }
     var shown by remember { mutableStateOf(placed.owner) }
     var showBack by remember { mutableStateOf(false) }
+
+    // `afterFly`'s second tween. It runs once, on the composition that first has a card in this
+    // cell, which is exactly when a card is played onto it — [TileCell] composes nothing here
+    // while the cell is empty, so the state above is created fresh with the card.
+    LaunchedEffect(Unit) {
+        landing.animateTo(1f, tween(LAND_MS, easing = EaseOut))
+    }
 
     LaunchedEffect(placed.owner) {
         if (shown == placed.owner) return@LaunchedEffect
@@ -310,11 +318,21 @@ private fun BoardCard(placed: PlacedCard, scale: Float) {
         scale = scale,
         showBack = showBack,
         modifier = Modifier.graphicsLayer {
-            scaleX = stretchX.value
-            scaleY = squashY.value
+            // The landing and the flip multiply rather than override: a card captured while it
+            // is still settling keeps settling. They cannot both be at rest and disagree, since
+            // `landing` only ever runs once and only at the start.
+            val arriving = lerp(LAND_SCALE, 1f, landing.value)
+            scaleX = stretchX.value * arriving
+            scaleY = squashY.value * arriving
+            rotationZ = LAND_DEGREES * (1f - landing.value)
+            translationX = LAND_OFFSET_X * size.width * (1f - landing.value)
+            translationY = LAND_OFFSET_Y * size.height * (1f - landing.value)
+            alpha = landing.value
         },
     )
 }
+
+private fun lerp(from: Float, to: Float, fraction: Float): Float = from + (to - from) * fraction
 
 /**
  * One side's remaining cards, in a fixed-size box so the board stays put as the hand empties.
@@ -537,6 +555,42 @@ private const val DRAG_GHOST_ALPHA = 0.85f
 
 /** What is left in the hand while its card is in the air. */
 private const val DRAG_SOURCE_ALPHA = 0.3f
+
+/**
+ * `Card.afterFly`'s tween — the card dropping into the cell it was played on.
+ *
+ * `Card.fly` (`:195-208`) is two halves and this is the second. The first raises the card 100px
+ * out of the hand and fades it out over 0.4s, and it is **not ported**: this port removes the
+ * card from the hand the instant it is played, and there is nothing left there to raise. Under a
+ * drag it would be wrong as well as absent — the player's own finger has already carried the card
+ * across, and replaying that journey afterwards would show it twice.
+ *
+ * The half that lands is the half that reads as a placement, and it is the same under a tap and
+ * under a drop.
+ */
+private const val LAND_MS = 400
+
+/**
+ * `rotation: -90°` settling to `-360°` — three quarters of a turn, anticlockwise.
+ *
+ * Written as the *starting* angle because that is what the modifier interpolates from, so the
+ * end is 0 rather than a full turn that has to be normalised. The direction survives: -90 to 0
+ * the short way would be a quarter turn clockwise, and this is 270° the other way.
+ */
+private const val LAND_DEGREES = -270f
+
+/** `scaleX = scaleY = 1.2` before the tween pulls it back. */
+private const val LAND_SCALE = 1.2f
+
+/**
+ * `x: _x + 50, y: _y - 100` — where the card starts, relative to where it lands.
+ *
+ * In fractions of the card's own size rather than the original's pixels, because those were
+ * pixels on a fixed 1136x640 stage and this port draws the card at whatever scale the screen
+ * affords. 50 and 100 against a 104x128 sprite are these.
+ */
+private const val LAND_OFFSET_X = 0.48f
+private const val LAND_OFFSET_Y = -0.78f
 
 /** `Starling.juggler.tween(this, 0.1, ...)`, four times over -- `Card.as:249-291`. */
 private const val FLIP_LEG_MS = 100

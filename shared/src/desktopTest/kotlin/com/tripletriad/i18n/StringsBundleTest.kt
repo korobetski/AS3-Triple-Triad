@@ -136,13 +136,13 @@ class StringsBundleTest {
 
         /**
          * Keys defined by any of the four bundles: `import_locales.py`'s reported union of 691
-         * plus the 28 `APP_*` strings this port authored.
+         * plus the 41 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 719
+        const val UNION_KEYS = 732
 
         /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 28,
-         * 688 + 28, then 647 and 680 with no app-owned strings at all.
+         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 41,
+         * 688 + 41, then 647 and 680 with no app-owned strings at all.
          *
          * **Almost everything the ported screens show is already translated in four languages**,
          * because the AS3 bundles have it: `STR_PROFILE`, `STR_LOAD_GAME`, `STR_NEW_GAME`,
@@ -159,10 +159,15 @@ class StringsBundleTest {
          * "no achievement yet", "pick a card", "owned", "obtained {0}", "already owned", "unknown
          * item", a win rate, a boons label, a matches label (`STR_MATCHES` is asked for by
          * `profileScreen.as:191` and defined by no bundle) and Back.
+         *
+         * The last ten are the tutorial's: its nine lines and the campaign entry that opens it.
+         * Those nine are `APP_` for a different reason from the rest — the AS3 *has* the sentences,
+         * as Flash string literals in the middle of `TutorialScreen`, with no `gettext` around them
+         * and no key in any bundle. It taught every player Triple Triad in English.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 715,
-            AppLocale.FR_FR to 716,
+            AppLocale.EN_US to 728,
+            AppLocale.FR_FR to 729,
             AppLocale.DE_DE to 647,
             AppLocale.JA_JA to 680,
         )
@@ -179,9 +184,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 28 app-owned; and 11 short, plus the 28.
-            AppLocale.DE_DE to 72,
-            AppLocale.JA_JA to 39,
+            // 44 imported keys short, plus all 41 app-owned; and 11 short, plus the 41.
+            AppLocale.DE_DE to 85,
+            AppLocale.JA_JA to 52,
         )
     }
 }

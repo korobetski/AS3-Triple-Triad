@@ -89,6 +89,10 @@ def main() -> int:
         # the layout never asks for it larger than 512.
         (ASSETS / "logo_white_512.png", "logo.png"),
         (ASSETS / "digits" / "digits.png", "digits.png"),
+        # `TalkAnim`'s speech bubble — 544x144, the frame an NPC's line is drawn inside. One
+        # image for every language, unlike the rule banners: this one holds no text of its own,
+        # which is exactly why it survives translation and they do not.
+        (ASSETS / "talk_basic.tex.png", "talk.png"),
         *[(ASSETS / "card_rarities" / f"{n}stars.png", f"{n}stars.png") for n in RARITIES],
         *[(ASSETS / "card_types" / f"type-{t}.png", f"type-{t}.png") for t in TYPES],
     ]

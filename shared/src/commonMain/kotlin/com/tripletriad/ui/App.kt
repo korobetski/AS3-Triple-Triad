@@ -8,6 +8,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +22,7 @@ import com.tripletriad.audio.AudioPlayer
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.SilentAudioPlayer
 import com.tripletriad.audio.Sound
+import com.tripletriad.data.Campaign
 import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.i18n.AppLocale
@@ -31,6 +33,7 @@ import com.tripletriad.model.Npc
 import com.tripletriad.net.MatchReporter
 import com.tripletriad.net.ServerConnection
 import com.tripletriad.net.accountQueueKey
+import com.tripletriad.protocol.MatchTranscript
 import com.tripletriad.settings.InMemorySettingsStore
 import com.tripletriad.settings.SettingsStore
 import com.tripletriad.settings.UserSettings
@@ -107,7 +110,7 @@ fun App(
             val account = server?.let { rememberAccountSession(it, clock) }
             val connectivity = server?.let { rememberConnectivity(it) }
             var screen by remember { mutableStateOf(Screen.SPLASH) }
-            var opponent by remember { mutableStateOf<Npc?>(null) }
+            val choice = remember { Choice() }
 
             val gate = rememberGate(session, account)
             val reporter = server?.reporter ?: MatchReporter.None
@@ -138,7 +141,8 @@ fun App(
             // match opens and stops when it is left. Nothing plays on the splash or the menu, which
             // is also the original's behavior: `MenuScreen` never called `shuffleLoop`.
             LaunchedEffect(screen, audio) {
-                if (screen == Screen.MATCH) audio.play(Sound.MATCH_MUSIC) else audio.stopMusic()
+                val playing = screen in PLAYING_SCREENS
+                if (playing) audio.play(Sound.MATCH_MUSIC) else audio.stopMusic()
             }
 
             CompositionLocalProvider(LocalStrings provides strings, LocalAudio provides audio) {
@@ -155,11 +159,10 @@ fun App(
                             account = account,
                             connectivity = connectivity,
                             gate = gate,
-                            opponent = opponent,
+                            choice = choice,
                             clock = clock,
                             reporter = reporter,
                             onNavigate = { screen = it },
-                            onChoose = { opponent = it },
                             onQuit = onQuit,
                         )
                     }
@@ -249,11 +252,10 @@ private fun Destination(
     account: AccountSession?,
     connectivity: Connectivity?,
     gate: ProfileGate,
-    opponent: Npc?,
+    choice: Choice,
     clock: Clock,
     reporter: MatchReporter,
     onNavigate: (Screen) -> Unit,
-    onChoose: (Npc) -> Unit,
     onQuit: () -> Unit,
 ) {
     // Where "choose a character" leads. The account screen with a server, the local profile list
@@ -316,7 +318,8 @@ private fun Destination(
         //
         // Grouped rather than delegated behind an `else`, so that adding a fourteenth screen is a
         // compile error here instead of a destination that silently renders blank.
-        Screen.DASHBOARD, Screen.OPPONENTS, Screen.MATCH, Screen.STATS,
+        Screen.DASHBOARD, Screen.OPPONENTS, Screen.MATCH, Screen.TUTORIAL, Screen.STATS,
+        Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
         -> gate.profile?.let { profile ->
             CharacterDestination(
@@ -326,11 +329,10 @@ private fun Destination(
                 gate = gate,
                 account = account,
                 chooser = chooser,
-                opponent = opponent,
+                choice = choice,
                 clock = clock,
                 reporter = reporter,
                 onNavigate = onNavigate,
-                onChoose = onChoose,
             )
         }
     }
@@ -393,11 +395,10 @@ private fun CharacterDestination(
     gate: ProfileGate,
     account: AccountSession?,
     chooser: Screen,
-    opponent: Npc?,
+    choice: Choice,
     clock: Clock,
     reporter: MatchReporter,
     onNavigate: (Screen) -> Unit,
-    onChoose: (Npc) -> Unit,
 ) {
     val toDashboard = { onNavigate(Screen.DASHBOARD) }
     val scope = rememberCoroutineScope()
@@ -428,36 +429,51 @@ private fun CharacterDestination(
                 catalog = opponents,
                 hour = clock.localHour(),
                 onChallenge = {
-                    onChoose(it)
+                    choice.opponent = it
                     onNavigate(Screen.MATCH)
+                },
+                onTutorial = { onNavigate(Screen.TUTORIAL) },
+                // One entry, in practice: each collection has exactly one — see `CampaignPanel`.
+                campaigns = startup.campaigns?.forCollection(profile.mode).orEmpty(),
+                onCampaign = {
+                    choice.campaign = it
+                    onNavigate(Screen.CAMPAIGN)
                 },
                 onBack = toDashboard,
             )
         }
 
-        Screen.MATCH -> startup.catalog?.let { catalog ->
-            opponent?.let { chosen ->
-                // `LocalCardArt` is provided even when null: a card composes correctly with no
-                // textures at all — flat colour quad, empty layers — so a failed art load costs
-                // appearance, not playability.
-                CompositionLocalProvider(LocalCardArt provides startup.art) {
-                    MatchScreen(
-                        catalog = catalog,
-                        profile = profile,
-                        npc = chosen,
-                        clock = clock,
-                        onPersist = gate.persist,
-                        onExit = { onNavigate(Screen.OPPONENTS) },
-                        // The key is derived from the profile the *match* was played with, not
-                        // from the gate, whose profile the credit has already replaced by the time
-                        // this runs. Both name the same queue — neither key is built from anything
-                        // a match changes — and using the one in hand says so rather than relying
-                        // on it.
-                        onTranscript = { reporter.report(queueKeyFor(profile, account), it) },
-                    )
-                }
-            }
-        }
+        Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH -> CampaignDestination(
+            destination = destination,
+            campaign = choice.campaign,
+            profile = profile,
+            startup = startup,
+            clock = clock,
+            onPersist = gate.persist,
+            onNavigate = onNavigate,
+        )
+
+        Screen.TUTORIAL -> TutorialDestination(
+            profile = profile,
+            startup = startup,
+            clock = clock,
+            onPersist = gate.persist,
+            onNavigate = onNavigate,
+        )
+
+        Screen.MATCH -> MatchDestination(
+            profile = profile,
+            startup = startup,
+            opponent = choice.opponent,
+            clock = clock,
+            onPersist = gate.persist,
+            // The key is derived from the profile the *match* was played with, not from the gate,
+            // whose profile the credit has already replaced by the time this runs. Both name the
+            // same queue — neither key is built from anything a match changes — and using the one
+            // in hand says so rather than relying on it.
+            onTranscript = { reporter.report(queueKeyFor(profile, account), it) },
+            onExit = { onNavigate(Screen.OPPONENTS) },
+        )
 
         Screen.STATS -> StatsScreen(profile = profile, onBack = toDashboard)
 
@@ -484,6 +500,166 @@ private fun CharacterDestination(
         Screen.SPLASH, Screen.MENU, Screen.PROFILES, Screen.PROFILE_NEW,
         Screen.ACCOUNT, Screen.SERVERS, Screen.OPTIONS,
         -> Unit
+    }
+}
+
+/**
+ * An ordinary PvE match.
+ *
+ * Its own function for the same reason the two scripted ones are: a `?.let` on the chosen opponent
+ * nested inside one on the card table is what pushed [CharacterDestination] past the complexity
+ * detekt allows, and the three match screens read better side by side than as three arms of a
+ * `when`.
+ */
+@Composable
+@Suppress("LongParameterList")
+private fun MatchDestination(
+    profile: GameSave,
+    startup: StartupState,
+    opponent: Npc?,
+    clock: Clock,
+    onPersist: suspend (GameSave) -> Unit,
+    onTranscript: suspend (MatchTranscript) -> Unit,
+    onExit: () -> Unit,
+) {
+    val chosen = opponent ?: return
+    val catalog = startup.catalog ?: return
+
+    MatchArt(startup) {
+        MatchScreen(
+            catalog = catalog,
+            profile = profile,
+            npc = chosen,
+            clock = clock,
+            onPersist = onPersist,
+            onExit = onExit,
+            onTranscript = onTranscript,
+        )
+    }
+}
+
+/**
+ * A ladder: its entry screen, then its rungs.
+ *
+ * Both destinations in one function because they share the ladder that neither has without the
+ * other — and because they are one screen in the original too, `CCGroupScreen` dispatching straight
+ * into `CCGroupMatchScreen`.
+ *
+ * The transcript is not reported from here. Every rung is a [MatchScript], and [MatchScreen]
+ * refuses to submit a scripted match — the script changes the deal and the opening, neither of
+ * which the seed carries, so a server could not replay it.
+ */
+@Composable
+@Suppress("LongParameterList")
+private fun CampaignDestination(
+    destination: Screen,
+    campaign: Campaign?,
+    profile: GameSave,
+    startup: StartupState,
+    clock: Clock,
+    onPersist: suspend (GameSave) -> Unit,
+    onNavigate: (Screen) -> Unit,
+) {
+    val ladder = campaign ?: return
+    val scope = rememberCoroutineScope()
+    val toOpponents = { onNavigate(Screen.OPPONENTS) }
+
+    if (destination == Screen.CAMPAIGN) {
+        CampaignScreen(
+            campaign = ladder,
+            profile = profile,
+            // The fee is taken here, on the way in, and never given back: `startCampaign`'s
+            // handler does `Game.PROFILE_DATAS.MGP -= 500` and then opens the ladder. A defeat
+            // costs another 500 to try again, which is the whole of what makes a ladder a stake.
+            onStart = {
+                scope.launch { onPersist(profile.withMgp(-ladder.fee)) }
+                onNavigate(Screen.CAMPAIGN_MATCH)
+            },
+            onBack = toOpponents,
+        )
+    } else {
+        startup.catalog?.let { catalog ->
+            MatchArt(startup) {
+                CampaignMatchScreen(
+                    campaign = ladder,
+                    catalog = catalog,
+                    profile = profile,
+                    clock = clock,
+                    onPersist = onPersist,
+                    onFinished = toOpponents,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The two composition locals every match screen wants.
+ *
+ * [LocalCardArt] is provided even when null: a card composes correctly with no textures at all —
+ * flat colour quad, empty layers — so a failed art load costs appearance, not playability.
+ *
+ * [LocalBannerArt] is built here rather than in [rememberStartup] because it loads nothing until a
+ * caption is asked for, and because it is keyed on the language — a rule caption is a picture of a
+ * word. The locale comes from [LocalStrings] rather than from the settings holder, so the captions
+ * cannot disagree with the text on screen: both read the same value. See `BannerArt`.
+ */
+@Composable
+private fun MatchArt(startup: StartupState, content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalCardArt provides startup.art,
+        LocalBannerArt provides rememberBannerArt(LocalStrings.current.locale),
+        content = content,
+    )
+}
+
+/**
+ * What the player has picked to play: an opponent, or a ladder.
+ *
+ * One holder rather than two `remember`ed values threaded through [Destination] and
+ * [CharacterDestination] as four parameters. Neither field is cleared on the way out: the next
+ * choice overwrites it, and the screen that reads one is only reachable by having just made it.
+ */
+@Stable
+internal class Choice {
+    var opponent: Npc? by mutableStateOf(null)
+    var campaign: Campaign? by mutableStateOf(null)
+}
+
+/** Where the match music plays — `BaseMatchScreen`, and every screen that is one. */
+private val PLAYING_SCREENS = setOf(Screen.MATCH, Screen.TUTORIAL, Screen.CAMPAIGN_MATCH)
+
+/**
+ * The lesson, which needs three things at once: the card table, the opponent table, and an opponent
+ * in it to teach.
+ *
+ * Its own function rather than another arm of [CharacterDestination]'s `when`, because three nested
+ * `?.let` on top of that one pushed it past both the complexity and the nesting depth detekt
+ * allows — and because the lesson **picks its own opponent**. It deliberately does not go through
+ * [Choice]: nothing here may leave the tutor sitting in the chosen-opponent slot, where the next
+ * ordinary match would find it.
+ */
+@Composable
+private fun TutorialDestination(
+    profile: GameSave,
+    startup: StartupState,
+    clock: Clock,
+    onPersist: suspend (GameSave) -> Unit,
+    onNavigate: (Screen) -> Unit,
+) {
+    val catalog = startup.catalog ?: return
+    val tutor = startup.opponents?.let { tutorFor(it, profile.mode) } ?: return
+
+    MatchArt(startup) {
+        TutorialScreen(
+            catalog = catalog,
+            profile = profile,
+            tutor = tutor,
+            clock = clock,
+            onPersist = onPersist,
+            onHelp = { onNavigate(Screen.HELP) },
+            onExit = { onNavigate(Screen.OPPONENTS) },
+        )
     }
 }
 

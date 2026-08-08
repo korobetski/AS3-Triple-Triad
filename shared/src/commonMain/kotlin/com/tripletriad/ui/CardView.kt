@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
 import com.tripletriad.model.Card
+import com.tripletriad.model.CardColor
 
 /**
  * The face of a card, at [scale] times its authored size.
@@ -82,6 +83,34 @@ internal fun CardFace(
         if (showBack) {
             Layer(art?.back, 0.dp, 0.dp, CardSpriteWidth, CardSpriteHeight, scale)
         }
+    }
+}
+
+/**
+ * A face-down card in a colour, with **no card behind it**.
+ *
+ * `new Card()` followed by `draw('blue')` — the original's idiom for a card back that is
+ * not any particular card. `PileOuFace` uses it for the three coin-flip cards and `Mogu`
+ * for its stack.
+ *
+ * Deliberately not [CardFace]`(showBack = true)`, which was the first attempt and fails:
+ * that reads `card.textureId` and asks for that card's artwork, so a placeholder card
+ * throws `MissingResourceException` for a picture nothing was ever going to draw. The
+ * covered layers are not merely hidden here, they are absent.
+ *
+ * @param color which side's colour shows through the back's transparent parts.
+ */
+@Composable
+internal fun CardBack(color: CardColor, scale: Float = 1f, modifier: Modifier = Modifier) {
+    val art = LocalCardArt.current
+    Box(modifier = modifier.size(CardSpriteWidth * scale, CardSpriteHeight * scale)) {
+        Box(
+            modifier = Modifier
+                .offset(x = CardFaceOffsetX * scale, y = CardFaceOffsetY * scale)
+                .size(CardWidth * scale, CardHeight * scale)
+                .background(color.background),
+        )
+        Layer(art?.back, 0.dp, 0.dp, CardSpriteWidth, CardSpriteHeight, scale)
     }
 }
 
