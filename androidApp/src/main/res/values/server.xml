@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Which match servers this build offers.
+
+    A comma-separated list, each entry either an address or `Label=address` — see `serverEntries`.
+    Empty by default, and that is the shipped value: a build with no address queues nothing and
+    submits nothing, which is a supported configuration rather than a broken one (`MatchReporter.None`).
+    The debug variant overrides this with the emulator's route to the host — see
+    `src/debug/res/values/server.xml`.
+
+    A resource and not a constant so the release build genuinely has no server address compiled
+    into it, and so pointing a build at a staging host is a resource override rather than a code
+    change.
+-->
+<resources>
+    <string name="servers" translatable="false"></string>
+</resources>

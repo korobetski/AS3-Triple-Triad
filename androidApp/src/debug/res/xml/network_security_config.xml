@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug only. Android has blocked cleartext HTTP by default since API 28, and the local
+    development server speaks plain HTTP over the emulator's loopback alias.
+
+    Scoped to two addresses rather than opened with `cleartextTrafficPermitted` on the whole
+    application: the exception is for one server on a developer machine, and a blanket permission
+    would quietly cover every future request the app ever makes. This file lives in `src/debug/`
+    and is referenced from the debug manifest, so a release build has no such exception at all.
+
+    Both addresses name the same container by two routes, and neither can leave the machine:
+    `127.0.0.1` is the device's own loopback, reaching the host only through `adb reverse` (see
+    `res/values/server.xml`), and `10.0.2.2` is the emulator's alias for its host. Listing only the
+    first would silently block the emulator route with a cleartext error rather than a routing one.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

@@ -10,6 +10,13 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.tripletriad.data.SaveRepository
 import com.tripletriad.log.Log
 import com.tripletriad.log.LogLevel
+import com.tripletriad.net.ServerConnection
+import com.tripletriad.net.ServerDirectory
+import com.tripletriad.net.ServerStores
+import com.tripletriad.net.SessionStore
+import com.tripletriad.net.TranscriptQueue
+import com.tripletriad.net.serverConnection
+import com.tripletriad.net.serverEntries
 import com.tripletriad.ui.App
 import android.util.Log as AndroidLog
 
@@ -35,6 +42,7 @@ class MainActivity : ComponentActivity() {
         // directory name, so the two hosts cannot drift apart on where a profile lives.
         val documents = AndroidDocumentStore(applicationContext, SaveRepository.COLLECTION)
         audio = AndroidAudioPlayer(applicationContext)
+        val server = buildServerConnection()
         // `finish()` and not `finishAffinity()` or `exitProcess`: this is the only activity, and
         // Android's own guidance is to leave the process alive for the system to reclaim. The
         // system back gesture is handled inside `App` and does not reach here except from the menu.
@@ -45,8 +53,40 @@ class MainActivity : ComponentActivity() {
                 clock = AndroidClock,
                 audio = audio,
                 onQuit = { finish() },
+                server = server,
             )
         }
+    }
+
+    /**
+     * The server connection, or null when this build has no server configured.
+     *
+     * The *list* comes from a resource — see `res/values/server.xml` — so a build can offer one
+     * host, several, or none without a code change, and so the release build ships with none
+     * compiled in. Which of them is in play is the player's, and is stored.
+     *
+     * The queue, the session and the chosen server each get **their own** store — see
+     * `ServerStores`. The collection names come from `:shared`, so the two hosts cannot drift
+     * apart on where anything lives.
+     */
+    // Named apart from the `serverConnection` it calls: a member function shadows a top-level one
+    // of the same name outright in Kotlin, so sharing the name would not overload — it would hide.
+    private fun buildServerConnection(): ServerConnection? {
+        val servers = serverEntries(getString(R.string.servers))
+        if (servers.isEmpty()) {
+            Log.i(TAG) { "no server configured; this build plays offline only" }
+            return null
+        }
+        Log.i(TAG) { "${servers.size} server(s): ${servers.joinToString { it.baseUrl }}" }
+        return serverConnection(
+            stores = ServerStores(
+                queue = AndroidDocumentStore(applicationContext, TranscriptQueue.COLLECTION),
+                session = AndroidDocumentStore(applicationContext, SessionStore.COLLECTION),
+                directory = AndroidDocumentStore(applicationContext, ServerDirectory.COLLECTION),
+            ),
+            servers = servers,
+            clock = AndroidClock,
+        )
     }
 
     /**
@@ -122,5 +162,9 @@ class MainActivity : ComponentActivity() {
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
         }
+    }
+
+    private companion object {
+        const val TAG = "Host"
     }
 }

@@ -63,6 +63,10 @@ fun collectionChoiceTestTag(collection: CardCollection): String = "collection-${
  * that string is used as the armed label) but a dialog on a phone covers the list it is asking
  * about, and an armed control that disarms when you touch anything else is as recoverable and reads
  * faster.
+ *
+ * @param onDeleted what else a deleted profile takes with it, by key. Run **after** the profile is
+ *   gone and never in its place: anything kept alongside a save is worth less than the save, and a
+ *   failure to clean it up must not leave the profile itself half-deleted.
  */
 @Composable
 internal fun ProfileListScreen(
@@ -70,6 +74,7 @@ internal fun ProfileListScreen(
     onSelected: (GameSave) -> Unit,
     onNew: () -> Unit,
     onBack: () -> Unit,
+    onDeleted: suspend (String) -> Unit = {},
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
@@ -100,7 +105,10 @@ internal fun ProfileListScreen(
                         onDelete = {
                             if (armed == slot.key) {
                                 armed = null
-                                scope.launch { session.delete(slot.key) }
+                                scope.launch {
+                                    session.delete(slot.key)
+                                    onDeleted(slot.key)
+                                }
                             } else {
                                 armed = slot.key
                             }

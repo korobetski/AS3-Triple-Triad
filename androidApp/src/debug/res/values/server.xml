@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The local container, as seen from the device.
+
+    `127.0.0.1` is the *phone's* loopback, not the development machine's, so this address only
+    resolves to the container once the two are bridged:
+
+        adb reverse tcp:8080 tcp:8080
+
+    That has to be re-run after every reconnect, and it is still the right way round. The
+    alternative is the machine's LAN address, which means publishing `8080` past `127.0.0.1` in
+    `compose.yaml` — putting a development build of the server, and its development credentials, on
+    whatever network the machine happens to be on. A tunnel that lapses is a better failure than a
+    port that does not.
+
+    On an emulator with no tunnel, the host is reachable as `10.0.2.2` instead.
+
+    One entry, because a developer machine runs one. Add more, comma-separated, to exercise the
+    server list: `Local=http://127.0.0.1:8080, Staging=https://staging.example.org`.
+-->
+<resources>
+    <string name="servers" translatable="false">Local=http://127.0.0.1:8080</string>
+</resources>

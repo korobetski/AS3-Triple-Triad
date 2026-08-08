@@ -4,9 +4,9 @@
 
 - **Phase**: 5 - Network Layer
 - **Duration**: 3 weeks (Weeks 21-23) — **not a usable estimate**; see § Read this before estimating
-- **Status**: re-scoped 2026-07-25, shape sketched 2026-08-06, **sequencing steps 1-2 done, step 3
-  half done, and the local server verifying real transcripts 2026-08-07**
-- **Version**: 1.3
+- **Status**: re-scoped 2026-07-25, shape sketched 2026-08-06, **sequencing steps 1-2 and 4 done,
+  step 3 half done, and the game submitting real transcripts to the local server 2026-08-07**
+- **Version**: 1.4
 - **Last Updated**: 2026-08-07
 - **Prerequisites**: Phases 1-4
 
@@ -128,9 +128,34 @@ Two consequences worth stating now, while the client's half is still unwritten:
 - **Minor is not free either.** A minor bump must mean the replay is unchanged, or the distinction
   is decoration. That is a discipline, and `ReplayDeterminismTest` is what enforces it.
 
+**Implemented 2026-08-07.** `AppVersion`, `CURRENT_VERSION` and `VERSION_HEADER` are in `:core`, so
+the number is a property of the shared artifact rather than something either side is told. The
+client sends `X-TTO-Version` on every request; the server answers **426 Upgrade Required** with its
+own version in the header and the body, and does so *before* reading the body. An absent or
+unparseable header is refused rather than assumed current — a client old enough to predate the
+header is exactly the one whose replay cannot be trusted. Verified against the running container.
+
 Still open: whether the catalogs move into the `:core` artifact so the two sides share the bytes and
 not merely the version. The gate makes drift *visible*; publishing the catalogs makes it
 *impossible*, and is the better fix once there is somewhere to publish to.
+
+### Offline play may not survive — noted 2026-08-07
+
+Not a decision, a flagged possibility: **matches played with no connection may stop being allowed
+altogether.** It is worth writing down because it moves the value of several things built around it.
+
+What it would cost: the transcript's proudest property — that a match played on a plane still counts
+— stops being exercised. The offline queue becomes dead weight rather than the point.
+
+What it would *buy*, and this is the part not to overlook: **the server could issue the seed at
+match start.** That closes seed grinding, which § What the cryptography does not solve currently
+lists as accepted-and-unfixed, because fixing it "needs connectivity at match start". If
+connectivity at match start is mandatory anyway, the weakness disappears for free.
+
+The practical consequence for what is being built now: keep the reversal cheap. Submission is a
+callback (`onTranscript`) and the queue sits behind a small interface over `DocumentStore`, so
+removing offline tolerance means deleting a queue and inlining a call — not unpicking a design. That
+is the reason to prefer those two shapes even while offline play is still supported.
 
 ### The mechanism: a replayable, signed transcript
 
@@ -189,6 +214,25 @@ Named rather than hoped away:
 - **Seed grinding, in solo.** Replay locally until the deal is favourable, then submit. Either the
   server issues the seed (which needs connectivity at match start) or this is accepted; the reward
   difference is small.
+
+### A sudden-death match cannot be transcribed — known gap, 2026-08-07
+
+`MatchTranscript` describes **one** nine-placement match: one seed, one deck, one list of moves.
+A draw in PvE does not end the match — `PVEMatchScreen.as:63-68` regroups both sides' cards from the
+board and plays it again, possibly more than once — and there is no field in which to say so.
+
+The client therefore **does not submit a match that went to sudden death** (`MatchScreen`'s
+`suddenDeath` flag). That is the right failure of the two available: submitting the first nine moves
+would be worse than submitting nothing, because the server would replay them happily, score the
+draw, and return a verdict contradicting the reward already credited for the sudden-death result. A
+transcript that is *wrong* is more dangerous than one that is *absent* — the whole design rests on a
+rejection meaning something.
+
+The cost is a small number of honest matches going unverified, and it stays small: a draw needs the
+board to split 5–5. When it is fixed, the shape is a list of rounds — the seed still drives
+everything, since `MatchPreparation.prepareRematch` draws from the same generator. That is a
+`TRANSCRIPT_VERSION` bump and therefore a major version bump (see § One version, shared), which is
+why it is written down rather than done in passing.
 
 One reassurance about keys: a player who compromises their own device can sign whatever they like,
 but **still cannot produce an illegal transcript**. A key protects against impersonation, not
@@ -376,10 +420,79 @@ What is known about the candidates:
      local PvP rather than blocking it.
    - ❌ **The local-PvP protocol over an in-memory loopback** — not started. Needs the joint seed,
      the hand commitment and signed moves from § What local play needs on top.
-4. **The client's half.** Nothing in the client talks to the server yet: there is no Ktor Client and
-   no `ktor` entry in `gradle/libs.versions.toml`. ← next, and it is where the open question about
-   Ktor's minimum coroutines version against the pinned `1.8.1` finally has to be answered.
-5. Only then: accounts, signatures, and crediting a verdict to a profile.
+4. **The client's half.** Half done, 2026-08-07:
+   - ✅ **Submission** — `MatchSubmitter` in `:core` (the contract, no transport in sight) and
+     `KtorMatchSubmitter` in `shared/.../net/`. `SubmissionResult` is the part worth reading: an
+     unreachable server is `Offline`, **not** an exception, because "an honest match played offline
+     still counts" is only true if the caller can hold the transcript and send it later.
+   - ✅ **The version gate** — decision 6, implemented on both sides. `AppVersion` and
+     `VERSION_HEADER` live in `:core`, so the two cannot disagree unless they link different builds
+     of it, which is exactly the case being detected. The server refuses with **426** before
+     parsing the body; a client on a newer major is let through.
+   - ✅ **The coroutines pin** — answered, and it was a smaller question than it looked. See
+     § What is not decided.
+   - ✅ **The game calls it** — done 2026-08-07. `MatchScreen` emits a transcript through
+     `onTranscript` **after** the reward is credited and never instead of it, and both hosts build a
+     reporter. The engine is chosen per platform behind an `expect fun defaultHttpEngineFactory()`,
+     so neither app module names Ktor: they supply an address and a place to write, which is all
+     they can know. Android reads its address from a string resource that is empty in release and
+     points at the emulator's `127.0.0.1` in debug; the desktop reads `-Dtto.server`, then
+     `TTO_SERVER`, then the local container.
+   - ✅ **The offline queue** — done 2026-08-07. `TranscriptQueue` over `DocumentStore`, its own
+     collection, one document per profile, bounded at 200 with the **oldest** dropped. It drains
+     when a profile is opened, stops at the first `Offline` result, and consumes everything else —
+     a verdict, accepted or rejected, is an answer and resubmitting it forever is the bug the
+     distinction exists to prevent. No `NetworkMonitor` and no platform code.
+   - ✅ **The invariant is now tested end to end** — `shared/src/desktopTest/.../MatchTranscriptTest`
+     plays a whole match through the real screen and replays the emitted transcript with
+     `TranscriptVerifier`. Worth its cost: the invariant it guards is that **nothing may draw from
+     the match generator on the player's turn**, and three call sites already violated it (the deck
+     selector's Random button, the turn timer's auto-play, and a seed that was derived twice rather
+     than kept). A fourth would surface in production as honest players' matches being rejected.
+   - ❌ **Nothing is done with the verdict.** `QueuedMatchReporter.drain` logs what came back and
+     discards it, because progression is still client-held (decision 2). That is the one function
+     that learns to apply a server-issued result, and deliberately the only one.
+5. ✅ **Accounts, and crediting a verdict to a profile** — done 2026-08-08.
+   - The **account replaces the local profile**. With a server configured, the character comes from
+     `GET /me` and the local `.sav` list is not reachable; without one, nothing changes and the game
+     plays exactly as it did before. Both are supported configurations — see `ProfileGate`.
+   - Storage is **aggregates plus history**: one row per verified match, and the counters derived
+     from it. `AccountRoutes` registers, signs in and out, and reads and writes the server-held
+     profile; `POST /matches/submit` replays the transcript, credits the reward and answers with the
+     profile it wrote, which the client **adopts rather than merges** — reconciling two profiles
+     field by field is how a duplicated reward gets introduced.
+   - The bearer token is stored **per server** and in the clear, which `SessionStore`'s own KDoc
+     argues for and bounds.
+   - `QueuedMatchReporter.drain` is no longer the function that discards the verdict: a credited
+     match reaches `AccountSession.adopt`, so the dashboard a player lands on after signing in
+     already shows what their offline matches paid.
+6. ✅ **Several servers, and update notices** — done 2026-08-08.
+   - **`GET /server` is the one route that is never behind the version gate**, and that is the whole
+     design. An endpoint that refuses incompatible clients cannot be the endpoint that tells them
+     they are incompatible — a 426 has no way to say "the remedy is to update". `ServerRoutesTest`
+     pins it with a test whose KDoc notes that a gate added there would still pass every other test
+     in the suite.
+   - The client keeps a **`ServerDirectory`**: a configured list, one selection, observable. The
+     address and the token are both read *per request* from it, so a runtime switch cannot leave a
+     request going to server A with server B's token. The desktop reads `-Dtto.servers` / `TTO_SERVERS`,
+     Android a string resource; both parse with the same `serverEntries`, so the two hosts derive the
+     same ids from the same text.
+   - The session **and** the transcript queue are keyed by server id. Draining one server's matches
+     into another would submit transcripts whose decks it never issued, which is indistinguishable
+     from cheating.
+   - Connectivity is **five states and not a boolean** (`ServerStatus`): reachable-but-degraded,
+     too-old, not-a-game-server, unreachable and online each call for different advice, and a single
+     "offline" would tell somebody three majors behind to check their wifi. Probes are explicit —
+     startup, opening the list, refresh, after a switch — not a timer draining a battery to keep a
+     dot green.
+   - **There is no auto-updater, and there should not be one.** On Android and iOS the store owns
+     updates and working around that gets a build removed; on the desktop, fetching and running a
+     binary means owning signed artifacts, a verified release channel and an installer handoff, and
+     getting any part of that wrong turns the update path into the attack. What is implemented
+     instead: the deployment announces a `ClientRelease` (version, per-platform download, notes) via
+     `TTO_CLIENT_*`, and the app shows a notice with one button that opens the right link for *this*
+     platform. A **required** update replaces the sign-in form, because that form cannot work; a
+     suggested one is a line above it.
 
 **The local server exists**, and was verified end to end on 2026-08-07: `docker compose up -d
 --build` in [`tto-server`](../../../tto-server), then a real transcript posted to

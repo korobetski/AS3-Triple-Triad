@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -27,11 +28,15 @@ import androidx.compose.foundation.Image as ComposeImage
 
 const val MENU_PLAY_TEST_TAG: String = "menu-play"
 const val MENU_PROFILES_TEST_TAG: String = "menu-profiles"
+const val MENU_SERVERS_TEST_TAG: String = "menu-servers"
 const val MENU_OPTIONS_TEST_TAG: String = "menu-options"
 const val MENU_QUIT_TEST_TAG: String = "menu-quit"
 
 /** The line naming the loaded character, or saying there is none. */
 const val MENU_PROFILE_TEST_TAG: String = "menu-profile"
+
+/** The server line. Absent entirely on an offline build, which has no server to have a state. */
+const val MENU_SERVER_TEST_TAG: String = "menu-server"
 
 /**
  * The main menu: logo, the active character, then one button per action.
@@ -45,6 +50,10 @@ const val MENU_PROFILE_TEST_TAG: String = "menu-profile"
  * @param active the loaded character, or null. Shown as a line under the logo rather than folded
  *   into the Play label: "Play" has to stay one short word in four languages, and *which*
  *   character is about to be played is the thing a player needs to see before pressing it.
+ * @param connectivity what is known about the servers, or null on a build with none. Null removes
+ *   the line rather than showing it as "offline": an offline build is not a build whose server is
+ *   down, and telling a player their connection has a problem when the game never had one is the
+ *   sort of message that gets a bug report.
  * @param onQuit supplied by the host, because leaving is platform business: `finish()` on Android,
  *   `exitApplication` on desktop, and on iOS nothing at all — Apple's guidelines have no "quit".
  *   `:shared` has no way to express any of that, and should not pretend to.
@@ -52,8 +61,10 @@ const val MENU_PROFILE_TEST_TAG: String = "menu-profile"
 @Composable
 internal fun MainMenuScreen(
     active: GameSave?,
+    connectivity: Connectivity?,
     onPlay: () -> Unit,
     onProfiles: () -> Unit,
+    onServers: () -> Unit,
     onOptions: () -> Unit,
     onQuit: () -> Unit,
 ) {
@@ -95,12 +106,25 @@ internal fun MainMenuScreen(
             modifier = Modifier.testTag(MENU_PROFILE_TEST_TAG).padding(top = 16.dp),
         )
 
+        // Under the character and above the buttons: it is context for what the buttons are about
+        // to do, and a player who is about to press Play is the one who wants to know whether the
+        // server is there. Probed once on arrival, and again whenever the menu is returned to.
+        connectivity?.let {
+            LaunchedEffect(it) { it.refreshSelected() }
+            ServerIndicator(it, onClick = onServers)
+        }
+
         Column(
             modifier = Modifier.padding(top = 24.dp).widthIn(max = ButtonMaxWidth).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             WideButton(strings[StringKeys.PLAY], MENU_PLAY_TEST_TAG, onClick = onPlay)
             WideButton(strings[StringKeys.PROFILE], MENU_PROFILES_TEST_TAG, onClick = onProfiles)
+            // Only with a server. A build with none has nothing to list, and a button leading to
+            // an empty screen is worse than no button.
+            if (connectivity != null) {
+                WideButton("Servers", MENU_SERVERS_TEST_TAG, onClick = onServers)
+            }
             WideButton(strings[StringKeys.SETTINGS], MENU_OPTIONS_TEST_TAG, onClick = onOptions)
             WideButton(strings[StringKeys.QUIT], MENU_QUIT_TEST_TAG, onClick = onQuit)
         }

@@ -66,10 +66,34 @@ kotlin {
             // `api` so :androidApp and :desktopApp get it for their `Dispatchers.IO` store
             // implementations without re-declaring the same pinned version.
             api(libs.kotlinx.coroutines.core)
+
+            // The client half of Phase 5. `implementation` and not `api`: talking to the server is
+            // this module's business, and the app modules see `MatchSubmitter` — declared in
+            // `:core` — rather than Ktor. That keeps the transport a detail, which the migration
+            // document asks for explicitly so PvP can later be built against an in-memory pair of
+            // endpoints instead of a socket.
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.json)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            // Answers requests from a lambda, so the network layer is exercised with no socket and
+            // no server — on every target, including the ones with no localhost worth the name.
+            implementation(libs.ktor.client.mock)
+        }
+
+        // One engine per platform, because there is no common one. Ktor's API is multiplatform;
+        // its transport cannot be.
+        androidMain.dependencies {
+            implementation(libs.ktor.client.okhttp)
+        }
+        getByName("desktopMain").dependencies {
+            implementation(libs.ktor.client.cio)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
         }
         // `getByName` and not `val desktopTest by getting`: Gradle 9 deprecated the delegate
         // syntax and removes it in Gradle 10. There is no generated `desktopTest` accessor

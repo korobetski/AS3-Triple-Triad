@@ -56,6 +56,8 @@ import com.tripletriad.model.MatchPreparation
 import com.tripletriad.model.MatchResult
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.Npc
+import com.tripletriad.protocol.MatchTranscript
+import com.tripletriad.protocol.TranscriptMove
 import com.tripletriad.time.Clock
 import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.delay
@@ -148,6 +150,10 @@ fun handCardTestTag(owner: CardColor, slot: Int): String =
  *   the hands.
  * @param onPersist writes the profile. Called at the start of the match — so abandoning it counts
  *   as a forfeit — and again once it is credited.
+ * @param onTranscript hands the finished match to whoever submits it. Called **after** the credit
+ *   and never in place of it: the reward is the player's and must not depend on a server being
+ *   reachable. Defaults to doing nothing, which is what the many tests that only care about the
+ *   game want. Not called at all when the match went to sudden death — see `suddenDeath` below.
  * @param turnLimit how long the player has to move before a card is played for them. The AS3's
  *   thirty seconds by default; a parameter so a test can reach the expiry without waiting for it.
  */
@@ -160,16 +166,40 @@ internal fun MatchScreen(
     clock: Clock,
     onPersist: suspend (GameSave) -> Unit,
     onExit: () -> Unit,
+    onTranscript: suspend (MatchTranscript) -> Unit = {},
     turnLimit: Duration = DEFAULT_TURN_LIMIT,
 ) {
     val audio = LocalAudio.current
     val strings = LocalStrings.current
     var matchIndex by remember(npc.iconId) { mutableStateOf(0) }
 
-    // One mutable generator for the whole match: the deal, the coin flip and every AI tie-break
-    // draw from it. Seeded from the clock so successive matches differ, which also makes a test
-    // with a `FixedClock` fully deterministic.
-    val random = remember(matchIndex, npc.iconId) { Random(clock.nowMillis() + matchIndex) }
+    // The seed, kept rather than thrown away, because it is the *whole* of a transcript's
+    // randomness: from it alone the server re-derives the roulette, the deal, the coin flip and
+    // every one of the opponent's moves. An `Int` because that is what `MatchTranscript.seed`
+    // carries — the truncation is harmless, a seed only has to be unpredictable and reproducible.
+    val seed = remember(matchIndex, npc.iconId) { (clock.nowMillis() + matchIndex).toInt() }
+
+    // The match generator. The deal, the coin flip and every AI tie-break draw from it, in exactly
+    // the order `TranscriptVerifier` replays them.
+    val random = remember(matchIndex, npc.iconId) { Random(seed) }
+
+    /*
+     * The generator for everything that must NOT touch the one above.
+     *
+     * `TranscriptVerifier` states the invariant: **on the player's own turn, nothing may draw from
+     * the match generator.** The server replays a match by re-running the same stream, so any draw
+     * the server does not know about shifts every later value and the transcript stops replaying —
+     * which surfaces as a rejection, and a rejection is indistinguishable from cheating.
+     *
+     * Two callers here would otherwise break it, and neither is obvious:
+     *
+     *   - the deck selector's Random button, which draws *before* the deal;
+     *   - the turn timer's auto-play, which draws twice on the player's turn.
+     *
+     * Derived from the same seed rather than freshly created, so a test with a `FixedClock` stays
+     * fully deterministic. (The Chaos rule already had its own generator and needs nothing here.)
+     */
+    val sideRandom = remember(matchIndex, npc.iconId) { Random(seed.inv()) }
 
     // Resolved before the deck is asked for, because the answer decides whether it is asked at all:
     // under `RULE_RANDOM` the hand comes from the whole collection and the selector never opens
@@ -215,7 +245,9 @@ internal fun MatchScreen(
             rules = rules,
             onChoose = { deck = it },
             onBack = onExit,
-            random = random,
+            // `sideRandom`, not the match generator: the Random button draws before the deal, so
+            // using it here would shift every value the server expects. See `sideRandom`.
+            random = sideRandom,
         )
         return
     }
@@ -229,6 +261,30 @@ internal fun MatchScreen(
     var visibility by remember(match) { mutableStateOf(match.setup.opponentVisibility) }
     var selected by remember(match) { mutableStateOf<Card?>(null) }
     var reward by remember(match) { mutableStateOf<MatchReward?>(null) }
+
+    /*
+     * What the player did, in order — the only part of the match the server cannot derive for
+     * itself, and therefore the only part a transcript has to carry.
+     *
+     * A plain list rather than a `mutableStateListOf`: nothing renders it, and making it observable
+     * would recompose the whole screen on every placement for no visible effect.
+     */
+    val moves = remember(match) { mutableListOf<TranscriptMove>() }
+
+    /*
+     * Whether this match went to a sudden-death rematch.
+     *
+     * It suppresses submission, because `MatchTranscript` describes **one** nine-placement match:
+     * it has a single seed, a single deck and a single list of moves, with no way to say "and then
+     * the hands were regrouped and it was played again". Submitting the first nine moves of such a
+     * match would be worse than submitting nothing — the server would happily replay them, score
+     * the draw, and return a verdict that contradicts the reward already credited for the
+     * sudden-death result.
+     *
+     * A known gap in the format rather than a bug here. See
+     * docs/migration/09-PHASE-5-NETWORK.md.
+     */
+    var suddenDeath by remember(match) { mutableStateOf(false) }
 
     // The deal, which is now a frame later than the screen opening: the cards are dealt once a deck
     // is settled on, and that is what this sound is announcing.
@@ -259,6 +315,7 @@ internal fun MatchScreen(
             state = rematch.state
             visibility = rematch.opponentVisibility
             selected = null
+            suddenDeath = true
             return@LaunchedEffect
         }
         val credit = MatchRewards.credit(
@@ -271,6 +328,18 @@ internal fun MatchScreen(
         )
         reward = credit.reward
         onPersist(credit.save)
+
+        // After the credit, and never instead of it. The profile is the player's; the transcript is
+        // the server's business, and a server that is down must not cost anybody their reward.
+        reportTranscript(
+            onTranscript = onTranscript,
+            suddenDeath = suddenDeath,
+            seed = seed,
+            profile = profile,
+            npc = npc,
+            deck = chosen,
+            moves = moves.toList(),
+        )
     }
 
     // The one guard, for both ways of playing a card. Tapping a cell plays whatever is selected;
@@ -279,6 +348,10 @@ internal fun MatchScreen(
     val place: (Card, Int) -> Unit = { card, position ->
         if (canPlay(state, card, position)) {
             val next = state.play(card, position)
+            // Recorded here and nowhere else, which is the point of `place` being the single guard:
+            // tapping a cell, dropping a card and the turn timer all arrive through it, so a
+            // timed-out turn is written down exactly like a chosen one.
+            moves += TranscriptMove(cardId = card.id, position = position)
             state = next
             selected = null
             sound(audio, next)
@@ -286,7 +359,8 @@ internal fun MatchScreen(
     }
 
     val turnFraction = turnClock(match, state, turnLimit) {
-        autoPlay(state, random)?.let { (card, position) -> place(card, position) }
+        // `sideRandom`: this is the player's turn, and the match generator is off limits there.
+        autoPlay(state, sideRandom)?.let { (card, position) -> place(card, position) }
     }
 
     Column(
@@ -333,6 +407,46 @@ internal fun MatchScreen(
             }
         }
     }
+}
+
+/**
+ * Hands the finished match over to be verified, unless it is one a transcript cannot describe.
+ *
+ * A function rather than four more lines inside the crediting effect, because `MatchScreen` is at
+ * the cyclomatic complexity detekt allows and this is the branch that is genuinely separable: what
+ * a transcript can express is a property of the *format*, and nothing above cares about it.
+ *
+ * @param suddenDeath suppresses the whole thing. [MatchTranscript] describes one nine-placement
+ *   match — one seed, one deck, one list of moves — with no way to say "and then the hands were
+ *   regrouped and it was played again". Submitting the first nine moves would be worse than
+ *   submitting nothing: the server would replay them, score the draw, and answer with a verdict
+ *   contradicting the reward already credited for the sudden-death result.
+ * @param profile the profile as it was when the match began, so `ownedCards` describes the
+ *   collection the deck was legal against rather than one a reward has since added to.
+ */
+@Suppress("LongParameterList")
+private suspend fun reportTranscript(
+    onTranscript: suspend (MatchTranscript) -> Unit,
+    suddenDeath: Boolean,
+    seed: Int,
+    profile: GameSave,
+    npc: Npc,
+    deck: List<Int>,
+    moves: List<TranscriptMove>,
+) {
+    if (suddenDeath) return
+    onTranscript(
+        MatchTranscript(
+            seed = seed,
+            collection = profile.mode,
+            opponentIconId = npc.iconId,
+            deck = deck,
+            // Stated by the client, which is backwards and known to be — the server will hold the
+            // profile once accounts exist. See `MatchTranscript.ownedCards`.
+            ownedCards = profile.cards,
+            moves = moves,
+        ),
+    )
 }
 
 /**

@@ -40,9 +40,14 @@ import kotlin.random.Random
  *
  * ### What it does not check
  *
- * Signatures, because there are none yet; and whether [MatchTranscript.ownedCards] is true, because
- * the caller states it. Both are named in [MatchTranscript]. What is checked here is that the match
- * is a **legal game**, which is independent of who claims to have played it.
+ * Signatures, because there are none yet — so a transcript is unforgeable as a *game* and still
+ * anonymous as a *claim*. Anyone holding a valid session can submit anything under it; what nobody
+ * can do is submit a match that did not happen.
+ *
+ * Whether [MatchTranscript.ownedCards] is true **used to** be on this list and no longer is: pass
+ * an `owner` and the deck is checked against the server's own record instead of the claimant's. The
+ * unauthenticated path still takes the claimant's word, and there it is honest to — the question
+ * being asked is whether the match is a **legal game**, independently of whose it is.
  */
 object TranscriptVerifier {
 
@@ -52,11 +57,20 @@ object TranscriptVerifier {
      * Never throws for a bad transcript: an invalid claim is an ordinary answer, not an exception.
      * The one thing that would be a genuine fault — an engine that cannot deal a legal hand — is
      * caught and reported as [RejectionReason.UNDEALABLE] rather than escaping into the caller.
+     *
+     * @param owner the profile the server holds for the claimant, when there is one. **This is what
+     *   turns the ownership check from a formality into a real one.** Without it the transcript
+     *   states both what was played and what the player owns, which is asking the one party with a
+     *   reason to lie; with it, the deck is checked against the server's own record and the hand is
+     *   dealt from the server's own collection. Null keeps the old behaviour, which is still what
+     *   the unauthenticated verification endpoint and the client's own pre-check want — there, the
+     *   question is whether the match is a *legal game*, independently of whose it is.
      */
     fun verify(
         transcript: MatchTranscript,
         cards: CardCatalog,
         npcs: NpcCatalog,
+        owner: GameSave? = null,
     ): MatchVerdict {
         // Version first, before any field is read. A transcript from a format this build does not
         // know might mean something different by the same names.
@@ -69,10 +83,11 @@ object TranscriptVerifier {
 
         val npc = npcs.byIcon(transcript.opponentIconId, transcript.collection)
 
-        // The check that pure peer-to-peer could not make, and that a server-held profile makes
-        // free. Today it is weak because the claimant supplies both sides of it; when accounts
-        // exist, `ownedCards` comes from the server's own record and this becomes real.
-        val unowned = transcript.deck.filterNot { it in transcript.ownedCards }
+        // Whose card list decides. With an owner this is the server's own record, which is the
+        // check that pure peer-to-peer could not make; without one it is the claimant's, which
+        // proves only that the transcript is internally consistent.
+        val owned = owner?.cards ?: transcript.ownedCards
+        val unowned = transcript.deck.filterNot { it in owned }
 
         return when {
             npc == null -> rejected(
@@ -80,10 +95,18 @@ object TranscriptVerifier {
                 "no opponent '${transcript.opponentIconId}' in ${transcript.collection}",
             )
 
+            // A profile plays one collection. A transcript naming the other is not a forgery
+            // worth a special reason — it is a deck of cards this profile does not own, and
+            // saying so is both true and the same answer the card check would give.
+            owner != null && owner.mode != transcript.collection -> rejected(
+                RejectionReason.DECK_NOT_OWNED,
+                "this profile plays ${owner.mode}, the transcript claims ${transcript.collection}",
+            )
+
             unowned.isNotEmpty() ->
                 rejected(RejectionReason.DECK_NOT_OWNED, "deck holds unowned cards $unowned")
 
-            else -> dealAndReplay(transcript, cards, npc)
+            else -> dealAndReplay(transcript, cards, npc, owned)
         }
     }
 
@@ -98,11 +121,12 @@ object TranscriptVerifier {
         transcript: MatchTranscript,
         cards: CardCatalog,
         npc: Npc,
+        owned: List<Int>,
     ): MatchVerdict {
         val random = Random(transcript.seed)
 
         return runCatching {
-            PveMatches.assemble(profileFor(transcript), npc, cards, random)
+            PveMatches.assemble(profileFor(transcript, owned), npc, cards, random)
         }.fold(
             onSuccess = { replay(it.setup.state, transcript.moves, random) },
             onFailure = { failure ->
@@ -196,16 +220,21 @@ object TranscriptVerifier {
     /**
      * The profile the replay deals from.
      *
-     * A synthetic one, built from the transcript's own claims, because there are no accounts yet.
-     * The single deck is what [PveMatches.playerDeck] picks up — it takes the first *complete*
-     * deck, and five cards is complete — so the player's chosen five are the ones dealt.
+     * Synthetic on purpose, even when there is a real one. What the deal reads is exactly three
+     * things — the collection, the cards owned, and the deck brought — and building a profile with
+     * only those makes it impossible for anything *else* about the stored save to change how a
+     * match replays. That matters more than it sounds: if the deal depended on, say, the player's
+     * MGP, then crediting a match would change how the *next* transcript replays, and a queue
+     * drained out of order would start failing for reasons nobody could see.
      *
-     * When accounts arrive this function is what disappears: the caller will pass the stored
-     * `GameSave`, and the transcript will stop being asked what the player owns.
+     * [owned] is the caller's decision and is the whole difference between a real ownership check
+     * and a formality — see [verify]. The single deck is what [PveMatches.playerDeck] picks up: it
+     * takes the first *complete* deck, and five cards is complete, so the player's chosen five are
+     * the ones dealt.
      */
-    private fun profileFor(transcript: MatchTranscript): GameSave = GameSave(
+    private fun profileFor(transcript: MatchTranscript, owned: List<Int>): GameSave = GameSave(
         mode = transcript.collection,
-        cards = transcript.ownedCards,
+        cards = owned,
         decks = listOf(Deck(SUBMITTED_DECK_NAME, transcript.deck)),
     )
 

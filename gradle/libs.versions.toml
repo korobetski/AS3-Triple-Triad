@@ -5,10 +5,34 @@ compose = "1.9.3"
 activityCompose = "1.13.0"
 androidxCore = "1.19.0"
 serializationJson = "1.9.0"
-# Pinned to the version Compose Multiplatform 1.9.3 already brings in transitively.
-# `runTest` and `kotlinx-coroutines-core` must agree, and letting this float would
-# silently upgrade coroutines for the whole build from a *test* dependency.
-coroutines = "1.8.1"
+# `runTest` and `kotlinx-coroutines-core` must agree, and this pin is what keeps them agreeing —
+# the hazard it guards against is the whole build being upgraded silently by a *test* dependency.
+#
+# Raised from 1.8.1 to 1.11.0 on 2026-08-07, deliberately and in its own commit, ahead of adding
+# Ktor Client. Ktor 3.5.2 brings the coroutines **BOM**, whose constraint outranks a plain
+# `version.ref`, so the network layer would have moved this number on its own and buried the change
+# in an unrelated diff. Moving it first makes it a decision with its own test run rather than a
+# side effect.
+#
+# Checked before the bump: Compose Multiplatform 1.9.3 asks for 1.8.0 transitively, not 1.8.1, so
+# nothing here was pinned to Compose's needs. The server has been resolving `:core` against 1.11.0
+# since it started consuming it, so this is the version the engine was already running on.
+coroutines = "1.11.0"
+# The same version the server runs, and deliberately so: they speak to each other, and a mismatch
+# between two Ktor majors is a class of bug nobody should spend an evening on. Bump both together.
+#
+# **Held at 3.3.1 by Kotlin, not by choice.** From 3.4.0 onwards Ktor publishes its Kotlin/Native
+# klibs compiled by Kotlin 2.3, whose ABI version 2.3.0 this project's Kotlin 2.2.20 refuses to
+# consume: `:shared:compileKotlinIosSimulatorArm64` fails with "KLIB resolver: incompatible ABI
+# version". It is not an iOS-only dependency that trips it — `ktor-client-core` and
+# `ktor-serialization-kotlinx-json` are `commonMain`, so the iOS compilations pull them in whatever
+# the engine.
+#
+# That failure is invisible to every task normally run on this Windows host (`desktopTest`,
+# `testAndroidHostTest`, `assembleDebug`) and shows up only under `./gradlew check`, which is how
+# 3.5.2 came to be pinned here for a day without anyone noticing. Whoever raises Ktor next raises
+# Kotlin first.
+ktor = "3.3.1"
 ktlintPlugin = "12.1.2"
 detekt = "1.23.8"
 
@@ -35,6 +59,30 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 # returns to the menu instead of finishing the activity mid-match.
 compose-backhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", version.ref = "compose" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
+
+# ---- Ktor Client -------------------------------------------------------------------------------
+#
+# The client half of Phase 5. Only the **client** artifacts appear here: `ktor-server-*` is excluded
+# from this repository by the migration's decision 3 — no server code inside the APKs — and the
+# server lives in its own repository precisely so that rule cannot be undone by an import.
+#
+# The engine is per-platform because there is no such thing as a common one; `ktor-client-core` in
+# `commonMain` is the API, and each host supplies the transport underneath it. That is the same
+# shape as DocumentStore and SettingsStore, and it is why iOS costs a line here rather than a port.
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+# OkHttp on Android rather than CIO: it is what the platform's own HTTP stack is tuned for, and it
+# honours the system proxy and trust store that a device may well have.
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+# CIO on desktop: no native dependency, and nothing on a desktop JVM to integrate with.
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+# Declared so the iOS targets stay honest. They are compiled only on macOS, so this costs nothing
+# here and prevents `iosMain` becoming the one source set that does not build the day it is needed.
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+# A fake engine that answers from a lambda. It makes the network layer testable in `commonTest`
+# with no socket, no server and no port — so these tests run on every target and in CI unchanged.
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

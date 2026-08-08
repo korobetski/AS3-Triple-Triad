@@ -3,7 +3,7 @@ package com.tripletriad.ui
 /**
  * Which screen is showing.
  *
- * A `remember`ed value and not a navigation library. There are fourteen destinations now and the
+ * A `remember`ed value and not a navigation library. There are fifteen destinations now and the
  * flow is still a **tree of depth three** — menu → characters → dashboard → one of seven — with one
  * [up] per screen and no deep links, no arguments beyond what the session already holds, and no
  * state to restore across process death that is not already on disk. Compose Navigation would buy a
@@ -20,6 +20,8 @@ internal enum class Screen {
     MENU,
     PROFILES,
     PROFILE_NEW,
+    ACCOUNT,
+    SERVERS,
     DASHBOARD,
     OPPONENTS,
     MATCH,
@@ -43,11 +45,16 @@ internal enum class Screen {
      * Logout leads: leaving a character means choosing another, and the list is where that is done.
      * The original sent Logout to `MENU_SCREEN` and left `Game.PROFILE_DATAS` loaded, so its
      * "logout" changed the screen and nothing else.
+     *
+     * On a build with a server the dashboard is reached from [ACCOUNT] rather than [PROFILES], and
+     * back from it goes to the menu instead — that difference is [App]'s to apply, because it is
+     * the only thing that knows whether there is a server, and encoding both flows here would put a
+     * conditional in a value that is supposed to be a constant.
      */
     val up: Screen
         get() = when (this) {
             SPLASH, MENU -> this
-            PROFILES, OPTIONS -> MENU
+            PROFILES, ACCOUNT, SERVERS, OPTIONS -> MENU
             PROFILE_NEW -> PROFILES
             DASHBOARD -> PROFILES
             OPPONENTS, STATS, CARDS, DECKS, INVENTORY, SHOP, HELP -> DASHBOARD
