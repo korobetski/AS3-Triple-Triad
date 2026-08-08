@@ -230,6 +230,69 @@ class AccountSessionTest {
         assertTrue(session.isRestored)
     }
 
+    // ---- The name offered back --------------------------------------------
+
+    /**
+     * The case the whole thing is for: the token is gone, and the name is not.
+     *
+     * A player coming back after thirty days has to type a password, and there is no reason for
+     * them to have to type who they are as well — the app knows. This is the test that would fail
+     * if [SessionStore.lastUsername] were ever simplified into a call to `load`, which discards the
+     * document at exactly this moment.
+     */
+    @Test
+    fun anExpiredSessionStillRemembersWhoItWas() = runTest {
+        val documents = InMemoryDocumentStore()
+        SessionStore(documents).save(home.id, stored(expiresAt = NOW - 1))
+        val session = sessionOver(answering(HttpStatusCode.OK, encode(player)), documents)
+
+        session.restore()
+
+        assertNull(session.player, "an expired token must not sign anybody in")
+        assertEquals("kuplu", session.lastUsername)
+    }
+
+    @Test
+    fun signingInIsWhatMakesTheNameWorthOfferingBack() = runTest {
+        val session = sessionOver(answering(HttpStatusCode.OK, encode(signedIn)))
+
+        assertNull(session.lastUsername)
+        session.signIn("kuplu", PASSWORD)
+
+        assertEquals("kuplu", session.lastUsername)
+    }
+
+    /** Nothing stored, nothing to offer — and no empty string pretending to be a name. */
+    @Test
+    fun aFirstRunHasNoNameToOffer() = runTest {
+        val session = sessionOver(answering(HttpStatusCode.OK, encode(player)))
+
+        session.restore()
+
+        assertNull(session.lastUsername)
+    }
+
+    /**
+     * Each server remembers its own, and a switch does not carry one across.
+     *
+     * The same separation the token has, in the one place a player would actually believe it: a
+     * name in the field is a claim about which account this host knows.
+     */
+    @Test
+    fun theNameDoesNotFollowThePlayerToAnotherServer() = runTest {
+        val documents = InMemoryDocumentStore()
+        val session = sessionOver(
+            answering(HttpStatusCode.OK, encode(signedIn)),
+            documents = documents,
+            servers = listOf(home, away),
+        )
+        session.signIn("kuplu", PASSWORD)
+
+        session.useServer(away)
+
+        assertNull(session.lastUsername)
+    }
+
     // ---- Signing out ------------------------------------------------------
 
     /**
@@ -249,6 +312,26 @@ class AccountSessionTest {
 
         assertNull(offline.player)
         assertNull(SessionStore(documents).load(home.id, NOW))
+    }
+
+    /**
+     * And it forgets the name, which an expiry deliberately does not.
+     *
+     * The asymmetry is the point. An expired token is the app forgetting on a schedule; signing out
+     * is a person asking to be forgotten, usually because somebody else is about to hold the
+     * device. Leaving their name in the field would answer a question nobody asked.
+     */
+    @Test
+    fun signingOutForgetsTheNameToo() = runTest {
+        val documents = InMemoryDocumentStore()
+        val session = sessionOver(answering(HttpStatusCode.OK, encode(signedIn)), documents)
+        session.signIn("kuplu", PASSWORD)
+        assertEquals("kuplu", session.lastUsername)
+
+        session.signOut()
+
+        assertNull(session.lastUsername)
+        assertNull(SessionStore(documents).lastUsername(home.id))
     }
 
     // ---- Changes made outside a match -------------------------------------

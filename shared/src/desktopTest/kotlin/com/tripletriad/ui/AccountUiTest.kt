@@ -1,7 +1,13 @@
 package com.tripletriad.ui
 
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -22,6 +28,7 @@ import com.tripletriad.protocol.PlayerState
 import com.tripletriad.protocol.ServerInfo
 import com.tripletriad.protocol.Session
 import com.tripletriad.storage.InMemoryDocumentStore
+import com.tripletriad.time.FixedClock
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
@@ -34,6 +41,7 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
+import androidx.compose.ui.autofill.ContentType as AutofillType
 
 /**
  * The flow a build with a server actually has.
@@ -108,6 +116,77 @@ class AccountUiTest {
         awaitDashboard()
     }
 
+    /**
+     * When the form *is* reached, half of it is already filled in.
+     *
+     * An expired token is the ordinary way back here — thirty days pass — and the app still knows
+     * who this was. Asking them to type it again would be asking for something it has on disk.
+     */
+    @Test
+    fun anExpiredSessionLeavesTheNameInTheForm() = runComposeUiTest {
+        val documents = InMemoryDocumentStore()
+        runBlocking {
+            SessionStore(documents).save(
+                home.id,
+                StoredSession(token = TOKEN, expiresAt = EXPIRED, username = "kuplu"),
+            )
+        }
+
+        setContent { App(store = english(), server = connection(sessions = documents)) }
+
+        // The form, and not the dashboard: the token is dead, so this is a sign-in and not a
+        // restore. Both halves matter — a passing assertion below with a *live* token would only
+        // prove the screen was never reached.
+        openForm()
+        onNodeWithTag(ACCOUNT_NAME_TEST_TAG).assertTextContains("kuplu")
+    }
+
+    /** And with nothing stored, the field is empty rather than holding somebody else's name. */
+    @Test
+    fun aFirstRunLeavesTheFormBlank() = runComposeUiTest {
+        setContent { App(store = english(), server = connection()) }
+
+        openForm()
+        // The label, then the empty value — `assertTextEquals` reads both, and the label is stable
+        // because these tests fix the locale.
+        onNodeWithTag(ACCOUNT_NAME_TEST_TAG).assertTextEquals("Character Name", "")
+    }
+
+    /**
+     * The other half of not typing this: the fields tell the platform what they are.
+     *
+     * This is what lets the OS password manager offer to save the password and fill it back in —
+     * and it is the whole reason the app stores no password of its own. Worth a test because the
+     * hint is invisible: nothing on screen changes if it is dropped, and the failure is silent and
+     * only reproducible on a device.
+     */
+    @Test
+    fun theFieldsTellThePasswordManagerWhatTheyAre() = runComposeUiTest {
+        setContent { App(store = english(), server = connection()) }
+
+        openForm()
+        onNodeWithTag(ACCOUNT_NAME_TEST_TAG).assertContentType(AutofillType.Username)
+        onNodeWithTag(ACCOUNT_PASSWORD_TEST_TAG).assertContentType(AutofillType.Password)
+    }
+
+    /**
+     * And registering asks for a *new* one, which is a different request.
+     *
+     * `Password` asks the manager to fill what it has; `NewPassword` asks it to offer to generate
+     * and save. Getting these the wrong way round is how a password manager ends up either silent
+     * on the form that needs it or overwriting a stored entry on the form that does not.
+     */
+    @Test
+    fun creatingAnAccountAsksForANewPasswordInstead() = runComposeUiTest {
+        setContent { App(store = english(), server = connection()) }
+
+        openForm()
+        onNodeWithTag(ACCOUNT_TOGGLE_TEST_TAG).performClick()
+
+        onNodeWithTag(ACCOUNT_NAME_TEST_TAG).assertContentType(AutofillType.NewUsername)
+        onNodeWithTag(ACCOUNT_PASSWORD_TEST_TAG).assertContentType(AutofillType.NewPassword)
+    }
+
     /** A refusal keeps the player on the form, with the reason on it. */
     @Test
     fun aRefusedSignInStaysOnTheFormAndSaysWhy() = runComposeUiTest {
@@ -168,6 +247,15 @@ class AccountUiTest {
     }
 
     // ---- Fixtures ---------------------------------------------------------
+
+    /**
+     * The autofill hint this node declares. Not a text assertion — the value is not rendered.
+     *
+     * `AutofillType` is `androidx.compose.ui.autofill.ContentType`, aliased because Ktor's
+     * `ContentType` is a MIME type and this file needs both.
+     */
+    private fun SemanticsNodeInteraction.assertContentType(expected: AutofillType) =
+        assert(SemanticsMatcher.expectValue(SemanticsProperties.ContentType, expected))
 
     private fun ComposeUiTest.openForm() {
         awaitMenu()
@@ -248,6 +336,15 @@ class AccountUiTest {
         const val TOKEN = "test-session"
         const val NOW = 1_770_000_000_000L
         const val LATER = NOW + 86_400_000L
+
+        /**
+         * A moment [App]'s clock has already passed.
+         *
+         * Anchored to [FixedClock.DEFAULT_MILLIS] rather than to [NOW], because the clock is what
+         * decides expiry and `App`'s default is the one these tests run against. An `EXPIRED`
+         * derived from [NOW] would be a number that happens to work until somebody changes either.
+         */
+        const val EXPIRED = FixedClock.DEFAULT_MILLIS - 1
 
         /** Never a real one, and never printed. */
         const val PASSWORD = "not-a-real-password"

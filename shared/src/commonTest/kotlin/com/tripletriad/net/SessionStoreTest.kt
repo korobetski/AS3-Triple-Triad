@@ -109,6 +109,58 @@ class SessionStoreTest {
         ).clear(SERVER)
     }
 
+    // ---- The name outlives the token ---------------------------------------
+
+    /**
+     * The whole reason this is not `load()?.username`.
+     *
+     * A token lasts thirty days; the account name lasts as long as the account. When the first has
+     * lapsed the player is looking at a sign-in form, and that is precisely the moment the second
+     * saves them half the typing. Deriving this from [SessionStore.load] would throw the name away
+     * on the only occasion it is worth anything.
+     */
+    @Test
+    fun theNameSurvivesTheTokenItWasStoredWith() = runTest {
+        val store = InMemoryDocumentStore()
+        SessionStore(store).save(SERVER, session(expiresAt = NOW - 1))
+
+        assertNull(SessionStore(store).load(SERVER, NOW), "the token has expired")
+        assertEquals("kuplu", SessionStore(store).lastUsername(SERVER))
+    }
+
+    @Test
+    fun thereIsNoNameWhereThereIsNoSession() = runTest {
+        assertNull(SessionStore(InMemoryDocumentStore()).lastUsername(SERVER))
+    }
+
+    /** Signing out takes the name with it — the document is gone, not just the token. */
+    @Test
+    fun clearingForgetsTheNameAsWell() = runTest {
+        val store = InMemoryDocumentStore()
+        SessionStore(store).save(SERVER, session(expiresAt = LATER))
+
+        SessionStore(store).clear(SERVER)
+
+        assertNull(SessionStore(store).lastUsername(SERVER))
+    }
+
+    /** One server's name is not another's, for the reason the tokens are kept apart. */
+    @Test
+    fun eachServerRemembersItsOwnName() = runTest {
+        val store = InMemoryDocumentStore()
+        SessionStore(store).save(SERVER, session(expiresAt = LATER))
+
+        assertNull(SessionStore(store).lastUsername(OTHER_SERVER))
+    }
+
+    /** An unreadable document has no name in it either, and still must not throw. */
+    @Test
+    fun anUnreadableDocumentHasNoNameToOffer() = runTest {
+        val store = InMemoryDocumentStore(mapOf(SERVER to "not json at all"))
+
+        assertNull(SessionStore(store).lastUsername(SERVER))
+    }
+
     // ---- The token is not printable ---------------------------------------
 
     /**

@@ -18,7 +18,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -44,6 +48,26 @@ const val ACCOUNT_ERROR_TEST_TAG: String = "account-error"
  * The two forms take the same two fields, validate them with the same rules ([Credentials]) and
  * differ in one word on one button. Splitting them would mean two layouts to keep in step and a
  * player who typed their name into the wrong one having to type it again.
+ *
+ * ### How not to type this every time
+ *
+ * Mostly by not reaching this screen: the session lasts thirty days and is restored on launch, so
+ * the ordinary case is never seeing the form at all. When it *is* reached — first run, an expired
+ * token, a new server — the name is filled in from [AccountSession.lastUsername] and the password
+ * is left to the platform's password manager.
+ *
+ * That last part takes **two** things, and either one alone does nothing. The fields declare a
+ * [ContentType] so the framework knows what they hold, *and* a successful submit calls
+ * [androidx.compose.ui.autofill.AutofillManager.commit] so it learns the form was submitted and
+ * offers to save. Without the commit nothing is ever saved, and so nothing is ever offered back —
+ * which looks from the outside exactly like autofill not working at all.
+ *
+ * It also takes a working autofill service on the device, which is a system setting and not this
+ * app's to set. A phone pointed at a service that is not installed offers nothing, here or in any
+ * other app, and there is no way for this screen to tell.
+ *
+ * The app stores no password of its own, and that is not a gap. See `SessionStore` for what the
+ * token already does that a stored password would only do worse.
  *
  * ### What is deliberately missing
  *
@@ -73,9 +97,15 @@ internal fun AccountScreen(
 ) {
     val strings = LocalStrings.current
     val scope = rememberCoroutineScope()
+    // Null wherever the platform has no autofill framework — desktop, and iOS for now.
+    val autofill = LocalAutofillManager.current
 
     var isRegistering by remember { mutableStateOf(false) }
-    var username by remember { mutableStateOf("") }
+    // Keyed on the remembered name so it survives recomposition but not a change of account: this
+    // screen is reached again after a sign-out and after a server switch, and both set it to null.
+    var username by remember(session.lastUsername) {
+        mutableStateOf(session.lastUsername.orEmpty())
+    }
     var password by remember { mutableStateOf("") }
 
     // Validated locally so the player learns their password is too short without a round trip. The
@@ -110,6 +140,7 @@ internal fun AccountScreen(
                 label = strings[StringKeys.USERNAME],
                 tag = ACCOUNT_NAME_TEST_TAG,
                 imeAction = ImeAction.Next,
+                contentType = if (isRegistering) ContentType.NewUsername else ContentType.Username,
             )
 
             AccountField(
@@ -119,6 +150,7 @@ internal fun AccountScreen(
                 tag = ACCOUNT_PASSWORD_TEST_TAG,
                 imeAction = ImeAction.Done,
                 isPassword = true,
+                contentType = if (isRegistering) ContentType.NewPassword else ContentType.Password,
             )
 
             session.failure?.let { failure ->
@@ -144,7 +176,18 @@ internal fun AccountScreen(
                         // Only on success. `player` is the honest test for that: it is set by the
                         // same branch that stored the token, so it cannot disagree with whether
                         // there is a session to navigate into.
-                        if (session.player != null) onSignedIn()
+                        if (session.player != null) {
+                            // What actually makes the password manager offer to save. Declaring
+                            // the fields' `ContentType` is only half of it: without this the
+                            // framework never learns the form was submitted, so it never prompts —
+                            // and with nothing ever saved there is nothing to fill in next time.
+                            //
+                            // After the success check, deliberately. Committing on every press
+                            // would offer to save a password the server has just rejected, which
+                            // is how a manager ends up holding a wrong one for the right account.
+                            autofill?.commit()
+                            onSignedIn()
+                        }
                     }
                 },
             )
@@ -177,6 +220,12 @@ internal fun AccountScreen(
  *
  * Extracted because the two differ only in whether the characters are shown, and a second copy of
  * the eight-line `colors` block is how the two forms would start looking different.
+ *
+ * @param contentType what the platform's password manager should make of this field. Declaring it
+ *   is what lets the OS offer to save the password and fill it back in — which is the *right* place
+ *   for a password to be remembered, and the reason this app stores none of its own. Without the
+ *   hint, autofill falls back to guessing from labels and mostly does not offer at all. Inert on
+ *   desktop, where Compose has no autofill backend yet.
  */
 @Composable
 private fun AccountField(
@@ -185,6 +234,7 @@ private fun AccountField(
     label: String,
     tag: String,
     imeAction: ImeAction,
+    contentType: ContentType,
     isPassword: Boolean = false,
 ) {
     OutlinedTextField(
@@ -208,6 +258,9 @@ private fun AccountField(
             focusedIndicatorColor = MaterialTheme.colorScheme.primary,
             unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
         ),
-        modifier = Modifier.testTag(tag).fillMaxWidth(),
+        modifier = Modifier
+            .testTag(tag)
+            .semantics { this.contentType = contentType }
+            .fillMaxWidth(),
     )
 }

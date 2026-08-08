@@ -42,6 +42,20 @@ private data class SessionDocument(
  * rediscovered. The moment an account holds anything a person would mind losing, this is the file
  * to change.
  *
+ * ### Why the password is not kept here, and will not be
+ *
+ * "Remember my credentials" is a reasonable thing to want and this is already the answer to it: the
+ * token *is* the remembered credential. It signs the player in with no typing for thirty days, and
+ * it is strictly better than the password at that job in three ways — the server can revoke it, it
+ * expires on its own, and losing it exposes one session on one host rather than an account and
+ * whatever else that password opens.
+ *
+ * Storing the password would add a secret that never expires, cannot be revoked, and replays
+ * everywhere the player reused it — in exchange for nothing, because the token already removes the
+ * typing. What is stored instead is [lastUsername], and the password field is left to the
+ * platform's own password manager, which is built for this and keeps the value out of this app
+ * entirely. See `AccountScreen`.
+ *
  * ### One session per server, and not one per profile
  *
  * With the account replacing the local profile there is nothing about the *player* to key by: the
@@ -61,10 +75,37 @@ class SessionStore(private val store: DocumentStore) {
      * security boundary, which is why a clock skewed backwards costs a needless sign-in and
      * nothing worse.
      */
+    // Three returns for three outcomes — nothing stored, stored but spent, usable. Collapsing them
+    // costs the log line that says which of the two failures happened.
+    @Suppress("ReturnCount")
+    suspend fun load(serverId: String, now: Long): StoredSession? {
+        val document = read(serverId) ?: return null
+        if (document.token.isEmpty() || document.expiresAt <= now) {
+            Log.i(TAG) { "the stored session has expired" }
+            return null
+        }
+        return StoredSession(document.token, document.expiresAt, document.username)
+    }
+
+    /**
+     * The name last signed in with on [serverId], **whether or not the session is still valid**.
+     *
+     * Deliberately not derived from [load], which is the whole point: an expired session is exactly
+     * when the name is worth having. Thirty days after signing in, the token is gone and the player
+     * is back at the form — and the one thing the app can still say for certain is who they were.
+     * Reusing [load] here would throw that away at precisely the moment it becomes useful.
+     *
+     * Only ever the *name*. There is no equivalent for the password, and adding one is not a
+     * shortcut left undone — see the class comment.
+     */
+    suspend fun lastUsername(serverId: String): String? =
+        read(serverId)?.username?.takeIf { it.isNotEmpty() }
+
+    /** The stored document, or null if there is none or it cannot be read. Never throws. */
     // The store is implemented per host, so a failed read throws whatever that platform's file API
     // throws; and an unreadable session is a session to sign in for, not a crash on launch.
     @Suppress("TooGenericExceptionCaught", "ReturnCount")
-    suspend fun load(serverId: String, now: Long): StoredSession? {
+    private suspend fun read(serverId: String): SessionDocument? {
         val text = try {
             store.read(serverId)
         } catch (failure: Exception) {
@@ -72,18 +113,12 @@ class SessionStore(private val store: DocumentStore) {
             return null
         } ?: return null
 
-        val document = try {
+        return try {
             Format.decodeFromString<SessionDocument>(text)
         } catch (failure: Exception) {
             Log.w(TAG, failure) { "the stored session is unreadable; dropping it" }
-            return null
+            null
         }
-
-        if (document.token.isEmpty() || document.expiresAt <= now) {
-            Log.i(TAG) { "the stored session has expired" }
-            return null
-        }
-        return StoredSession(document.token, document.expiresAt, document.username)
     }
 
     /** Replaces the session stored for [serverId]. Throws only if the host's storage does. */

@@ -63,6 +63,21 @@ class AccountSession internal constructor(
     var isRestored: Boolean by mutableStateOf(false)
         private set
 
+    /**
+     * The name last signed in with on this server, or null.
+     *
+     * Offered back by the sign-in form, so a returning player whose token has lapsed types a
+     * password and not both. Read on [restore] rather than on demand because the form is composed
+     * synchronously and a field that fills in a frame later is a field the player has already
+     * started typing into.
+     *
+     * Survives expiry, and does **not** survive [signOut] — that is a deliberate asymmetry. An
+     * expired token is the app forgetting; signing out is the player asking to be forgotten, and on
+     * a device that gets handed around, honouring that is the whole reason the button exists.
+     */
+    var lastUsername: String? by mutableStateOf(null)
+        private set
+
     /** The profile, for the screens that only want that. */
     val save: GameSave? get() = player?.save
 
@@ -91,7 +106,12 @@ class AccountSession internal constructor(
      * subsequent launch too.
      */
     suspend fun restore() {
-        val stored = server.session.load(server.server.id, clock.nowMillis())
+        val entry = server.server
+        // Before the expiry check below, and read even when there is no usable token, because the
+        // expired case is the one where the form is about to be shown and the name is worth most.
+        lastUsername = server.session.lastUsername(entry.id)
+
+        val stored = server.session.load(entry.id, clock.nowMillis())
         if (stored == null) {
             isRestored = true
             return
@@ -105,7 +125,7 @@ class AccountSession internal constructor(
             }
 
             else -> {
-                if (result.isUnauthenticated()) server.session.clear(server.server.id)
+                if (result.isUnauthenticated()) server.session.clear(entry.id)
                 // Not published as a failure: nobody asked for this, and an "offline" banner in
                 // front of a player who has simply not signed in yet would be a message about a
                 // request they did not make.
@@ -137,6 +157,9 @@ class AccountSession internal constructor(
         val stored = server.session.load(entry.id, clock.nowMillis())
         player = null
         failure = null
+        // Cleared with the token: signing out is the player asking to be forgotten, and leaving
+        // their name in the form for whoever picks the device up next answers the wrong question.
+        lastUsername = null
         server.session.clear(entry.id)
         stored?.let { server.accounts.signOut(it.token) }
     }
@@ -163,6 +186,10 @@ class AccountSession internal constructor(
         player = null
         failure = null
         isRestored = false
+        // Dropped rather than left for `restore` to overwrite: it suspends, so a recomposition in
+        // between would offer the previous host's name on this one's form — the same cross-server
+        // bleed the token storage is keyed to prevent, in the one place a player would believe it.
+        lastUsername = null
         // The new server may already know us — sessions outlive a switch — so this is a restore and
         // not a sign-out. It sets `isRestored` whatever it finds.
         restore()
@@ -227,6 +254,7 @@ class AccountSession internal constructor(
                     ),
                 )
                 player = session.player
+                lastUsername = session.player.save.username
                 isBusy = false
                 // After `isBusy = false` and after the profile is showing: a queue of twenty
                 // transcripts is twenty round trips, and holding the sign-in button down for them
