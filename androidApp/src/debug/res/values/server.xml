@@ -15,9 +15,11 @@
 
     On an emulator with no tunnel, the host is reachable as `10.0.2.2` instead.
 
-    One entry, because a developer machine runs one. Add more, comma-separated, to exercise the
-    server list: `Local=http://127.0.0.1:8080, Staging=https://staging.example.org`.
+    The deployed server is listed last and on purpose. A debug build defaults to the first entry, so
+    the local container stays the default here — a developer's uncommitted engine change must not
+    submit transcripts to the host real players are on. Switching to it is one tap on the servers
+    screen, which is the point of that screen existing.
 -->
 <resources>
-    <string name="servers" translatable="false">Local=http://127.0.0.1:8080, Emul=http://10.0.2.21:8080</string>
+    <string name="servers" translatable="false">Local=http://127.0.0.1:8080, Emul=http://10.0.2.21:8080, Moebius=https://tto.moebiuscore.fr</string>
 </resources>

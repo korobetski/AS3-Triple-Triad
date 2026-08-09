@@ -3,15 +3,22 @@
     Which match servers this build offers.
 
     A comma-separated list, each entry either an address or `Label=address` — see `serverEntries`.
-    Empty by default, and that is the shipped value: a build with no address queues nothing and
-    submits nothing, which is a supported configuration rather than a broken one (`MatchReporter.None`).
-    The debug variant overrides this with the emulator's route to the host — see
-    `src/debug/res/values/server.xml`.
+    The first is the default until the player chooses otherwise, and their choice is stored.
 
-    A resource and not a constant so the release build genuinely has no server address compiled
-    into it, and so pointing a build at a staging host is a resource override rather than a code
-    change.
+    This used to be empty, and the emptiness was the shipped value: a build with no address queues
+    nothing and submits nothing, which is a supported configuration rather than a broken one
+    (`MatchReporter.None`). That was correct while there was no server to name. There is one now —
+    tto.moebiuscore.fr, deployed from the `tto-server` repository — so a release build that offered
+    no way to reach it would be offering the player less than exists.
+
+    **HTTPS, and it has to be.** Accounts and passwords cross this connection, and Android's default
+    network security policy refuses cleartext anyway. The certificate is a public Let's Encrypt one,
+    so nothing here needs pinning or a network security configuration.
+
+    A resource and not a constant, still, for the reason that has not changed: pointing a build at a
+    staging host is a resource override rather than a code change. The debug variant overrides this
+    with the local container — see `src/debug/res/values/server.xml`.
 -->
 <resources>
-    <string name="servers" translatable="false"></string>
+    <string name="servers" translatable="false">Moebius=https://tto.moebiuscore.fr</string>
 </resources>

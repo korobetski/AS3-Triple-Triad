@@ -61,10 +61,12 @@ fun main() {
  * and the Android one derive the same ids from the same text and a player switching devices stays
  * signed in to the same servers.
  *
- * The default is deliberate and deliberately temporary: this target exists so the shared UI can be
- * run on a developer machine, the container it points at is the one `tto-server` brings up, and
- * requiring a flag to exercise Phase 5 would mean it mostly went unexercised. Set `TTO_SERVERS` to
- * an empty value to turn it off.
+ * The default lists both the local container and the deployed host, in that order, and the order is
+ * the decision. This target exists so the shared UI can be run on a developer machine, and
+ * requiring a flag to exercise Phase 5 would mean it mostly went unexercised — so the container
+ * `tto-server` brings up stays first and stays the default. The deployed server is there to be
+ * switched to, not to receive whatever an uncommitted engine change produces. Set `TTO_SERVERS` to
+ * an empty value to turn both off.
  *
  * The queue, the session and the chosen server each get their **own** store — see [ServerStores]
  * for why none of them may be the saves directory.
@@ -90,7 +92,8 @@ private fun buildServerConnection(): ServerConnection? {
     )
 }
 
-/** The container `tto-server`'s `compose.yaml` publishes. */
-private const val DEFAULT_SERVERS = "Local=http://127.0.0.1:8080"
+/** The container `tto-server`'s `compose.yaml` publishes, then the host it deploys to. */
+private const val DEFAULT_SERVERS =
+    "Local=http://127.0.0.1:8080, Moebius=https://tto.moebiuscore.fr"
 
 private const val TAG = "Host"
