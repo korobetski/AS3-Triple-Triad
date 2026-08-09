@@ -208,7 +208,7 @@ class NavigationTest {
         waitForIdle()
         assertTrue(isVisible("Language"), "the options screen did not open")
 
-        onNodeWithTag(OPTIONS_BACK_TEST_TAG).performClick()
+        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitForIdle()
 
         onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Play")

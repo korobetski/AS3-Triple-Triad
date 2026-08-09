@@ -1,6 +1,17 @@
 [versions]
 agp = "9.3.1"
 kotlin = "2.4.10"
+
+# The rules engine, published from the `tto-core` repository — `:core` in this build until it left.
+# The server pins this same number, and a match is verified by replaying it with the engine both
+# sides linked, so the two must move together: an app submitting a transcript its server replays
+# with a different engine is the one bug the extraction exists to make impossible.
+#
+# Raising it is two edits and one release, in this order: tag `tto-core`, then this line, then
+# `tto-server`'s. A local `publishToMavenLocal` is how a change is tried before any of that — see
+# `settings.gradle.kts` for why the local copy wins over the published one.
+core = "0.1.0"
+
 compose = "1.11.1"
 # Material 3 is versioned apart from the rest of Compose Multiplatform and has been since 1.11:
 # `org.jetbrains.compose.material3:material3` has published nothing stable past 1.9.0, while
@@ -58,7 +69,12 @@ androidMinSdk = "24"
 androidTargetSdk = "36"
 
 [libraries]
-androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+# The engine and the game data. Everything under `com.tripletriad.model`, `.data` and `.protocol`
+# that this app compiles against comes from here; `:shared` re-exports it with `api` so the UI sees
+# `Card` and `MatchState` under the names it always used.
+tripletriad-core = { module = "com.tripletriad:core", version.ref = "core" }
+
+androidx-activity-compose ={ module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 # For WindowCompat / WindowInsetsControllerCompat: hiding the system bars back to minSdk 24
 # without a per-API-level branch in MainActivity.
 androidx-core = { module = "androidx.core:core", version.ref = "androidxCore" }

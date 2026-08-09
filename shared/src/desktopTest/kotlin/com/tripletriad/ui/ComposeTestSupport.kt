@@ -223,3 +223,11 @@ internal fun ComposeUiTest.settleDeck() {
     }
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(BOARD_TEST_TAG) }
 }
+
+/**
+ * A level high enough that [com.tripletriad.data.NpcCatalog.available]'s gate cannot bite.
+ *
+ * The tests that pass it are about the **hour** window or about a named opponent, and would
+ * otherwise be asserting the level rule by accident. `OpponentUiTest` tests the gate itself.
+ */
+internal const val ANY_LEVEL: Int = 99

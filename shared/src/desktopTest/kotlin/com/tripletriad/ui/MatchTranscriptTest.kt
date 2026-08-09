@@ -55,7 +55,7 @@ class MatchTranscriptTest {
 
     /** `tt-master`: All Open and nothing else, so no rule narrows what may be played. */
     private val opponent = npcs
-        .available(CardCollection.FF14, FixedClock.DEFAULT_HOUR)
+        .available(CardCollection.FF14, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
         .first { it.iconId == "tt-master" }
 
     /**

@@ -32,7 +32,8 @@ class OptionsUiTest {
         // Same screen, now in French — the confirmation is the screen itself, which is why there
         // is no "settings saved" toast.
         assertTrue(isVisible("Langue"), "the language label did not change")
-        onNodeWithTag(OPTIONS_BACK_TEST_TAG).assertTextEquals("‹ Retour")
+        // And the shell around it, which is the half a screen-local assertion would have missed.
+        assertTrue(isVisible("Options"), "the scaffold title did not change")
     }
 
     @Test
@@ -58,7 +59,7 @@ class OptionsUiTest {
         onNodeWithTag(optionsLanguageTestTag(AppLocale.DE_DE)).performClick()
         waitForIdle()
 
-        onNodeWithTag(OPTIONS_BACK_TEST_TAG).performClick()
+        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitForIdle()
         onNodeWithTag(MENU_OPTIONS_TEST_TAG).performClick()
         waitForIdle()
@@ -76,7 +77,7 @@ class OptionsUiTest {
         openOptions()
         onNodeWithTag(optionsLanguageTestTag(AppLocale.FR_FR)).performClick()
         waitForIdle()
-        onNodeWithTag(OPTIONS_BACK_TEST_TAG).performClick()
+        onNodeWithTag(SCREEN_BACK_TEST_TAG).performClick()
         waitForIdle()
 
         onNodeWithTag(MENU_PLAY_TEST_TAG).assertTextEquals("Jouer")

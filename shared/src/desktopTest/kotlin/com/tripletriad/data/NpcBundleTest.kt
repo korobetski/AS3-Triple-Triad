@@ -174,7 +174,7 @@ class NpcBundleTest {
         for (hour in 0 until HOURS) {
             for (collection in CardCollection.entries) {
                 assertTrue(
-                    catalog.available(collection, hour).isNotEmpty(),
+                    catalog.available(collection, hour, level = ANY_LEVEL).isNotEmpty(),
                     "$collection has no opponent at $hour:00",
                 )
             }
@@ -205,3 +205,11 @@ class NpcBundleTest {
         const val HOURS = 24
     }
 }
+
+/**
+ * A level high enough that [com.tripletriad.data.NpcCatalog.available]'s gate cannot bite.
+ *
+ * The tests that pass it are about the **hour** window or about a named opponent, and would
+ * otherwise be asserting the level rule by accident. `OpponentUiTest` tests the gate itself.
+ */
+private const val ANY_LEVEL: Int = 99

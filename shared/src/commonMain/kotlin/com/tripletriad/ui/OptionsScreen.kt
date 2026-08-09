@@ -1,35 +1,31 @@
 package com.tripletriad.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.settings.UserSettings
 
-const val OPTIONS_BACK_TEST_TAG: String = "options-back"
 const val OPTIONS_BACKGROUND_VOLUME_TEST_TAG: String = "options-background-volume"
 const val OPTIONS_NOISE_VOLUME_TEST_TAG: String = "options-noise-volume"
 
@@ -56,64 +52,74 @@ fun optionsLanguageTestTag(locale: AppLocale): String = "options-language-${loca
  * They persist, and the AS3 file has carried both fields all along, so they are here rather than
  * hidden. But no audio is implemented (Task 1.5), so the caveat under them says so. Silent sliders
  * with no explanation would read as a bug.
+ *
+ * ### On the shell, like everything else
+ *
+ * It used to draw its own centred title and its own `‹ Back` text button, which made it the one
+ * screen whose back control sat somewhere different from every other screen's. [ScreenScaffold] now
+ * provides both, and the two groups are cards rather than headings over bare rows — a settings
+ * pane is a list of *groups*, and a group whose edge the eye cannot find is a heading pretending to
+ * be one.
  */
 @Composable
 internal fun OptionsScreen(settings: SettingsHolder, onBack: () -> Unit) {
     val strings = LocalStrings.current
     val current = settings.value
 
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = strings[StringKeys.SETTINGS],
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 20.dp),
-        )
-
+    ScreenScaffold(title = strings[StringKeys.SETTINGS], onBack = onBack) {
         Column(
-            modifier = Modifier.widthIn(max = PaneMaxWidth).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            SectionHeading(strings[StringKeys.GENERAL_SETTINGS])
-            Label(strings[StringKeys.LANGUAGE])
-            LanguageChoice(current) { locale ->
-                settings.update { it.copy(language = locale.tag) }
+            SettingsGroup(strings[StringKeys.GENERAL_SETTINGS]) {
+                Label(strings[StringKeys.LANGUAGE])
+                LanguageChoice(current) { locale ->
+                    settings.update { it.copy(language = locale.tag) }
+                }
             }
 
-            SectionHeading(
-                text = strings[StringKeys.AUDIO_SETTINGS],
-                modifier = Modifier.padding(top = 20.dp),
-            )
-            Text(
-                text = strings[StringKeys.AUDIO_PENDING],
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                style = MaterialTheme.typography.labelSmall,
-            )
-            VolumeRow(
-                label = strings[StringKeys.BACKGROUND_VOLUME],
-                value = current.backgroundVolume,
-                tag = OPTIONS_BACKGROUND_VOLUME_TEST_TAG,
-            ) { volume -> settings.update { it.copy(backgroundVolume = volume) } }
-            VolumeRow(
-                label = strings[StringKeys.NOISE_VOLUME],
-                value = current.noiseVolume,
-                tag = OPTIONS_NOISE_VOLUME_TEST_TAG,
-            ) { volume -> settings.update { it.copy(noiseVolume = volume) } }
-
-            TextButton(
-                onClick = onBack,
-                modifier = Modifier.padding(top = 24.dp).testTag(OPTIONS_BACK_TEST_TAG),
-            ) {
+            SettingsGroup(strings[StringKeys.AUDIO_SETTINGS]) {
                 Text(
-                    text = "‹ ${strings[StringKeys.BACK]}",
-                    color = MaterialTheme.colorScheme.tertiary,
-                    style = MaterialTheme.typography.titleSmall,
+                    text = strings[StringKeys.AUDIO_PENDING],
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                    style = MaterialTheme.typography.labelSmall,
                 )
+                VolumeRow(
+                    label = strings[StringKeys.BACKGROUND_VOLUME],
+                    value = current.backgroundVolume,
+                    tag = OPTIONS_BACKGROUND_VOLUME_TEST_TAG,
+                ) { volume -> settings.update { it.copy(backgroundVolume = volume) } }
+                VolumeRow(
+                    label = strings[StringKeys.NOISE_VOLUME],
+                    value = current.noiseVolume,
+                    tag = OPTIONS_NOISE_VOLUME_TEST_TAG,
+                ) { volume -> settings.update { it.copy(noiseVolume = volume) } }
             }
+        }
+    }
+}
+
+/**
+ * A heading and the card under it.
+ *
+ * The heading stays outside the card: Material puts a group's label above its container, and a
+ * label inside one reads as the first row of it.
+ */
+@Composable
+private fun SettingsGroup(heading: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SectionHeading(heading)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                content = content,
+            )
         }
     }
 }
@@ -132,8 +138,8 @@ private fun LanguageChoice(settings: UserSettings, onPick: (AppLocale) -> Unit) 
             FilterChip(
                 selected = locale == selected,
                 onClick = { onPick(locale) },
-                label = { Text(locale.displayName, fontSize = 13.sp) },
-                shape = RoundedCornerShape(4.dp),
+                label = { Text(locale.displayName, style = MaterialTheme.typography.labelLarge) },
+                shape = MaterialTheme.shapes.extraSmall,
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onSurface,
@@ -152,7 +158,7 @@ private fun VolumeRow(
     tag: String,
     onChange: (Float) -> Unit,
 ) {
-    Column(modifier = Modifier.padding(top = 8.dp)) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -192,8 +198,11 @@ private fun SectionHeading(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Label(text: String) {
-    Text(text = text, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.bodyMedium,
+    )
 }
 
-private val PaneMaxWidth = 420.dp
 private const val PERCENT = 100

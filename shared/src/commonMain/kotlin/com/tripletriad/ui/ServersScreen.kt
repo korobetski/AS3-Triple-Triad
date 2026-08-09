@@ -24,6 +24,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.tripletriad.i18n.LocalStrings
+import com.tripletriad.i18n.StringKeys
+import com.tripletriad.i18n.Strings
 import com.tripletriad.net.ServerEntry
 import com.tripletriad.net.ServerStatus
 import com.tripletriad.net.downloadForThisPlatform
@@ -78,14 +81,35 @@ internal fun ServersScreen(
     // makes them do the app's job.
     LaunchedEffect(connectivity) { connectivity.refreshAll() }
 
-    ScreenScaffold(title = "Servers", onBack = onBack) {
+    val strings = LocalStrings.current
+
+    ScreenScaffold(
+        title = strings[StringKeys.SERVERS],
+        onBack = onBack,
+        // In the bar rather than under the list, where it used to be pushed off screen by a long
+        // update notice — the same slot the store's Buy button took, and for the same reason.
+        bottomBar = {
+            WideButton(
+                label = strings[
+                    if (connectivity.isProbing) {
+                        StringKeys.SERVERS_CHECKING
+                    } else {
+                        StringKeys.SERVERS_CHECK
+                    },
+                ],
+                tag = SERVERS_REFRESH_TEST_TAG,
+                enabled = !connectivity.isProbing,
+                filled = false,
+                onClick = { scope.launch { connectivity.refreshAll() } },
+            )
+        },
+    ) {
         Column(
             modifier = Modifier.testTag(SERVERS_SCREEN_TEST_TAG).fillMaxWidth().weight(1f),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = "Your account belongs to one server. Switching signs you out here and " +
-                    "signs you back in there — nothing is lost either way.",
+                text = strings[StringKeys.SERVERS_BLURB],
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -105,13 +129,6 @@ internal fun ServersScreen(
                     )
                 }
             }
-
-            WideButton(
-                label = if (connectivity.isProbing) "Checking…" else "Check again",
-                tag = SERVERS_REFRESH_TEST_TAG,
-                enabled = !connectivity.isProbing,
-                onClick = { scope.launch { connectivity.refreshAll() } },
-            )
         }
     }
 }
@@ -131,6 +148,8 @@ private fun ServerRow(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
+    val strings = LocalStrings.current
+
     Row(
         modifier = Modifier
             .testTag(serverRowTestTag(entry))
@@ -159,7 +178,7 @@ private fun ServerRow(
             )
         }
         Text(
-            text = status.describe(),
+            text = status.describe(strings),
             color = status.tint(),
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
@@ -178,6 +197,7 @@ private fun ServerRow(
 @Composable
 internal fun ServerIndicator(connectivity: Connectivity, onClick: () -> Unit) {
     val status = connectivity.status
+    val strings = LocalStrings.current
     Row(
         modifier = Modifier
             .testTag(MENU_SERVER_TEST_TAG)
@@ -188,7 +208,7 @@ internal fun ServerIndicator(connectivity: Connectivity, onClick: () -> Unit) {
     ) {
         StatusDot(status)
         Text(
-            text = "${connectivity.selected.label}$DOT_SEPARATOR${status.describe()}",
+            text = "${connectivity.selected.label}$DOT_SEPARATOR${status.describe(strings)}",
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
@@ -213,6 +233,7 @@ internal fun ServerIndicator(connectivity: Connectivity, onClick: () -> Unit) {
  */
 @Composable
 internal fun UpdateNotice(advice: UpdateAdvice) {
+    val strings = LocalStrings.current
     val open = rememberUrlOpener()
     val download = advice.info.downloadForThisPlatform()
     val game = LocalTtoColors.current
@@ -226,17 +247,21 @@ internal fun UpdateNotice(advice: UpdateAdvice) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = if (advice.isRequired) "Update required" else "An update is available",
+            text = strings[
+                if (advice.isRequired) StringKeys.UPDATE_REQUIRED else StringKeys.UPDATE_AVAILABLE,
+            ],
             color = if (advice.isRequired) MaterialTheme.colorScheme.error else game.transient,
             style = MaterialTheme.typography.titleSmall,
         )
         Text(
-            text = if (advice.isRequired) {
-                "This server needs version ${advice.target} or newer. Until you update, you " +
-                    "can still play offline and your matches will be submitted when you return."
-            } else {
-                "Version ${advice.target} is out. Yours still works here."
-            },
+            text = strings.format(
+                if (advice.isRequired) {
+                    StringKeys.UPDATE_REQUIRED_BODY
+                } else {
+                    StringKeys.UPDATE_AVAILABLE_BODY
+                },
+                advice.target.toString(),
+            ),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
             style = MaterialTheme.typography.labelMedium,
         )
@@ -249,7 +274,7 @@ internal fun UpdateNotice(advice: UpdateAdvice) {
         }
         if (download != null) {
             WideButton(
-                label = "Get version ${advice.target}",
+                label = strings.format(StringKeys.UPDATE_GET, advice.target.toString()),
                 tag = UPDATE_DOWNLOAD_TEST_TAG,
                 onClick = { open(download) },
             )
@@ -275,14 +300,17 @@ private fun StatusDot(status: ServerStatus) {
  * is folded in rather than given its own column: it is only meaningful for the two states that have
  * one, and an empty column for the other five is a column that mostly says nothing.
  */
-private fun ServerStatus.describe(): String = when (this) {
-    ServerStatus.Unknown -> "not checked"
-    ServerStatus.Checking -> "checking…"
-    is ServerStatus.Online -> "online${latency?.let { " · ${it}ms" }.orEmpty()}"
-    is ServerStatus.Degraded -> "starting up"
-    is ServerStatus.Outdated -> "needs a newer app"
-    is ServerStatus.Unreachable -> "unreachable"
-    is ServerStatus.Unusable -> "not a game server"
+private fun ServerStatus.describe(strings: Strings): String = when (this) {
+    ServerStatus.Unknown -> strings[StringKeys.SERVER_UNKNOWN]
+    ServerStatus.Checking -> strings[StringKeys.SERVER_CHECKING]
+    // The latency is appended rather than interpolated into the phrase: it is absent for a probe
+    // that did not time one, and a `{0}` with nothing in it would leave a gap mid-sentence.
+    is ServerStatus.Online ->
+        strings[StringKeys.SERVER_ONLINE] + latency?.let { "$DOT_SEPARATOR${it}ms" }.orEmpty()
+    is ServerStatus.Degraded -> strings[StringKeys.SERVER_DEGRADED]
+    is ServerStatus.Outdated -> strings[StringKeys.SERVER_OUTDATED]
+    is ServerStatus.Unreachable -> strings[StringKeys.SERVER_UNREACHABLE]
+    is ServerStatus.Unusable -> strings[StringKeys.SERVER_UNUSABLE]
 }
 
 /**

@@ -41,7 +41,7 @@ Everything below has been executed; the results are in
 ```
 .
 ├── CONTRIBUTING.md              the front door: the loop, and what this project holds you to
-├── settings.gradle.kts          3 modules, repositories declared once
+├── settings.gradle.kts          3 modules, repositories declared once — including tto-core's
 ├── build.gradle.kts             plugin versions; applies ktlint + detekt to all modules
 ├── .editorconfig                formatting rules — read by both ktlint and the IDE
 ├── detekt/detekt.yml            static-analysis overrides, each with its reason
@@ -148,6 +148,20 @@ Summarised here; [docs/development/project-setup.md](docs/development/project-se
 full version, including which host can build what and the first-run failures worth recognising.
 
 - JDK 17 on `PATH` or `JAVA_HOME`.
+- **A GitHub token with `read:packages`.** The rules engine is `com.tripletriad:core`, published
+  from [tto-core](https://github.com/korobetski/tto-core) — it used to be the `:core` module here,
+  and it left so that the server could link the same engine without a copy of this repository. It
+  is resolved from GitHub Packages, which answers an anonymous request with a 401 even for a public
+  package, so this is required rather than optional. It goes in `~/.gradle/gradle.properties`,
+  outside every repository:
+
+  ```properties
+  gpr.user=<your-github-username>
+  gpr.key=<a token carrying read:packages and nothing else>
+  ```
+
+  Without it the build fails on an unresolved `com.tripletriad:core` — a resolution error, not an
+  authentication one, which is why it is worth recognising here.
 - For the Android module only: an Android SDK with platform 37 (what `compileSdk` names) and a `local.properties`
   pointing at it. Copy `local.properties.sample` and fill in `sdk.dir`. On Windows
   **escape both the drive colon and the backslashes**, and end the file with a single

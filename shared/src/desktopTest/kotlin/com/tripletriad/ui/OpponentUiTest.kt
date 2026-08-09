@@ -11,6 +11,7 @@ import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
+import com.tripletriad.model.XpTable
 import com.tripletriad.storage.InMemoryDocumentStore
 import com.tripletriad.time.FixedClock
 import kotlinx.coroutines.runBlocking
@@ -44,7 +45,8 @@ class OpponentUiTest {
         onNodeWithTag(opponentRowTestTag(TEST_OPPONENT)).assertExists()
         assertEquals(
             TEST_OPPONENT,
-            catalog.available(CardCollection.FF14, FixedClock.DEFAULT_HOUR).first().iconId,
+            catalog.available(CardCollection.FF14, FixedClock.DEFAULT_HOUR, ANY_LEVEL)
+                .first().iconId,
             "the fixture assumes this opponent heads the list",
         )
     }
@@ -76,10 +78,17 @@ class OpponentUiTest {
      */
     @Test
     fun anEveningOpponentIsAbsentAtNoon() = runComposeUiTest {
+        // Seeded above the level gate, because the fixture is a difficulty-4 opponent and a
+        // character made through the UI starts at level 1. What is under test here is the *hour*.
+        val documents = seeded(veteran())
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), clock = FixedClock(hour = NOON))
+            App(
+                store = settingsFor(AppLocale.EN_US),
+                documents = documents,
+                clock = FixedClock(hour = NOON),
+            )
         }
-        newCharacter()
+        loadCharacter(documents)
         openOpponents()
 
         val found = runCatching {
@@ -91,10 +100,15 @@ class OpponentUiTest {
 
     @Test
     fun anEveningOpponentIsThereInTheEvening() = runComposeUiTest {
+        val documents = seeded(veteran())
         setContent {
-            App(store = settingsFor(AppLocale.EN_US), clock = FixedClock(hour = EVENING))
+            App(
+                store = settingsFor(AppLocale.EN_US),
+                documents = documents,
+                clock = FixedClock(hour = EVENING),
+            )
         }
-        newCharacter()
+        loadCharacter(documents)
         openOpponents()
 
         onNodeWithTag(OPPONENT_LIST_TEST_TAG)
@@ -111,8 +125,8 @@ class OpponentUiTest {
      */
     @Test
     fun theEveningListIsLongerThanTheNoonOne() {
-        val atNoon = catalog.available(CardCollection.FF14, NOON).map { it.iconId }
-        val atEvening = catalog.available(CardCollection.FF14, EVENING).map { it.iconId }
+        val atNoon = catalog.available(CardCollection.FF14, NOON, ANY_LEVEL).map { it.iconId }
+        val atEvening = catalog.available(CardCollection.FF14, EVENING, ANY_LEVEL).map { it.iconId }
 
         assertTrue(EVENING_OPPONENT !in atNoon, "the fixture should be shut at noon")
         assertTrue(EVENING_OPPONENT in atEvening, "the fixture should be open in the evening")
@@ -201,11 +215,72 @@ class OpponentUiTest {
         )
     }
 
+    /**
+     * A new character is not shown the whole sixty-strong table, and is told so.
+     *
+     * `NpcCatalog.available` is where the arithmetic is tested; this is the screen honouring it —
+     * the footnote appears at level 1 and the difficulty-4 opponent does not, and levelling to 3
+     * produces them. Both halves matter: a filter with no explanation is a short list, and an
+     * explanation with no filter is a lie.
+     */
+    @Test
+    fun theOpponentListIsHeldBackByTheCharactersLevel() = runComposeUiTest {
+        setContent {
+            App(store = settingsFor(AppLocale.EN_US), clock = FixedClock(hour = EVENING))
+        }
+        newCharacter()
+        openOpponents()
+
+        assertTrue(exists(OPPONENT_LOCKED_TEST_TAG), "a level-1 character should be told")
+        val reached = runCatching {
+            onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+                .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))
+        }
+        assertTrue(
+            reached.isFailure,
+            "a difficulty-4 opponent is out of a level-1 character's reach",
+        )
+    }
+
+    @Test
+    fun levellingOpensTheOnesThatWereHeldBack() = runComposeUiTest {
+        val documents = seeded(veteran())
+        setContent {
+            App(
+                store = settingsFor(AppLocale.EN_US),
+                documents = documents,
+                clock = FixedClock(hour = EVENING),
+            )
+        }
+        loadCharacter(documents)
+        openOpponents()
+
+        onNodeWithTag(OPPONENT_LIST_TEST_TAG)
+            .performScrollToNode(hasTestTag(opponentRowTestTag(EVENING_OPPONENT)))
+        onNodeWithTag(opponentRowTestTag(EVENING_OPPONENT)).assertExists()
+    }
+
+    /**
+     * A character past the level gate, so a test about the *hour* is not also about the level.
+     *
+     * See `NpcCatalog.available`: [EVENING_OPPONENT] is difficulty 4 and a character made through
+     * the UI starts at level 1, which reaches difficulty 2.
+     *
+     * Seeded as **XP**, not as a level: `GameSave.sane()` recomputes the level from the experience
+     * on every load and every write, so a `copy(level = 3)` would be normalised straight back to 1
+     * before the screen ever saw it.
+     */
+    private fun veteran(): GameSave =
+        GameSave.new(createdAt = 0L).copy(xp = XpTable.thresholdFor(VETERAN_LEVEL))
+
     private companion object {
         const val NOON = 12
         const val EVENING = 18
 
-        /** `{begins: 17, ends: 23}` in `NPCs.as`. */
+        /** `{begins: 17, ends: 23}` in `NPCs.as`, and difficulty 4. */
         const val EVENING_OPPONENT = "linu-vali"
+
+        /** Enough to reach [EVENING_OPPONENT], and not so much that it proves nothing. */
+        const val VETERAN_LEVEL = 3
     }
 }

@@ -10,3 +10,4 @@ xcuserdata/
 *.xcworkspace/xcuserdata/
 DerivedData/
 .DS_Store
+__pycache__/

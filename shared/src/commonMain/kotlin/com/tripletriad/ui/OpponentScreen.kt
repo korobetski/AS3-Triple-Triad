@@ -31,6 +31,9 @@ import com.tripletriad.ui.theme.LocalTtoColors
 const val OPPONENT_LIST_TEST_TAG: String = "opponent-list"
 const val OPPONENT_EMPTY_TEST_TAG: String = "opponent-empty"
 
+/** How many opponents the character's level is still holding back. Absent when none are. */
+const val OPPONENT_LOCKED_TEST_TAG: String = "opponent-locked"
+
 /** The campaign entry that opens the lesson. */
 const val TUTORIAL_ROW_TEST_TAG: String = "tutorial-row"
 
@@ -65,8 +68,11 @@ internal fun OpponentScreen(
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
-    val opponents = remember(catalog, profile.mode, hour) {
-        catalog.available(profile.mode, hour)
+    val opponents = remember(catalog, profile.mode, hour, profile.level) {
+        catalog.available(profile.mode, hour, profile.level)
+    }
+    val locked = remember(catalog, profile.mode, hour, profile.level) {
+        catalog.lockedByLevel(profile.mode, hour, profile.level)
     }
 
     ScreenScaffold(
@@ -94,10 +100,29 @@ internal fun OpponentScreen(
                 items(opponents, key = { it.iconId }) { npc ->
                     OpponentRow(npc = npc, onClick = { onChallenge(npc) })
                 }
+
+                // Under the list rather than over it: it is a footnote about what is *not* here,
+                // and a player who has not scrolled to the bottom has not run out of opponents yet.
+                if (locked > 0) {
+                    item(key = LOCKED_KEY) {
+                        Text(
+                            text = strings.format(StringKeys.OPPONENTS_LOCKED, locked.toString()),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier
+                                .testTag(OPPONENT_LOCKED_TEST_TAG)
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                        )
+                    }
+                }
             }
         }
     }
 }
+
+/** A `LazyColumn` key for the footnote, which is not an opponent and has no `iconId`. */
+private const val LOCKED_KEY = "locked-note"
 
 /**
  * `PVEScreen.as:72-96`'s Campaigns panel: the lesson, then this collection's tournament ladders.

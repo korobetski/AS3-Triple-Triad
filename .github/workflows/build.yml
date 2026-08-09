@@ -51,6 +51,23 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  # For `com.tripletriad:core`. Read-only: nothing in this repository publishes a package.
+  packages: read
+
+# Every job here runs Gradle, and every Gradle run has to resolve `com.tripletriad:core` from
+# GitHub Packages — which answers an anonymous request with 401 even for a public package. So this
+# is not optional and it is not per-job; it is the condition for the build resolving at all.
+#
+# The built-in GITHUB_TOKEN is scoped to *this* repository, and `tto-core` is another one. It works
+# once that package has granted this repository read access (Package → Settings → Manage Actions
+# access). GH_PACKAGES_TOKEN is the way out when it has not: a PAT carrying `read:packages` and
+# nothing else. Preferred when present, so the repository builds either way.
+env:
+  GITHUB_ACTOR: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
 jobs:
   # Static analysis first and on its own: it is the fastest signal and a formatting
   # failure should not wait on a two-minute Android build.
@@ -74,11 +91,14 @@ jobs:
             */build/reports/ktlint/
             */build/reports/detekt/
 
-  # `:shared:build` covers the common + desktop + Android library compilations: the 77 common
-  # tests on two targets (`desktopTest` and `testAndroidHostTest`) plus the 18 desktop-only
-  # ones, 172 executions. The Android half runs under `testAndroidHostTest` and not
-  # `testDebugUnitTest` since the module moved to `com.android.kotlin.multiplatform.library`;
-  # nothing here names the task, but the uploaded results directory is named after it.
+  # `:shared:build` covers the common + desktop + Android library compilations, running its common
+  # tests on two targets (`desktopTest` and `testAndroidHostTest`) plus the desktop-only ones. The
+  # Android half runs under `testAndroidHostTest` and not `testDebugUnitTest` since the module moved
+  # to `com.android.kotlin.multiplatform.library`; nothing here names the task, but the uploaded
+  # results directory is named after it.
+  #
+  # The engine's own tests are no longer among them — they went to `tto-core` with the code, and are
+  # the gate its publish workflow runs before releasing a version this build can resolve.
   shared:
     name: Shared module
     runs-on: ubuntu-latest

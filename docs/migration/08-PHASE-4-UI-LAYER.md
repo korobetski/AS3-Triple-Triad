@@ -10,7 +10,7 @@
   **28 of the 32 screens**. Of the four left, **two are blocked on Phase 5** (`PVPScreen`,
   `PVPMatchScreen` — the only two that touch a socket) and two will not be ported. See § What was
   built.
-- **Version**: 1.7
+- **Version**: 1.8
 - **Last Updated**: 2026-08-09
 - **Prerequisites**: Phases 1-3
 
@@ -1094,6 +1094,80 @@ worded in French.
 tests deliberately run on an offline build, so there is no way to reach a lapsed session through the
 real launch path without standing up a host that refuses a token. What the card *does* with each
 state is the part with decisions in it, and it is all there.
+
+
+## The tidy-up, the missing strings and the level gate (2026-08-09)
+
+### Four files that were no longer screens
+
+Merging Cards+Decks and Shop+Inventory into tabbed screens left `CardListScreen.kt`,
+`DecksScreen.kt`, `InventoryScreen.kt` and `ShopScreen.kt` declaring only a `ColumnScope.*Body`
+each. They are `CardListBody.kt`, `DecksBody.kt`, `InventoryBody.kt` and `ShopBody.kt` now.
+
+A scan for unreferenced top-level composables and constants across `:shared`, `:core` and both hosts
+turned up **exactly one** genuinely dead symbol — `UNLOCKED_CARD_TOTAL_MILLIS` — which is gone. No
+screen was unused: every `Screen` value is navigated to and every `*Screen` composable is routed.
+
+### Twenty-three strings that were being asked for and resolving to nothing
+
+`StringsBundleTest` walks `StringKeys.all`, so it can only see keys a screen names *directly*. It
+cannot see one a model **composes** — and that blind spot was not theoretical:
+
+- `NpcLevel.labelKey` produced `STR_NPC_LEVEL_AVERAGE`, which no bundle defines. **25 of the 60
+  ff14 opponent rows drew that raw key** as their level band.
+- `BoosterType.descriptionKey` / `PotionType.descriptionKey` / `CardItem.descriptionKey` produced
+  `STR_*_DESC`, which no bundle defines either. **Every row of the shop drew a raw key as its
+  description.**
+
+The original never defined them: `sources/bin/datas/locales/en_US.json` has none of the twenty-two.
+So they are the port's to write, and they are `APP_`-owned for the reason `APP_MATCHES` already
+carries — the `@SerialName`s in `npcs.json` keep their `STR_NPC_LEVEL_*` spelling, only what is
+*shown* moved. `DerivedKeysTest` is the new test that walks the enums rather than the constant list.
+
+The server list contributed fifteen more: it had **no translated string on it at all** — title,
+blurb, probe button, one phrase per `ServerStatus`, and the whole update notice were English
+literals. The AS3 build talked to one hard-coded host and never had a list to describe.
+
+### Opponents are gated on the character's level
+
+`PVEScreen` lists the whole table from the first match onward, and the ff14 table runs from
+difficulty 1 to **19**. A new character was shown sixty opponents with no way to tell which were
+worth the fee — which is charged either way.
+
+`NpcCatalog.available` now also filters `difficulty <= level + 1`. One ahead rather than none,
+because a list with nothing above your weight has nothing to aim at: at level 1 the five easiest
+are open, and each level opens what the last made plausible. `lockedByLevel` counts what is held
+back and the list says so under itself — a filter with no explanation is just a short list.
+
+The ff8 table declares `difficulty` **0 for all twenty-five of its opponents**, a field that data
+never filled in, so the gate is inert there and that collection is unchanged. That is right by
+accident rather than by design, and the KDoc says so, so a later pass that fills those numbers in
+knows it is switching a gate on.
+
+Two test call sites needed care rather than a parameter: `OpponentUiTest`'s hour-window tests seed a
+character past the gate, and they seed **XP** rather than a level, because `GameSave.sane()`
+recomputes the level from experience on every load and write — a `copy(level = 3)` is normalised
+straight back to 1 before the screen sees it.
+
+### Options and Servers on the shell
+
+`OptionsScreen` drew its own centred title and its own `‹ Back` text button, which made it the one
+screen whose back control was somewhere different from every other screen's. It is a
+[ScreenScaffold] now, and its two groups are cards with the heading outside — Material puts a
+group's label above its container, and a label inside one reads as the first row of it.
+`OPTIONS_BACK_TEST_TAG` is gone; four call sites moved to `SCREEN_BACK_TEST_TAG`.
+
+`ServersScreen`'s refresh moved into the scaffold's `bottomBar`, where a long update notice can no
+longer push it off screen, and it is the quiet half of the pair — `WideButton(filled = false)`,
+which the outcome panel introduced.
+
+### Covered by
+
+`DerivedKeysTest` (three cases over the enums), two new `NpcCatalogTest` cases for the gate and its
+count, and two new `OpponentUiTest` cases for the screen honouring it — the footnote present at
+level 1 with the difficulty-4 opponent unreachable, and both the other way round at level 3. Both
+halves matter: a filter with no explanation is a short list, and an explanation with no filter is a
+lie.
 
 
 ## 📞 Related Documents

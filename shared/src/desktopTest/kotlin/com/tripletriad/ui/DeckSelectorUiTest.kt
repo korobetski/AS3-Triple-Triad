@@ -210,7 +210,8 @@ class DeckSelectorUiTest {
     @Test
     fun theRandomOpponentIsTheOneTheFixtureAssumes() {
         val npcs = runBlocking { loadNpcCatalog() }
-        val npc = npcs.available(CardCollection.FF8, NOON).first { it.iconId == RANDOM_OPPONENT }
+        val npc = npcs.available(CardCollection.FF8, NOON, ANY_LEVEL)
+            .first { it.iconId == RANDOM_OPPONENT }
 
         assertTrue(npc.gameRules().random, "$RANDOM_OPPONENT should impose RULE_RANDOM")
         assertFalse(npc.gameRules().roulette, "and should not draw more rules on top")

@@ -115,6 +115,3 @@ private const val ENTER_SCALE = 1.2f
 
 /** `scaleX: 1.5` at rest — see the KDoc. */
 private const val REST_SCALE = 1.5f
-
-/** How long the whole reveal takes, which is what a caller has to wait for. */
-internal const val UNLOCKED_CARD_TOTAL_MILLIS: Int = ENTER_MILLIS + HOLD_MILLIS + EXIT_MILLIS

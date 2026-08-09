@@ -14,6 +14,9 @@ plugins {
     id("jacoco")
 }
 
+/** Where the generated `Res` class lives, and the folder the Android assets need to mirror. */
+val resPackage = "tripletriad.shared.generated.resources"
+
 kotlin {
     jvmToolchain(17)
 
@@ -58,7 +61,18 @@ kotlin {
         commonMain.dependencies {
             // `api` so the app modules and the UI keep seeing `Card`, `MatchState` and the rest
             // under their own names. The extraction moved where they live, not what they are.
-            api(project(":core"))
+            //
+            // A published artifact rather than `project(":core")` since the engine moved to the
+            // `tto-core` repository. Both this module and the server now resolve the same bytes
+            // from the same coordinate, which is the property the extraction existed for and which
+            // a project dependency here could only approximate: the server was reading whatever a
+            // developer had last published into their own `~/.m2`, so "one engine" held only as
+            // long as somebody kept publishing.
+            //
+            // The cost is that an engine change is now two repositories and a version bump. See
+            // `tto-core`'s README for the loop that makes that bearable — `publishToMavenLocal`,
+            // which `settings.gradle.kts` prefers over the published copy on purpose.
+            api(libs.tripletriad.core)
             // `api` so :androidApp and :desktopApp can compose against the same
             // Compose artifacts without re-declaring them.
             api(libs.compose.runtime)
@@ -119,8 +133,63 @@ kotlin {
 // without this the generated `Res` class would silently move if the namespace ever
 // changed.
 compose.resources {
-    packageOfResClass = "tripletriad.shared.generated.resources"
+    packageOfResClass = resPackage
     generateResClass = auto
+}
+
+// ---------------------------------------------------------------------------------------
+// Android assets, by hand, because the Compose plugin cannot wire them under AGP 9's KMP
+// library plugin.
+//
+// ### The symptom
+//
+// `MissingResourceException: Missing resource with path: composeResources/…/tto-en_US.json`
+// on launch, on device. Not one file — **the APK contained no Compose resource at all**: no
+// locale, no `cards.json`, no `npcs.json`, no artwork. The app cannot start without its
+// strings, so it crashed in `rememberStrings` before drawing a frame.
+//
+// ### The cause
+//
+// The Compose plugin registers `copyAndroidMainComposeResourcesToAndroidAssets` to feed the
+// Android variant's asset pipeline, and under `com.android.kotlin.multiplatform.library` it
+// never configures that task's `outputDirectory` — running it directly fails with "property
+// 'outputDirectory' doesn't have a configured value". Nothing depends on it either, so the
+// app built green and shipped an APK with an empty `assets/`. The desktop and iOS targets
+// have their own assemble tasks and were never affected, which is why every one of the 520
+// desktop tests passed against resources the phone did not have.
+//
+// ### The fix
+//
+// Do what the missing wiring would have done: take the prepared resources — the same tree
+// `prepareComposeResourcesTaskForCommonMain` produces for every other target — and lay it out
+// the way `Res.readBytes` looks for it, under `composeResources/<packageOfResClass>/`.
+// [androidApp] adds the result as an asset directory.
+//
+// Delete this when the plugin configures its own task. `:androidApp:verifyComposeAssets` is what
+// will say so: it reads the built APK, so it passes whoever fills the assets — this task or a
+// fixed plugin — and fails if nobody does.
+// ---------------------------------------------------------------------------------------
+
+val androidComposeAssets = tasks.register<Sync>("androidComposeAssets") {
+    group = "compose resources"
+    description = "Lays the Compose resources out as Android assets for :androidApp."
+
+    // The prepared task's output directory *is* the `composeResources` folder — its contents are
+    // `files/`, `font/` and the rest. What the runtime wants is that same tree one level deeper,
+    // under `composeResources/<packageOfResClass>/`, and adding that level is all this task does.
+    from(tasks.named("prepareComposeResourcesTaskForCommonMain")) {
+        into("composeResources/$resPackage")
+    }
+    into(layout.buildDirectory.dir("androidComposeAssets"))
+}
+
+// Handed to :androidApp as a dependency rather than reached for across build directories: the
+// artifact carries its producing task with it, so the app's asset merge cannot run before this
+// has written.
+configurations.consumable("androidComposeAssetsElements") {
+    outgoing.artifact(layout.buildDirectory.dir("androidComposeAssets")) {
+        builtBy(androidComposeAssets)
+    }
 }
 
 // ---------------------------------------------------------------------------------------

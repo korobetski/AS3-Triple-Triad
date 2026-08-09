@@ -331,6 +331,42 @@ object StringKeys {
     const val ERROR_BAD_CREDENTIALS: String = "APP_ERROR_BAD_CREDENTIALS"
     const val ERROR_EXPIRED: String = "APP_ERROR_EXPIRED"
 
+    /**
+     * `{0} more open up as you level.` — under the opponent list.
+     *
+     * The list is filtered by the player's level now, and a list that silently omits three quarters
+     * of the table reads as a short table. See [com.tripletriad.data.NpcCatalog.available].
+     */
+    const val OPPONENTS_LOCKED: String = "APP_OPPONENTS_LOCKED"
+
+    // ---- The server list, which had no translated string on it at all.
+    /** What choosing another server costs, and what it does not. */
+    const val SERVERS_BLURB: String = "APP_SERVERS_BLURB"
+
+    /** The probe button, and what it says while it is out. */
+    const val SERVERS_CHECK: String = "APP_SERVERS_CHECK"
+    const val SERVERS_CHECKING: String = "APP_SERVERS_CHECKING"
+
+    /**
+     * One phrase per [com.tripletriad.net.ServerStatus]. `{0}` on [SERVER_ONLINE] is the latency.
+     *
+     * Seven states, four colours — see `ServerStatus.tint`. The wording is what tells them apart.
+     */
+    const val SERVER_UNKNOWN: String = "APP_SERVER_UNKNOWN"
+    const val SERVER_CHECKING: String = "APP_SERVER_CHECKING"
+    const val SERVER_ONLINE: String = "APP_SERVER_ONLINE"
+    const val SERVER_DEGRADED: String = "APP_SERVER_DEGRADED"
+    const val SERVER_OUTDATED: String = "APP_SERVER_OUTDATED"
+    const val SERVER_UNREACHABLE: String = "APP_SERVER_UNREACHABLE"
+    const val SERVER_UNUSABLE: String = "APP_SERVER_UNUSABLE"
+
+    /** The update notice. `{0}` is the version the server wants. */
+    const val UPDATE_REQUIRED: String = "APP_UPDATE_REQUIRED"
+    const val UPDATE_REQUIRED_BODY: String = "APP_UPDATE_REQUIRED_BODY"
+    const val UPDATE_AVAILABLE: String = "APP_UPDATE_AVAILABLE"
+    const val UPDATE_AVAILABLE_BODY: String = "APP_UPDATE_AVAILABLE_BODY"
+    const val UPDATE_GET: String = "APP_UPDATE_GET"
+
     /** Every key above, for the tests that assert each resolves. */
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
@@ -358,6 +394,11 @@ object StringKeys {
         ACCOUNT_TO_REGISTER, ACCOUNT_TO_SIGN_IN, UPDATE_NEEDED,
         ERROR_OFFLINE, ERROR_UPDATE, ERROR_STATUS,
         ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
+        OPPONENTS_LOCKED,
+        SERVERS_BLURB, SERVERS_CHECK, SERVERS_CHECKING,
+        SERVER_UNKNOWN, SERVER_CHECKING, SERVER_ONLINE, SERVER_DEGRADED,
+        SERVER_OUTDATED, SERVER_UNREACHABLE, SERVER_UNUSABLE,
+        UPDATE_REQUIRED, UPDATE_REQUIRED_BODY, UPDATE_AVAILABLE, UPDATE_AVAILABLE_BODY, UPDATE_GET,
     )
 
     /** The subset this port authored, which is the subset that may be untranslated. */

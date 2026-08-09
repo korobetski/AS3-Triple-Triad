@@ -6,8 +6,8 @@
 - **Phase**: 1 - Infrastructure Setup
 - **Duration**: 4 weeks (Weeks 3-6)
 - **Status**: IN PROGRESS — Task 1.10 done; see § Phase 1 Deliverables
-- **Version**: 1.0
-- **Last Updated**: 2026-07-21
+- **Version**: 1.1
+- **Last Updated**: 2026-08-09
 - **Prerequisites**: Phase 0 - Preparation
 
 ---
@@ -415,6 +415,39 @@ Create development guides:
 > `docs/migration/17-TESTING-GUIDE.md` is deliberately left alone. It is a Phase 0 planning
 > document — a target pyramid and framework examples written before any of this code existed — and
 > the new guide says so and describes the repository instead.
+
+---
+
+#### Task 1.14: Android asset packaging — ⚠️ **wired by hand; the plugin does not do it here**
+
+The app crashed on launch on device with
+`MissingResourceException: composeResources/tripletriad.shared.generated.resources/files/locales/tto-en_US.json`.
+The APK held **one** asset in total and no Compose resource at all — no locale, no `cards.json`,
+no artwork — so `rememberStrings` failed before the first frame.
+
+The Compose plugin registers `copyAndroidMainComposeResourcesToAndroidAssets` for exactly this
+job, and under `com.android.kotlin.multiplatform.library` it never configures that task's
+`outputDirectory` (running it directly fails with *"property 'outputDirectory' doesn't have a
+configured value"*). Nothing depended on it either, so the build stayed green. The desktop and iOS
+targets have their own assemble tasks, which is why 520 desktop tests passed against resources the
+phone never had — **every automated check in the repository was blind to it**.
+
+What is in place now:
+
+| Where | What |
+|-------|------|
+| `:shared` | `androidComposeAssets`, a `Sync` that re-lays the prepared tree under `composeResources/<packageOfResClass>/`, published through a consumable `androidComposeAssetsElements` configuration |
+| `:androidApp` | resolves that configuration and hands it to AGP with `variant.sources.assets.addGeneratedSourceDirectory(...)` |
+| `:androidApp` | `verifyComposeAssets`, which `check` depends on |
+
+Two dead ends worth not repeating: `assets.srcDir(configuration)` compiles and resolves but leaves
+the producing task out of the graph, so a clean build packaged an empty APK again; and
+`assets.directories` is a `MutableSet<String>`, which cannot carry a task dependency at all. The
+Variant API is the only supported route.
+
+`verifyComposeAssets` reads the **packaged APK**, not the build directory, because that is the
+only place the question is settled — and it stays correct if the plugin is fixed later, at which
+point the hand-wiring can be deleted and the check should still pass.
 
 ---
 
