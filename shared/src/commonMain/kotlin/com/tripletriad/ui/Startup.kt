@@ -34,7 +34,11 @@ enum class StartupPhase(val labelKey: String) {
     /** `cards.json`: 263 records, ~60 KB. */
     CARDS(StringKeys.LOADING_CARDS),
 
-    /** The nineteen shared textures — card back, digit atlas, rarity rows, type icons. */
+    /**
+     * The nineteen shared card textures — back, digit atlas, rarity rows, type icons — and the
+     * interface artwork behind them: the three thumbnail sheets and the bag icons ([UiArt]).
+     * Avatars and opponent portraits are not here; they load as a screen asks for one.
+     */
     ART(StringKeys.STARTUP_ART),
 
     /** `npcs.json`: the 85 PvE opponents of both collections, then `campaigns.json`'s thirteen. */
@@ -54,6 +58,8 @@ enum class StartupPhase(val labelKey: String) {
  * @property settings null until [StartupPhase.SETTINGS] completes.
  * @property catalog null until [StartupPhase.CARDS] completes. Non-null once [isReady].
  * @property art may be null even when [isReady] — see [rememberStartup].
+ * @property ui the interface artwork, on the same footing as [art]: a screen composes without it,
+ *   drawing its fallbacks, so a failed load costs appearance and not use.
  * @property opponents null until [StartupPhase.OPPONENTS] completes. Non-null once [isReady].
  * @property campaigns the tournament ladders, loaded with the opponents and on the same footing:
  *   null until that phase completes, non-null once [isReady].
@@ -63,6 +69,7 @@ data class StartupState(
     val settings: UserSettings? = null,
     val catalog: CardCatalog? = null,
     val art: CardArt? = null,
+    val ui: UiArt? = null,
     val opponents: NpcCatalog? = null,
     val campaigns: CampaignCatalog? = null,
 ) {
@@ -96,11 +103,20 @@ fun rememberStartup(store: SettingsStore): StartupState {
         value = StartupState(StartupPhase.ART, settings, catalog)
 
         val art = loadCardArt()
-        value = StartupState(StartupPhase.OPPONENTS, settings, catalog, art)
+        val ui = loadUiArt()
+        value = StartupState(StartupPhase.OPPONENTS, settings, catalog, art, ui)
 
         val opponents = loadNpcCatalog()
         val campaigns = loadCampaignCatalog()
-        value = StartupState(StartupPhase.READY, settings, catalog, art, opponents, campaigns)
+        value = StartupState(
+            phase = StartupPhase.READY,
+            settings = settings,
+            catalog = catalog,
+            art = art,
+            ui = ui,
+            opponents = opponents,
+            campaigns = campaigns,
+        )
     }
     return state
 }

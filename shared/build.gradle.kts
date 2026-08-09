@@ -40,7 +40,14 @@ kotlin {
     // Declared so the real migration has the targets in place. The Kotlin/Native
     // compilations for these are skipped on non-macOS hosts; building the frameworks
     // requires macOS + Xcode.
-    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+    //
+    // **`iosX64` is gone, and not by choice.** Compose Multiplatform stopped publishing the Intel
+    // simulator target at 1.11.0 — `runtime`, `foundation`, `ui` and `material3` have no
+    // `-iosx64` artifact from that release on — so declaring it here fails dependency resolution
+    // for the whole `appleMain` source set rather than only for that one target. The device target
+    // (`iosArm64`) and the simulator every Apple Silicon machine actually runs
+    // (`iosSimulatorArm64`) are unaffected, and CI's iOS job already tests the latter.
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
         target.binaries.framework {
             baseName = "shared"
             isStatic = true
@@ -54,13 +61,13 @@ kotlin {
             api(project(":core"))
             // `api` so :androidApp and :desktopApp can compose against the same
             // Compose artifacts without re-declaring them.
-            api(compose.runtime)
-            api(compose.foundation)
-            api(compose.material3)
-            api(compose.ui)
+            api(libs.compose.runtime)
+            api(libs.compose.foundation)
+            api(libs.compose.material3)
+            api(libs.compose.ui)
             // Card data is read through Compose resources, which is also the
             // mechanism the real migration needs for the 263 card images.
-            api(compose.components.resources)
+            api(libs.compose.components.resources)
             api(libs.compose.backhandler)
             api(libs.kotlinx.serialization.json)
             // `api` so :androidApp and :desktopApp get it for their `Dispatchers.IO` store
@@ -82,6 +89,9 @@ kotlin {
             // Answers requests from a lambda, so the network layer is exercised with no socket and
             // no server — on every target, including the ones with no localhost worth the name.
             implementation(libs.ktor.client.mock)
+            // What a Ktor engine throws when the host is unreachable, which is what the tests that
+            // simulate one have to throw.
+            implementation(libs.kotlinx.io.core)
         }
 
         // One engine per platform, because there is no common one. Ktor's API is multiplatform;
@@ -100,8 +110,7 @@ kotlin {
         // either, because the source set is named after the custom `jvm("desktop")` target.
         getByName("desktopTest").dependencies {
             implementation(compose.desktop.currentOs)
-            @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
-            implementation(compose.uiTest)
+            implementation(libs.compose.ui.test)
         }
     }
 }

@@ -4,7 +4,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.Board
 import com.tripletriad.model.CardColor
@@ -84,6 +84,46 @@ class MatchUiTest {
         startMatch()
 
         onNodeWithTag(MATCH_RULES_TEST_TAG).assertTextEquals("All Open")
+    }
+
+    /**
+     * Tapping the strip explains the rules it names, and tapping it again puts them away.
+     *
+     * The bundles have carried `RULE_ALL_OPEN_HELP` since the import and nothing ever showed one
+     * during a match: naming Fallen Ace and explaining it are different services, and the strip
+     * only did the first. Closed is the default — asserted here, because a strip that opened
+     * itself would cost a phone's board four lines for a sentence read a hundred times already.
+     */
+    @Test
+    fun theRuleStripOpensToExplainWhatItNames() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
+
+        // Read unmerged: the strip is `clickable`, so it absorbs its children's semantics.
+        val help = ruleHelpTestTag("RULE_ALL_OPEN")
+        assertFalse(existsUnmerged(help), "the strip should start closed")
+
+        onNodeWithTag(MATCH_RULES_TEST_TAG).performClick()
+        assertTrue(existsUnmerged(help), "tapping the strip should explain its rules")
+        onNodeWithTag(help, useUnmergedTree = true)
+            .assertTextEquals("All Open — Both decks are placed face up.")
+
+        onNodeWithTag(MATCH_RULES_TEST_TAG).performClick()
+        assertFalse(existsUnmerged(help), "tapping it again should close it")
+    }
+
+    /**
+     * The banner shows the face the player picked from the opponent list.
+     *
+     * `portraitTestTag` is the same tag that list uses, so this is the assertion that the two
+     * screens draw the *same* opponent — the board named one and pictured nobody until now.
+     */
+    @Test
+    fun theBoardShowsTheOpponentsPortrait() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        startMatch()
+
+        onNodeWithTag(portraitTestTag(TEST_OPPONENT)).assertExists()
     }
 
     @Test

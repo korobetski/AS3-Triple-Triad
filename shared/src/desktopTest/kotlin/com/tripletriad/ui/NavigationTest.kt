@@ -4,7 +4,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.i18n.loadStrings
 import com.tripletriad.settings.InMemorySettingsStore
@@ -124,11 +124,13 @@ class NavigationTest {
     }
 
     /**
-     * Every entry on the dashboard opens the screen it names, and its chevron comes back.
+     * Every card on the home screen opens the screen it names, and its chevron comes back.
      *
      * The routing table's own test: eight destinations that each existed as a file and none of
      * which was reachable until [Screen] grew them. Multiplayer is deliberately absent — it is
-     * drawn disabled, and Phase 5 is what turns it on.
+     * drawn disabled, and Phase 5 is what turns it on. The collection and the shelf are absent for
+     * a different reason: they moved to the navigation bar, and
+     * [everyNavigationBarEntryOpensItsScreen] is where they are asserted.
      */
     @Test
     fun everyDashboardEntryOpensItsScreen() = runComposeUiTest {
@@ -138,16 +140,53 @@ class NavigationTest {
         val entries = listOf(
             DASHBOARD_PLAY_TEST_TAG to OPPONENT_LIST_TEST_TAG,
             DASHBOARD_STATS_TEST_TAG to STATS_TABLE_TEST_TAG,
-            DASHBOARD_CARDS_TEST_TAG to CARD_GRID_TEST_TAG,
             DASHBOARD_DECKS_TEST_TAG to DECK_LIST_TEST_TAG,
             DASHBOARD_INVENTORY_TEST_TAG to INVENTORY_EMPTY_TEST_TAG,
-            DASHBOARD_SHOP_TEST_TAG to SHOP_LIST_TEST_TAG,
             DASHBOARD_HELP_TEST_TAG to HELP_LIST_TEST_TAG,
         )
         for ((entry, landmark) in entries) {
             openFromDashboard(entry, landmark)
             backToDashboard()
         }
+    }
+
+    /**
+     * The four navigation-bar destinations, and that back from each of them lands on Home.
+     *
+     * The second half is the claim worth pinning. A tabbed shell normally needs a back stack
+     * because "up" stops being a property of a screen; here it does not, because every one of these
+     * roots already had the dashboard as its `Screen.up` — see [Tab]. This is what says that is
+     * still true, and it would fail the day a tab root is given a different parent.
+     */
+    @Test
+    fun everyNavigationBarEntryOpensItsScreen() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        newCharacter()
+
+        val entries = listOf(
+            "play" to OPPONENT_LIST_TEST_TAG,
+            "cards" to CARD_GRID_TEST_TAG,
+            "store" to SHOP_LIST_TEST_TAG,
+        )
+        for ((tab, landmark) in entries) {
+            openFromBar(tab, landmark)
+            backToDashboard()
+        }
+
+        // And Home is on the bar too, from wherever the player happens to be.
+        openFromBar("store", SHOP_LIST_TEST_TAG)
+        openFromBar("home", DASHBOARD_PLAY_TEST_TAG)
+    }
+
+    /** The board is immersive: no bar over it, and none on the menu either. */
+    @Test
+    fun theNavigationBarIsAbsentOnTheMenuAndDuringAMatch() = runComposeUiTest {
+        setContent { App(store = settingsFor(AppLocale.EN_US)) }
+        awaitMenu()
+        assertFalse(exists(navTestTag("home")), "the menu has no character and so no bar")
+
+        startMatch()
+        assertFalse(exists(navTestTag("home")), "a match should not be leavable by a bar entry")
     }
 
     /** Logout leaves the character behind and lands where another is chosen. */

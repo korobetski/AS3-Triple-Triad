@@ -7,8 +7,10 @@
   greenfield and its cost bears no relation to it
 - **Status**: re-scoped 2026-07-25. **Sequencing steps 1, 2, 4, 5 and 6 done; step 3 half done.**
   Accounts, server-held progression, several servers and update notices all shipped and verified
-  against the local container 2026-08-08. What remains is local PvP — see § Sequencing.
-- **Version**: 1.5
+  against the local container 2026-08-08. The peer handshake's first two pieces — the joint seed
+  and the hand commitment — landed 2026-08-08. What remains is signed moves, a transport, and
+  `MatchView`. See § What is left in this phase.
+- **Version**: 1.6
 - **Last Updated**: 2026-08-08
 - **Prerequisites**: Phases 1-4
 
@@ -464,11 +466,42 @@ not resolve it. It now mounts the developer's `~/.m2/repository` read-only throu
 context (`MAVEN_LOCAL_REPO` in the server's `.env`). That is the only part of the server image that
 is not self-contained, and it disappears the day `:core` is published somewhere real.
 
+### The handshake, two thirds of it (2026-08-08)
+
+`PeerHandshake` in `:core` is the first two of the three pieces from § What local play needs on
+top, as pure logic with no transport in it — which is what lets it be written and tested while the
+transport is still undecided.
+
+- **The joint seed.** `SeedExchange`: each side commits to a 16-byte nonce by sending its SHA-256,
+  and both reveal only once both commitments are in. `jointSeed` **sorts the two nonces by content**
+  before hashing them, so the two devices agree without having to agree on which of them is
+  "first" — there is no first, and a seed that depended on who dialled would be two different
+  matches. A reveal that does not match its commitment returns null rather than a seed: there is
+  nothing both sides agree on, so there is no match to play.
+- **The hand commitment.** `commitHand` returns the five hashes to send *and* the five reveals to
+  keep, so no caller has to store a salt next to its card. Each slot is salted separately, which is
+  not decoration: a card id is a small number, and unsalted hashes would be a lookup table away
+  from public — the opponent would read the whole hand off the wire before a card was played.
+
+Tested by playing the cheats rather than the protocol: a nonce changed after committing, a card
+never in the hand, a card moved to another slot, a salt swapped between slots. A commitment scheme
+exercised only with honest inputs has not been exercised.
+
+**Two dependencies, both deliberate.** Kotlin Multiplatform has no common SHA-256 and no common
+secure random, and both are load-bearing here — `kotlin.random.Random` is a seeded PRNG, and a
+guessable nonce makes a commitment worthless, since the other side can try the values a weak
+generator could have produced and know the seed before revealing its own. KotlinCrypto's `sha2` and
+`crypto-rand` publish for every target this project declares, iOS included.
+
 ### What is left in this phase
 
-Only local PvP: `MatchView`, and the peer protocol over an in-memory loopback (the joint seed, the
-hand commitment, the signed moves from § What local play needs on top). Everything else in the
-sequencing is done. The transport for it is still undecided — see the Bluetooth constraint above.
+- **Signed moves.** Without them the handshake is fair but anonymous: two honest strangers get a
+  fair seed, and so does an impostor playing under someone else's name. This needs a key story —
+  generation, storage on the device, registration with the server — and it spans both repositories,
+  so it is its own step rather than a third of this one.
+- **A transport.** Still undecided; see the Bluetooth constraint above. Nothing written so far
+  depends on the answer.
+- **`MatchView`**, the screen itself.
 
 ---
 

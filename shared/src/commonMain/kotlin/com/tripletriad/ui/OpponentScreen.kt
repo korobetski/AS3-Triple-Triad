@@ -180,6 +180,7 @@ private fun OpponentRow(npc: Npc, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            NpcPortrait(npc = npc, name = strings[npc.nameKey])
             Text(
                 text = strings[npc.nameKey],
                 color = MaterialTheme.colorScheme.onSurface,

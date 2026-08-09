@@ -143,14 +143,27 @@ internal fun StatsScreen(profile: GameSave, onBack: () -> Unit) {
 }
 
 /**
- * Level, XP, and how far into the level the profile is.
+ * The avatar, the level and how far into it the profile is — the original's `profile.jpg` header.
  *
- * `ProgressBar` between `Level.steps[level - 1]` and `steps[level]` (`:127-134`), which is the only
- * part of the original's header worth keeping — the avatar picker needs the forty FFXIV portraits
- * that are not imported, and the name is already in the [CharacterBar] above.
+ * `ProgressBar` between `Level.steps[level - 1]` and `steps[level]` (`:127-134`), now with the
+ * portrait beside it that `GameSave.AVATAR_ID` has been naming since Phase 2 with nothing to draw.
+ * The 27 FFXIV portraits are imported; **choosing** one still is not, so this shows the profile's
+ * own and does not offer to change it. A picker is a screen, not a corner of this one.
  */
 @Composable
-private fun LevelBar(profile: GameSave) {
+internal fun LevelBar(profile: GameSave) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AvatarBadge(profile = profile)
+        Box(modifier = Modifier.weight(1f)) { LevelMeter(profile) }
+    }
+}
+
+@Composable
+private fun LevelMeter(profile: GameSave) {
     val strings = LocalStrings.current
     val floor = XpTable.thresholdFor(profile.level)
     val ceiling = XpTable.thresholdFor(profile.level + 1)
@@ -224,6 +237,11 @@ private fun AchievementRow(achievement: Achievement, profile: GameSave, isEarned
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            AchievementIcon(
+                iconId = achievement.iconId,
+                description = strings[achievement.labelKey],
+                size = 28.dp,
+            )
             Text(
                 text = strings[achievement.labelKey],
                 color = MaterialTheme.colorScheme.onSurface

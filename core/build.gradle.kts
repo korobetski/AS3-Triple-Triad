@@ -41,7 +41,10 @@ kotlin {
     }
     jvm("desktop")
 
-    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+    // The same two targets `:shared` declares, and it has to be the same two: an `iosX64` klib
+    // here would have no consumer, since the module that would use it cannot build for that target
+    // any more. See the note in `shared/build.gradle.kts`.
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
         target.binaries.framework {
             baseName = "core"
             isStatic = true
@@ -53,6 +56,10 @@ kotlin {
             // `api`, not `implementation`: `GameSave`, `Card` and the rest are `@Serializable` and
             // their consumers — `:shared` and the server — serialise them directly.
             api(libs.kotlinx.serialization.json)
+            // The peer handshake's two primitives — see the catalog for why neither is hand-rolled
+            // and why `kotlin.random.Random` is not one of them.
+            implementation(libs.kotlincrypto.sha2)
+            implementation(libs.kotlincrypto.rand)
             // `CardRepository` guards its cache with `sync.Mutex`.
             api(libs.kotlinx.coroutines.core)
         }

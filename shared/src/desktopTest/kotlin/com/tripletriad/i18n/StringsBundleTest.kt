@@ -136,13 +136,13 @@ class StringsBundleTest {
 
         /**
          * Keys defined by any of the four bundles: `import_locales.py`'s reported union of 691
-         * plus the 41 `APP_*` strings this port authored.
+         * plus the 62 `APP_*` strings this port authored.
          */
-        const val UNION_KEYS = 732
+        const val UNION_KEYS = 753
 
         /**
-         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 41,
-         * 688 + 41, then 647 and 680 with no app-owned strings at all.
+         * Imported key count plus however many `APP_*` strings that locale translates: 687 + 62,
+         * 688 + 62, then 647 and 680 with no app-owned strings at all.
          *
          * **Almost everything the ported screens show is already translated in four languages**,
          * because the AS3 bundles have it: `STR_PROFILE`, `STR_LOAD_GAME`, `STR_NEW_GAME`,
@@ -152,13 +152,28 @@ class StringsBundleTest {
          * `STR_DISCARD` / `STR_BUY`, `STR_DECK_POWER`, every `RULE_*` name and every
          * `STR_NPC_LEVEL_*`.
          *
-         * The 27 that had to be written are the ones the original never needed a sentence for: the
+         * The 48 that had to be written are the ones the original never needed a sentence for: the
          * five splash phases, the options pane's two, an empty character list, an empty opponent
          * list, an empty bag, `XP` (there is a `STR_MGP` but no `STR_XP`), a difficulty label, the
          * two turn lines and the two side names, "the opponent is playing", "achievement unlocked",
          * "no achievement yet", "pick a card", "owned", "obtained {0}", "already owned", "unknown
          * item", a win rate, a boons label, a matches label (`STR_MATCHES` is asked for by
-         * `profileScreen.as:191` and defined by no bundle) and Back.
+         * `profileScreen.as:191` and defined by no bundle), Back, `APP_CARDS` — the title over
+         * the collection and the decks now that they share a screen, which neither of the two
+         * imported names it covers could carry without being wrong on the other tab — and
+         * `APP_HOME`, the navigation bar's name for the dashboard, which the original never
+         * labelled because it never had a bar.
+         *
+         * Six more came with the menu's resume card, and for the same reason as `APP_HOME`: the
+         * original had one hard-coded host and no account, so it never had to name a server list
+         * (`APP_SERVERS`), say whether a stored session was restored, still connecting or expired
+         * (`APP_SESSION_*`), offer to sign in again, or offer to switch account. `STR_CONTINUE` is
+         * the card's other label and is imported — the AS3 menu had exactly that word.
+         *
+         * The last thirteen are the sign-in form and its refusals, which were the only screen in
+         * the app still written in hard-coded English. Same cause again: the AS3 build had no
+         * accounts, so no bundle names a password field, a "create an account" link, or any of the
+         * six things a server can refuse a sign-in with.
          *
          * The last ten are the tutorial's: its nine lines and the campaign entry that opens it.
          * Those nine are `APP_` for a different reason from the rest — the AS3 *has* the sentences,
@@ -166,8 +181,8 @@ class StringsBundleTest {
          * and no key in any bundle. It taught every player Triple Triad in English.
          */
         val TRANSLATED_KEYS = mapOf(
-            AppLocale.EN_US to 728,
-            AppLocale.FR_FR to 729,
+            AppLocale.EN_US to 749,
+            AppLocale.FR_FR to 750,
             AppLocale.DE_DE to 647,
             AppLocale.JA_JA to 680,
         )
@@ -184,9 +199,9 @@ class StringsBundleTest {
         val EXPECTED_GAPS = mapOf(
             AppLocale.EN_US to 4,
             AppLocale.FR_FR to 3,
-            // 44 imported keys short, plus all 41 app-owned; and 11 short, plus the 41.
-            AppLocale.DE_DE to 85,
-            AppLocale.JA_JA to 52,
+            // 44 imported keys short, plus all 62 app-owned; and 11 short, plus the 62.
+            AppLocale.DE_DE to 106,
+            AppLocale.JA_JA to 73,
         )
     }
 }

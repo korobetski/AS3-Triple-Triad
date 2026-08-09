@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -75,15 +76,18 @@ fun inventoryRowTestTag(item: Item): String = "inventory-row-${itemSlug(item)}"
  *   persisted only by the `sortBag()` call at the end of the handler, which saves as a side effect
  *   (`:200`). One path here, so a use cannot be the one operation that is lost.
  *
+ * @param onUnlocked a card that has just entered the collection, to be shown off. Reported upwards
+ *   rather than drawn here because [UnlockedCard] covers the **whole screen**, and this is one tab
+ *   of one — a full-screen overlay placed inside a column is a very tall column entry.
  * @param random the pack draw. Injected for the same reason [Inventory.use] takes one: a drop that
  *   cannot be pinned cannot be asserted on.
  */
 @Composable
-internal fun InventoryScreen(
+internal fun ColumnScope.InventoryBody(
     profile: GameSave,
     catalog: CardCatalog,
     onPersist: suspend (GameSave) -> Unit,
-    onBack: () -> Unit,
+    onUnlocked: (Card) -> Unit,
     random: Random = Random.Default,
 ) {
     val strings = LocalStrings.current
@@ -100,77 +104,65 @@ internal fun InventoryScreen(
     var note by remember(profile.mode) { mutableStateOf<String?>(null) }
     var armed by remember { mutableStateOf(false) }
 
-    // The card just added to the collection, while it is being shown off. `UnlockCardAnim` is the
-    // one thing the original does here that a line of text cannot: the player has often never seen
-    // this card, and the note names it without showing it.
-    var unlocked by remember(profile.mode) { mutableStateOf<Card?>(null) }
     val selected = profile.bag.firstOrNull { itemKey(it) == selectedKey }
 
-    CharacterScaffold(profile = profile, title = strings[StringKeys.INVENTORY], onBack = onBack) {
-        note?.let { EmptyNote(it, INVENTORY_NOTE_TEST_TAG) }
+    note?.let { EmptyNote(it, INVENTORY_NOTE_TEST_TAG) }
 
-        if (profile.bag.isEmpty()) {
-            EmptyNote(strings[StringKeys.EMPTY_BAG], INVENTORY_EMPTY_TEST_TAG)
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .testTag(INVENTORY_LIST_TEST_TAG)
-                    .fillMaxWidth()
-                    .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                items(profile.bag, key = { itemSlug(it) }) { item ->
-                    ItemRow(
-                        item = item,
-                        cards = cards,
-                        refusal = useRefusal(strings, item, owned),
-                        isSelected = itemKey(item) == selectedKey,
-                        onClick = {
-                            selectedKey = itemKey(item).takeIf { it != selectedKey }
-                            armed = false
-                        },
-                    )
-                }
-            }
-        }
-
-        selected?.let { item ->
-            BagActions(
-                item = item,
-                isArmed = armed,
-                canUse = item.useable && useRefusal(strings, item, owned) == null,
-                onUse = {
-                    val outcome = Inventory.use(profile, item, random)
-                    note = useNote(strings, outcome, cards)
-                    armed = false
-                    // Only a card *entering the collection* is revealed, which is the single
-                    // branch `useBtnHandler` plays it in (`:236-245`). Opening a pack yields
-                    // another bag item rather than a card, and showing it here would announce a
-                    // card the player does not own yet.
-                    unlocked = (outcome as? ItemUse.CardDrawn)?.let { cards[it.cardId] }
-                    scope.launch { onPersist(outcome.save) }
-                },
-                onSell = {
-                    armed = false
-                    scope.launch { onPersist(Inventory.sell(profile, item)) }
-                },
-                onDiscard = {
-                    if (armed) {
+    if (profile.bag.isEmpty()) {
+        EmptyNote(strings[StringKeys.EMPTY_BAG], INVENTORY_EMPTY_TEST_TAG)
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .testTag(INVENTORY_LIST_TEST_TAG)
+                .fillMaxWidth()
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            items(profile.bag, key = { itemSlug(it) }) { item ->
+                ItemRow(
+                    item = item,
+                    cards = cards,
+                    refusal = useRefusal(strings, item, owned),
+                    isSelected = itemKey(item) == selectedKey,
+                    onClick = {
+                        selectedKey = itemKey(item).takeIf { it != selectedKey }
                         armed = false
-                        note = null
-                        scope.launch { onPersist(Inventory.remove(profile, item)) }
-                    } else {
-                        armed = true
-                    }
-                },
-            )
+                    },
+                )
+            }
         }
     }
 
-    // Outside the scaffold, so it is drawn over the whole screen rather than inside the column
-    // that lists the bag.
-    unlocked?.let { card ->
-        UnlockedCard(card = card) { unlocked = null }
+    selected?.let { item ->
+        BagActions(
+            item = item,
+            isArmed = armed,
+            canUse = item.useable && useRefusal(strings, item, owned) == null,
+            onUse = {
+                val outcome = Inventory.use(profile, item, random)
+                note = useNote(strings, outcome, cards)
+                armed = false
+                // Only a card *entering the collection* is revealed, which is the single
+                // branch `useBtnHandler` plays it in (`:236-245`). Opening a pack yields
+                // another bag item rather than a card, and showing it here would announce a
+                // card the player does not own yet.
+                (outcome as? ItemUse.CardDrawn)?.let { cards[it.cardId] }?.let(onUnlocked)
+                scope.launch { onPersist(outcome.save) }
+            },
+            onSell = {
+                armed = false
+                scope.launch { onPersist(Inventory.sell(profile, item)) }
+            },
+            onDiscard = {
+                if (armed) {
+                    armed = false
+                    note = null
+                    scope.launch { onPersist(Inventory.remove(profile, item)) }
+                } else {
+                    armed = true
+                }
+            },
+        )
     }
 }
 
@@ -202,7 +194,15 @@ private fun ItemRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        itemCard(item, cards)?.let { CardFace(card = it, scale = BAG_CARD_SCALE) }
+        // A card item shows the card; everything else shows the icon `Item.iconId` has named
+        // since Phase 2 and that nothing has drawn until now — the booster's own tribe pack, the
+        // rarity plate, the two boosts.
+        val card = itemCard(item, cards)
+        if (card != null) {
+            CardThumb(card = card)
+        } else {
+            ItemIcon(iconId = item.iconId, description = itemName(strings, item, cards))
+        }
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -314,6 +314,3 @@ private fun itemFacts(strings: Strings, item: Item, refusal: String?): String = 
     if (item.sellable && item.value > 0) add("${strings[StringKeys.SELL]} ${item.value}")
     refusal?.let(::add)
 }.joinToString(DOT_SEPARATOR)
-
-/** Small enough that a row stays one line tall on a phone. */
-private const val BAG_CARD_SCALE = 0.3f

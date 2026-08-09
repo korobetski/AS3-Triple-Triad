@@ -15,6 +15,7 @@ import com.tripletriad.net.TranscriptQueue
 import com.tripletriad.net.serverConnection
 import com.tripletriad.net.serverEntries
 import com.tripletriad.ui.App
+import kotlin.system.exitProcess
 
 /**
  * Desktop entry point. Not a migration target — it exists so the shared Compose
@@ -41,6 +42,13 @@ fun main() {
             )
         }
     }
+    // `application {}` returning is not the process ending. Compose shuts the window down and the
+    // main thread falls out of the block, but the JVM lives until its last non-daemon thread does
+    // — and this app has some: the HTTP client's engine keeps a pool alive whether or not a request
+    // is in flight, and it outlives the window that was using it. Quit left an invisible process
+    // behind. Nothing is lost by ending it here: every save goes through `SaveRepository` at the
+    // point of the change, so anything that had to reach disk did so before the window closed.
+    exitProcess(0)
 }
 
 /**

@@ -1,20 +1,18 @@
 package com.tripletriad.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -34,7 +31,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tripletriad.audio.AudioPlayer
 import com.tripletriad.audio.LocalAudio
 import com.tripletriad.audio.Sound
@@ -48,7 +44,6 @@ import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Board
 import com.tripletriad.model.Card
 import com.tripletriad.model.CardColor
-import com.tripletriad.model.GameRules
 import com.tripletriad.model.GameSave
 import com.tripletriad.model.MatchAi
 import com.tripletriad.model.MatchOutcome
@@ -75,6 +70,9 @@ const val NEW_MATCH_TEST_TAG: String = "new-match"
 
 /** The active-rule strip above the board. Absent when no special rule is in force. */
 const val MATCH_RULES_TEST_TAG: String = "match-rules"
+
+/** `rule-help-RULE_REVERSE` — one per rule, and only while the strip is open. */
+fun ruleHelpTestTag(ruleKey: String): String = "rule-help-$ruleKey"
 
 /** The end-of-match panel. Its presence is the signal that the match is over and credited. */
 const val MATCH_RESULT_TEST_TAG: String = "match-result"
@@ -445,18 +443,33 @@ internal fun MatchScreen(
         autoPlay(state, sideRandom)?.let { (card, position) -> place(card, position) }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val wide = LocalWideLayout.current
+
+    val log = rememberMoveLog(match, state)
+
+    MatchFrame(
+        wide = wide,
+        side = {
+            MatchSidePanel(
+                npc = npc,
+                opponentName = strings[npc.nameKey],
+                rules = match.rules,
+                log = log,
+            )
+        },
     ) {
         StatusBar(
             state = state,
             selected = selected,
+            npc = npc,
             opponentName = strings[npc.nameKey],
             turnFraction = turnFraction,
+            // On a wide window the opponent has a whole panel of their own, and drawing a 26 dp
+            // face beside a 50 dp one is the sort of duplicate that looks like a bug.
+            showOpponent = !wide,
             onExit = onExit,
         )
-        RulesStrip(match.rules)
+        BoardRules(match.rules, wide)
 
         // The play area takes whatever the status bar leaves and sizes every card to what it
         // actually got. Nothing below this line guesses at a screen size or a "chrome"
@@ -566,126 +579,6 @@ private fun playable(state: MatchState): List<Card> =
     }
 
 /**
- * The rules in force, named.
- *
- * `RulesDigest.as` did the same job on the board, and it matters more than it looks: Reverse or
- * Fallen Ace silently changes which card beats which, and a player who has not been told is playing
- * a different game from the one they think. The keys are the AS3 rule constants, which are also
- * their own i18n keys — so this is `activeRuleKeys()` looked up, with no mapping table in between.
- */
-@Composable
-private fun RulesStrip(rules: GameRules) {
-    val keys = rules.activeRuleKeys()
-    if (keys.isEmpty()) return
-    val strings = LocalStrings.current
-    Text(
-        text = keys.joinToString(DOT_SEPARATOR) { strings[it] },
-        color = RuleStripText,
-        style = MaterialTheme.typography.labelSmall,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .testTag(MATCH_RULES_TEST_TAG)
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 2.dp),
-    )
-}
-
-/**
- * What the match paid, over the board it was won on.
- *
- * Stands in for `RematchPanel.as`, which the original opened over the finished board with the same
- * contents: the result, the MGP, the XP, any dropped items and any achievement just earned. Two
- * actions, as it had: play the same opponent again, or leave.
- */
-@Composable
-private fun OutcomePanel(
-    reward: MatchReward,
-    opponentName: String,
-    next: ScriptExit?,
-    onDone: () -> Unit,
-) {
-    val strings = LocalStrings.current
-
-    Column(
-        modifier = Modifier
-            .testTag(MATCH_RESULT_TEST_TAG)
-            .widthIn(max = ContentMaxWidth)
-            .padding(16.dp)
-            .clip(MaterialTheme.shapes.small)
-            .background(PanelBackground)
-            .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = when (reward.result) {
-                MatchResult.WIN -> strings[StringKeys.YOU_WIN]
-                MatchResult.LOSE -> strings[StringKeys.YOU_LOSE]
-                MatchResult.DRAW -> strings[StringKeys.DRAW]
-            },
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = opponentName,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = FAINT),
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-
-        // Always shown, and always positive: every result pays in this game — see `MatchRewards`.
-        Text(
-            text = buildList {
-                add("+${reward.mgp} ${strings[StringKeys.MGP]}")
-                if (reward.xp > 0) add("+${reward.xp} ${strings[StringKeys.XP]}")
-            }.joinToString(DOT_SEPARATOR),
-            color = PayoutText,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.testTag(MATCH_PAYOUT_TEST_TAG),
-        )
-
-        if (reward.items.isNotEmpty()) {
-            Text(
-                text = "${strings[StringKeys.REWARDS]}: ${reward.items.size}",
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
-        for (achievement in reward.achievements) {
-            Text(
-                text = strings[StringKeys.ACHIEVEMENT_EARNED] + " — " +
-                    strings[achievement.labelKey],
-                color = RuleStripText,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            // Absent, not disabled, when a script says there is nowhere to go — which is how
-            // `CCGroupRematchPanel` ends a ladder: it does not build the button.
-            next?.let {
-                Box(modifier = Modifier.weight(1f)) {
-                    WideButton(strings[it.labelKey], NEW_MATCH_TEST_TAG, onClick = it.onLeave)
-                }
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                WideButton(strings[StringKeys.BACK], MATCH_DONE_TEST_TAG, onClick = onDone)
-            }
-        }
-    }
-}
-
-/**
  * The sounds one placement makes, in the order the AS3 made them.
  *
  * The mapping is the part with decisions in it, so it is a function rather than four `if`s inside a
@@ -728,15 +621,19 @@ private fun sound(audio: AudioPlayer, state: MatchState) {
 private fun StatusBar(
     state: MatchState,
     selected: Card?,
+    npc: Npc,
     opponentName: String,
     turnFraction: Float?,
+    showOpponent: Boolean,
     onExit: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         StatusRow(
             state = state,
             selected = selected,
+            npc = npc,
             opponentName = opponentName,
+            showOpponent = showOpponent,
             onExit = onExit,
         )
         TurnTimerBar(fraction = turnFraction)
@@ -797,28 +694,32 @@ private fun TurnTimerBar(fraction: Float?) {
 private fun StatusRow(
     state: MatchState,
     selected: Card?,
+    npc: Npc,
     opponentName: String,
+    showOpponent: Boolean,
     onExit: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val strings = LocalStrings.current
-        // A bare chevron, not "‹ Back". The row already learned once that a fixed-width control
-        // sized for English squeezes the turn line in French (see below), and this bar now has two
-        // of them; a glyph costs the same in every language. The Android system back gesture
-        // reaches the same place — see `App`.
-        Text(
-            text = "‹",
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier
-                .testTag(MATCH_EXIT_TEST_TAG)
-                .clickable(onClick = onExit)
-                .padding(horizontal = 4.dp),
-        )
+        // The same control every other screen's back is, rather than the bare `‹` glyph this row
+        // carried while it was the one screen outside the shell. An `IconButton` is a 48 dp touch
+        // target where a `Text` was a 20 dp one, and it is the only back on screen that a player
+        // could previously miss — the reason for the glyph was width, and an icon costs the same
+        // in every language too. The Android system gesture still reaches the same place.
+        IconButton(
+            onClick = onExit,
+            modifier = Modifier.testTag(MATCH_EXIT_TEST_TAG).size(ExitButtonSize),
+        ) {
+            Icon(
+                imageVector = TtoIcons.Back,
+                contentDescription = strings[StringKeys.BACK],
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
+            )
+        }
         Score(state)
         // The turn line takes whatever the two fixed ends leave, and elides rather than growing.
         //
@@ -837,18 +738,29 @@ private fun StatusRow(
         ) {
             TurnLine(state = state, selected = selected)
         }
-        // The opponent's name where the "next match" control used to be. Abandoning a match is the
-        // back chevron; restarting one is the end-of-match panel's business, and a reset control
-        // beside a live board is one mis-tap away from discarding a game in progress.
-        Text(
-            text = opponentName,
-            color = CardColor.RED.edge,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.testTag(MATCH_OPPONENT_TEST_TAG).padding(4.dp),
-        )
+        // The opponent's face and name where the "next match" control used to be. Abandoning a
+        // match is the back control; restarting one is the end-of-match panel's business, and a
+        // reset beside a live board is one mis-tap away from discarding a game in progress.
+        //
+        // The portrait is the 50 px art the opponent list already draws — the player chose a face
+        // there, and until now the board did not show it the face they chose.
+        if (showOpponent) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                NpcPortrait(npc = npc, name = opponentName, size = BannerPortraitSize)
+                Text(
+                    text = opponentName,
+                    color = CardColor.RED.edge,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag(MATCH_OPPONENT_TEST_TAG).padding(vertical = 4.dp),
+                )
+            }
+        }
     }
 }
 
@@ -1036,6 +948,8 @@ private const val CHAOS_SEED = 20260802
 private val TurnTimerHeight = 3.dp
 private val TurnTimerShape = RoundedCornerShape(2.dp)
 
-private val RuleStripText = Color(0xFFF2C14E)
-private val PayoutText = Color(0xFF7FD18B)
-private val PanelBackground = Color(0xFF11141C)
+/** The back control's own footprint: a 48 dp `IconButton` would own a fifth of the banner. */
+private val ExitButtonSize = 34.dp
+
+/** Smaller than the opponent list's 50 px plate — a face, not a portrait. */
+private val BannerPortraitSize = 26.dp

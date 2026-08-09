@@ -3,6 +3,7 @@ package com.tripletriad.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,9 +13,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,17 +20,18 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.tripletriad.data.CardCatalog
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.data.ShopOffer
 import com.tripletriad.i18n.LocalStrings
 import com.tripletriad.i18n.StringKeys
 import com.tripletriad.model.Card
 import com.tripletriad.model.GameSave
-import kotlinx.coroutines.launch
 
 const val SHOP_LIST_TEST_TAG: String = "shop-list"
 const val SHOP_BUY_TEST_TAG: String = "shop-buy"
+
+/** The purchase confirmation, which the original never gave: `//Save.save(…)` was commented out. */
+const val SHOP_NOTE_TEST_TAG: String = "shop-note"
 
 /** `shop-offer-<slug>` — the offer's item, since no item is on either shelf twice. */
 fun shopOfferTestTag(offer: ShopOffer): String = "shop-offer-${itemSlug(offer.item)}"
@@ -60,50 +59,26 @@ fun shopOfferTestTag(offer: ShopOffer): String = "shop-offer-${itemSlug(offer.it
  * show what the player has already outgrown.
  */
 @Composable
-internal fun ShopScreen(
+internal fun ColumnScope.ShopBody(
     profile: GameSave,
-    catalog: CardCatalog,
-    onPersist: suspend (GameSave) -> Unit,
-    onBack: () -> Unit,
+    offers: List<ShopOffer>,
+    cards: Map<Int, Card>,
+    selectedTag: String?,
+    onSelect: (String?) -> Unit,
 ) {
-    val strings = LocalStrings.current
-    val scope = rememberCoroutineScope()
-    val offers = remember(profile.mode) { ShopCatalog.offers(profile.mode) }
-    val cards = remember(catalog, profile.mode) {
-        catalog.collection(profile.mode.prefix).associateBy { it.id }
-    }
-    var selectedTag by remember(profile.mode) { mutableStateOf<String?>(null) }
-    val selected = offers.firstOrNull { shopOfferTestTag(it) == selectedTag }
-
-    CharacterScaffold(profile = profile, title = strings[StringKeys.CARD_SHOP], onBack = onBack) {
-        LazyColumn(
-            modifier = Modifier.testTag(SHOP_LIST_TEST_TAG).fillMaxWidth().weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            items(offers, key = ::shopOfferTestTag) { offer ->
-                OfferRow(
-                    offer = offer,
-                    cards = cards,
-                    isAffordable = offer.isAffordableBy(profile),
-                    isSelected = shopOfferTestTag(offer) == selectedTag,
-                    onClick = {
-                        selectedTag = shopOfferTestTag(offer).takeIf { it != selectedTag }
-                    },
-                )
-            }
+    LazyColumn(
+        modifier = Modifier.testTag(SHOP_LIST_TEST_TAG).fillMaxWidth().weight(1f),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        items(offers, key = ::shopOfferTestTag) { offer ->
+            OfferRow(
+                offer = offer,
+                cards = cards,
+                isAffordable = offer.isAffordableBy(profile),
+                isSelected = shopOfferTestTag(offer) == selectedTag,
+                onClick = { onSelect(shopOfferTestTag(offer).takeIf { it != selectedTag }) },
+            )
         }
-
-        WideButton(
-            label = selected
-                ?.let { "${strings[StringKeys.BUY]}$DOT_SEPARATOR${it.price}" }
-                ?: strings[StringKeys.BUY],
-            tag = SHOP_BUY_TEST_TAG,
-            enabled = selected?.isAffordableBy(profile) == true,
-            onClick = {
-                val offer = selected ?: return@WideButton
-                scope.launch { onPersist(ShopCatalog.buy(profile, offer)) }
-            },
-        )
     }
 }
 
@@ -130,7 +105,14 @@ private fun OfferRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        itemCard(offer.item, cards)?.let { CardFace(card = it, scale = SHELF_CARD_SCALE) }
+        // The card if the offer is a card, its icon otherwise — a booster pack has artwork of
+        // its own, and a shelf of nothing but text is the thing this screen was worst at.
+        val card = itemCard(offer.item, cards)
+        if (card != null) {
+            CardThumb(card = card)
+        } else {
+            ItemIcon(iconId = offer.item.iconId, description = itemName(strings, offer.item, cards))
+        }
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -163,9 +145,6 @@ private fun OfferRow(
         )
     }
 }
-
-/** The same one-line row height as the bag. */
-private const val SHELF_CARD_SCALE = 0.3f
 
 /** `isEnabled = false` in the original, which greyed the whole renderer. */
 private const val UNAFFORDABLE_ALPHA = 0.4f

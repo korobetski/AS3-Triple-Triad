@@ -18,6 +18,7 @@ import com.tripletriad.net.TranscriptQueue
 import com.tripletriad.net.serverConnection
 import com.tripletriad.net.serverEntries
 import com.tripletriad.ui.App
+import kotlin.system.exitProcess
 import android.util.Log as AndroidLog
 
 class MainActivity : ComponentActivity() {
@@ -43,19 +44,38 @@ class MainActivity : ComponentActivity() {
         val documents = AndroidDocumentStore(applicationContext, SaveRepository.COLLECTION)
         audio = AndroidAudioPlayer(applicationContext)
         val server = buildServerConnection()
-        // `finish()` and not `finishAffinity()` or `exitProcess`: this is the only activity, and
-        // Android's own guidance is to leave the process alive for the system to reclaim. The
-        // system back gesture is handled inside `App` and does not reach here except from the menu.
         setContent {
             App(
                 store = settings,
                 documents = documents,
                 clock = AndroidClock,
                 audio = audio,
-                onQuit = { finish() },
+                onQuit = ::quit,
                 server = server,
             )
         }
+    }
+
+    /**
+     * Quit means quit: the task leaves the recents list and the process ends.
+     *
+     * `finish()` alone was not enough, and the difference is visible. It tears down the activity
+     * but leaves the process — and the task — alive, so the app is still in recents, still holding
+     * its `SoundPool` and its HTTP client, and reopening it lands on a *restored* activity rather
+     * than a cold start. A player who chose Quit from the main menu did not ask for that.
+     *
+     * `finishAndRemoveTask` does the visible half and [exitProcess] the rest. Android's guidance is
+     * to leave the process for the system to reclaim, and that guidance is right for an app the
+     * user *navigates away from* — it is what makes the next launch fast. It does not apply to an
+     * explicit Quit button, which the platform has no gesture for and which this game has because
+     * the original did (`MenuScreen`'s `exitBtn`, `NativeApplication.exit()`).
+     *
+     * [onDestroy] still releases the audio, because `finishAndRemoveTask` runs the lifecycle: the
+     * process ends after the codecs are handed back, not instead of.
+     */
+    private fun quit() {
+        finishAndRemoveTask()
+        exitProcess(0)
     }
 
     /**

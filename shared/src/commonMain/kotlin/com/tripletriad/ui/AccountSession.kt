@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.tripletriad.i18n.StringKeys
+import com.tripletriad.i18n.Strings
 import com.tripletriad.log.Log
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.AccountResult
@@ -278,19 +280,26 @@ class AccountSession internal constructor(
  * The message to show for a failed account request.
  *
  * A function rather than a field on [AccountResult] because the wording is the UI's business and
- * the result type lives in the network layer — and because these strings are the one part of this
- * feature that is not yet translated, which is easier to see when they are all in one place.
+ * the result type lives in the network layer.
+ *
+ * ### The one message that is not translated
+ *
+ * [AccountError.MALFORMED_CREDENTIALS] shows `failure.detail`, which is a sentence the **server**
+ * wrote — it is the only failure whose reason the client cannot know (which rule, and how it was
+ * broken). Passing it through is honest; inventing a generic replacement would tell the player less
+ * than the server already told them. It is in the server's locale rather than the player's, which
+ * is a real limitation and one the protocol would have to grow a key for to fix.
  */
-internal fun AccountResult<*>.message(): String = when (this) {
+internal fun AccountResult<*>.message(strings: Strings): String = when (this) {
     is AccountResult.Ok -> ""
-    is AccountResult.Offline -> "The server could not be reached. Check your connection."
-    is AccountResult.UpdateRequired -> "This version is too old for the server. Please update."
-    is AccountResult.Failed -> "The server answered $status."
+    is AccountResult.Offline -> strings[StringKeys.ERROR_OFFLINE]
+    is AccountResult.UpdateRequired -> strings[StringKeys.ERROR_UPDATE]
+    is AccountResult.Failed -> strings.format(StringKeys.ERROR_STATUS, status.toString())
     is AccountResult.Refused -> when (failure.error) {
-        AccountError.USERNAME_TAKEN -> "That name is already taken."
-        AccountError.INVALID_CREDENTIALS -> "That name and password do not match an account."
+        AccountError.USERNAME_TAKEN -> strings[StringKeys.ERROR_NAME_TAKEN]
+        AccountError.INVALID_CREDENTIALS -> strings[StringKeys.ERROR_BAD_CREDENTIALS]
         AccountError.MALFORMED_CREDENTIALS -> failure.detail
-        AccountError.UNAUTHENTICATED -> "Your session has expired. Sign in again."
+        AccountError.UNAUTHENTICATED -> strings[StringKeys.ERROR_EXPIRED]
     }
 }
 

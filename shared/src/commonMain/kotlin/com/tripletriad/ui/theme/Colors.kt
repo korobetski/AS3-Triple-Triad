@@ -72,6 +72,28 @@ internal val CardRedEdge = Color(0xFFBB594F)
  */
 internal val Outline = Color(0xFF56504A)
 
+/*
+ * The board's own three colours, which lived in `MatchBoard.kt` as private top-level vals until
+ * the theme was the only place left that could not reach them. They have no AS3 source — Feathers
+ * drew an empty tile with `emptyTileSkin` out of the UI atlas, which this port does not import — so
+ * these are the port's own. They are here rather than there because a colour a screen keeps to
+ * itself is a screen that will never follow a theme.
+ */
+
+/** An empty cell: cooler than [SurfaceSunken], so the grid reads as a board and not as a list. */
+internal val BoardTile = Color(0xFF1E2230)
+
+/** Its edge — [BoardTile] lightened until the 3x3 grid is legible on the background. */
+internal val BoardTileOutline = Color(0xFF3A4152)
+
+/**
+ * The ring around the held card and around the cell being aimed at.
+ *
+ * Warmer than [SelectedText] and deliberately not equal to it: the accent marks *the current
+ * choice* across the app, and on the board it would land next to five orange element glyphs.
+ */
+internal val SelectionRing = Color(0xFFF2C14E)
+
 /**
  * The destructive-confirmation outline.
  *
@@ -101,6 +123,10 @@ data class TtoColors(
     val selectedOutline: Color = CardBlue,
     /** The two boon markers and an opponent row's rules — a temporary effect. */
     val transient: Color = SelectedText,
+    /** An empty board cell, its edge, and the ring on whatever is currently being aimed. */
+    val boardTile: Color = BoardTile,
+    val boardTileOutline: Color = BoardTileOutline,
+    val selectionRing: Color = SelectionRing,
     /** Behind everything, and darker than [Background] so a screen's content reads as a layer. */
     val backdrop: Color = SurfaceSunken,
 )

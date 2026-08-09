@@ -32,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -51,6 +50,7 @@ import com.tripletriad.model.HAND_SIZE
 import com.tripletriad.model.HandVisibility
 import com.tripletriad.model.MatchState
 import com.tripletriad.model.PlacedCard
+import com.tripletriad.ui.theme.LocalTtoColors
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -92,7 +92,14 @@ internal fun PlayArea(
         )
     }
     val board: @Composable () -> Unit = {
-        BoardGrid(state = state, scale = layout.boardScale, drag = drag, onPlace = onPlace)
+        BoardGrid(
+            state = state,
+            scale = layout.boardScale,
+            drag = drag,
+            // Armed by either gesture: a tapped card and a lifted one both need somewhere to go.
+            armed = selected != null || drag.isDragging,
+            onPlace = onPlace,
+        )
     }
 
     Box(
@@ -175,12 +182,17 @@ private fun DragGhost(drag: BoardDragState, scale: Float) {
  * finger is over it. `Tile.onDragEnter` accepts the drag and `onDragDrop` refuses an occupied cell
  * (`Tile.as:107-127`), which is the same pair of rules — an occupied cell simply never highlights,
  * so the refusal is visible before the finger lifts rather than after.
+ *
+ * @param armed a card is in hand and waiting for a cell. Every free cell outlines faintly while it
+ *   is — "where can this go" answered before the attempt rather than by it, which matters most on a
+ *   phone, where the finger covers the cell it is aiming at.
  */
 @Composable
 private fun BoardGrid(
     state: MatchState,
     scale: Float,
     drag: BoardDragState,
+    armed: Boolean,
     onPlace: (Int) -> Unit,
 ) {
     val hovered = drag.hovered()
@@ -204,6 +216,7 @@ private fun BoardGrid(
                         element = state.board.elements[position],
                         scale = scale,
                         isTarget = hovered == position && free,
+                        isOpen = armed && free,
                         modifier = Modifier
                             .testTag(tileTestTag(position))
                             .onGloballyPositioned { coordinates ->
@@ -229,23 +242,33 @@ private fun BoardGrid(
  * @param isTarget the finger is over it with a card, and it can take one. The border is what says
  *   so — Feathers drew a `dropIndicatorSkin` over the whole tile, and a border is the same claim
  *   without an atlas.
+ * @param isOpen it could take the card currently in hand, but is not the one being aimed at. The
+ *   same ring at a third of its weight: three states on one border, so a cell never has to grow.
  */
 @Composable
+@Suppress("LongParameterList")
 private fun TileCell(
     placed: PlacedCard?,
     element: CardType?,
     scale: Float,
     isTarget: Boolean,
+    isOpen: Boolean,
     modifier: Modifier,
 ) {
+    val game = LocalTtoColors.current
+
     Box(
         modifier = modifier
             .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
             .clip(TileShape)
-            .background(EmptyTile)
+            .background(game.boardTile)
             .border(
                 width = if (isTarget) SelectionRingWidth else 1.dp,
-                color = if (isTarget) SelectionRing else TileBorder,
+                color = when {
+                    isTarget -> game.selectionRing
+                    isOpen -> game.selectionRing.copy(alpha = OPEN_CELL_ALPHA)
+                    else -> game.boardTileOutline
+                },
                 shape = TileShape,
             ),
         contentAlignment = Alignment.Center,
@@ -451,7 +474,9 @@ private fun HandCard(
     // Captured so the pointer can be converted out of this card's own space and into root, which
     // is where the cells registered their bounds. See [BoardDragState].
     var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    val isBeingDragged = drag?.card?.id == card.id && drag?.isDragging == true
+    // The second read needs no `?.`: reaching it means the first comparison was true, and a null
+    // `drag` cannot equal a card id — Kotlin 2.4's smart cast now says so.
+    val isBeingDragged = drag?.card?.id == card.id && drag.isDragging
 
     Box(
         modifier = Modifier
@@ -491,7 +516,7 @@ private fun HandCard(
             Box(
                 modifier = Modifier
                     .size(CardSpriteWidth * scale, CardSpriteHeight * scale)
-                    .border(SelectionRingWidth, SelectionRing, TileShape),
+                    .border(SelectionRingWidth, LocalTtoColors.current.selectionRing, TileShape),
             )
         }
     }
@@ -557,6 +582,13 @@ private const val DRAG_GHOST_ALPHA = 0.85f
 private const val DRAG_SOURCE_ALPHA = 0.3f
 
 /**
+ * A free cell while a card is held: present, but not louder than the cell being aimed at.
+ *
+ * Nine cells lit at full strength would compete with the drop indicator they are meant to lead to.
+ */
+private const val OPEN_CELL_ALPHA = 0.38f
+
+/**
  * `Card.afterFly`'s tween — the card dropping into the cell it was played on.
  *
  * `Card.fly` (`:195-208`) is two halves and this is the second. The first raises the card 100px
@@ -615,9 +647,6 @@ private val EaseIn = FastOutLinearInEasing
 private val EaseOut = LinearOutSlowInEasing
 private val TileGap = 4.dp
 private val TileShape = RoundedCornerShape(6.dp)
-private val EmptyTile = Color(0xFF1E2230)
-private val TileBorder = Color(0xFF3A4152)
-private val SelectionRing = Color(0xFFF2C14E)
 private val SelectionRingWidth = 2.dp
 private val ElementFontSize = 9.sp
 private val HandGap = 3.dp

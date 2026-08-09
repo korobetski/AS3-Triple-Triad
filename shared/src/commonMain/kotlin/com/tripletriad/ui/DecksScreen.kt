@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -78,37 +79,34 @@ fun deckPickTestTag(cardId: Int): String = "deck-pick-$cardId"
  * edit; the original saved on Save too, but *also* saved from its Reset handler, which is where its
  * one real defect lives — see [GameSave.clearingDeck].
  *
+ * @param editing which slot is open in the editor, or null for the list of five. **Hoisted**, not
+ *   held here: back has to leave the editor before it leaves the screen, and the back button now
+ *   belongs to the screen this is a tab of. See [CollectionScreen].
  * @param onPersist writes the profile. Goes through [ProfileSession], so the copy on screen stays
  *   the copy on disk — see there.
  */
 @Composable
-internal fun DecksScreen(
+internal fun ColumnScope.DecksBody(
     profile: GameSave,
     catalog: CardCatalog,
+    editing: Int?,
+    onEdit: (Int?) -> Unit,
     onPersist: suspend (GameSave) -> Unit,
-    onBack: () -> Unit,
 ) {
-    val strings = LocalStrings.current
-    var editing by remember { mutableStateOf<Int?>(null) }
     val cards = remember(catalog, profile.mode) {
         catalog.collection(profile.mode.prefix).associateBy { it.id }
     }
 
-    CharacterScaffold(profile = profile, title = strings[StringKeys.CARD_DECKS], onBack = {
-        if (editing == null) onBack() else editing = null
-    }) {
-        val slot = editing
-        if (slot == null) {
-            DeckSlots(profile = profile, cards = cards, onEdit = { editing = it })
-        } else {
-            DeckEditor(
-                profile = profile,
-                slot = slot,
-                cards = cards,
-                onPersist = onPersist,
-                onDone = { editing = null },
-            )
-        }
+    if (editing == null) {
+        DeckSlots(profile = profile, cards = cards, onEdit = { onEdit(it) })
+    } else {
+        DeckEditor(
+            profile = profile,
+            slot = editing,
+            cards = cards,
+            onPersist = onPersist,
+            onDone = { onEdit(null) },
+        )
     }
 }
 
@@ -261,7 +259,7 @@ private fun DeckEditor(
         }
 
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = DeckCardWidth + 4.dp),
+            columns = GridCells.Adaptive(minSize = DeckThumbSize + 4.dp),
             modifier = Modifier
                 .testTag(DECK_PICK_GRID_TEST_TAG)
                 .fillMaxWidth()
@@ -277,7 +275,7 @@ private fun DeckEditor(
                         .clickable(enabled = !draft.isComplete) { draft = draft.plusCard(card.id) }
                         .padding(1.dp),
                 ) {
-                    CardFace(card = card, scale = DECK_CARD_SCALE)
+                    CardThumb(card = card, size = DeckThumbSize)
                 }
             }
         }
@@ -288,19 +286,16 @@ private fun DeckEditor(
  * One position in a deck: a card, or the empty frame.
  *
  * `CardThumb(0)` with `enabled = false` in the original, which draws the `voidCardThumb` texture.
- * There is no such texture in the imported art — it is in the thumbnail atlases (see
- * [CardListScreen]) — so an empty position is an outlined box of the same size.
+ * There is no such texture in the imported atlases, so an empty position is an outlined box of the
+ * same size — which is the whole point of drawing five of these in a row: a deck that is short a
+ * card should look short a card.
  */
 @Composable
 internal fun DeckPosition(card: Card?) {
     if (card == null) {
-        Box(
-            modifier = Modifier
-                .size(DeckCardWidth, CardSpriteHeight * DECK_CARD_SCALE)
-                .rowSurface(),
-        )
+        Box(modifier = Modifier.size(DeckThumbSize).rowSurface())
     } else {
-        CardFace(card = card, scale = DECK_CARD_SCALE)
+        CardThumb(card = card, size = DeckThumbSize)
     }
 }
 
@@ -332,6 +327,10 @@ internal fun deckPower(deck: Deck, cards: Map<Int, Card>): Int =
 /** Long enough for any deck name that will lay out in a row; the original's field had no limit. */
 private const val MAX_DECK_NAME = 24
 
-/** Five of these plus a label have to fit the width of a phone. */
-internal const val DECK_CARD_SCALE = 0.42f
-internal val DeckCardWidth = CardSpriteWidth * DECK_CARD_SCALE
+/**
+ * Five of these plus a label have to fit the width of a phone.
+ *
+ * A little over the artwork's own 40 — these are shown next to a deck's name and power, and at 1:1
+ * on a 3x display they sit lower than the text they belong to.
+ */
+internal val DeckThumbSize = 44.dp

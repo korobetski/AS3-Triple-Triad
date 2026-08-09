@@ -120,6 +120,9 @@ private fun RungRow(step: Int, entry: CampaignStep) {
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
         )
+        // The Card Club's seven rungs are the ones with no portrait in the asset tree, so this is
+        // also where the monogram fallback earns its keep — see `NpcPortrait`.
+        NpcPortrait(npc = npc, name = strings[npc.nameKey], size = 36.dp)
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),

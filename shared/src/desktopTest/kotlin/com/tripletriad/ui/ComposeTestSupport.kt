@@ -148,13 +148,28 @@ internal fun ComposeUiTest.openOpponents() {
 }
 
 /**
- * Opens one of the dashboard's own screens and waits for something on it.
+ * Opens one of the dashboard's own cards and waits for something on the screen behind it.
  *
- * @param entry the dashboard button's tag, @param landmark a tag only the screen behind it has.
+ * Four things: the decks, the bag, the record and the rules. The collection and the shelf are
+ * **not** among them — they are navigation-bar destinations now, and [openFromBar] is how a test
+ * reaches one. See `DashboardScreen` for why the home screen stopped listing them.
+ *
+ * @param entry the dashboard card's tag, @param landmark a tag only the screen behind it has.
  */
 @OptIn(ExperimentalTestApi::class)
 internal fun ComposeUiTest.openFromDashboard(entry: String, landmark: String) {
     onNodeWithTag(entry).performClick()
+    waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(landmark) }
+}
+
+/**
+ * Taps a navigation-bar entry and waits for something on the screen it leads to.
+ *
+ * @param tab the lower-cased [Tab] name — `home`, `play`, `cards`, `store`.
+ */
+@OptIn(ExperimentalTestApi::class)
+internal fun ComposeUiTest.openFromBar(tab: String, landmark: String) {
+    onNodeWithTag(navTestTag(tab)).performClick()
     waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(landmark) }
 }
 

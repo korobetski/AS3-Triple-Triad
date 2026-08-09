@@ -11,7 +11,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.GameSave
 import com.tripletriad.net.AccountClient
@@ -203,6 +203,36 @@ class AccountUiTest {
 
         waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(ACCOUNT_ERROR_TEST_TAG) }
         check(exists(ACCOUNT_SCREEN_TEST_TAG)) { "a refused sign-in left the form" }
+    }
+
+    /**
+     * The refusal is a sentence in the player's language, not a key and not English.
+     *
+     * This screen's strings were hard-coded English until the sign-in form was the only part of the
+     * app that could not be read in French. `INVALID_CREDENTIALS` is asserted specifically because
+     * it is the refusal a real player meets — a typed password — and because its wording comes from
+     * a bundle now rather than from a `when` branch.
+     */
+    @Test
+    fun aRefusalIsWordedInThePlayersLanguage() = runComposeUiTest {
+        val refusing = MockEngine {
+            respondJson(
+                HttpStatusCode.Unauthorized,
+                """{"error":"INVALID_CREDENTIALS","detail":"no"}""",
+            )
+        }
+        setContent {
+            App(store = settingsFor(AppLocale.FR_FR), server = connection(engine = refusing))
+        }
+
+        openForm()
+        submitCredentials()
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(ACCOUNT_ERROR_TEST_TAG) }
+        assertVisible(
+            "Ce nom et ce mot de passe ne correspondent à aucun compte.",
+            "the refusal should be in French",
+        )
     }
 
     /**

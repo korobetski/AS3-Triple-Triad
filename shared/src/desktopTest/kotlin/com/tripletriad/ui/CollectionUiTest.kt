@@ -7,7 +7,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.i18n.AppLocale
 import com.tripletriad.model.CardCollection
 import com.tripletriad.model.GameSave
@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
 class CollectionUiTest {
     private fun ComposeUiTest.openCards(collection: CardCollection = CardCollection.FF14) {
         newCharacter(collection)
-        openFromDashboard(DASHBOARD_CARDS_TEST_TAG, CARD_GRID_TEST_TAG)
+        openFromBar("cards", CARD_GRID_TEST_TAG)
     }
 
     /** Counted over the table, so an id outside it cannot push the total past the table's size. */

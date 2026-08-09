@@ -3,7 +3,7 @@ package com.tripletriad.ui
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.model.Card
 import kotlinx.coroutines.runBlocking

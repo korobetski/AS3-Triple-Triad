@@ -19,5 +19,5 @@
     server list: `Local=http://127.0.0.1:8080, Staging=https://staging.example.org`.
 -->
 <resources>
-    <string name="servers" translatable="false">Local=http://127.0.0.1:8080</string>
+    <string name="servers" translatable="false">Local=http://127.0.0.1:8080, Emul=http://10.0.2.21:8080</string>
 </resources>

@@ -4,10 +4,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -51,51 +54,43 @@ fun cardCellTestTag(cardId: Int): String = "card-cell-$cardId"
  * of `CARDS`), and it is the point of the screen: a collection browser that showed only what you
  * have would not tell you what there is to get.
  *
- * ### Two visual departures
+ * ### One visual departure
  *
- * - **Cards are drawn at a small [CardFace], not from a thumbnail atlas.** `CardThumb` reads
- *   `ff14_thumb_N` out of the `card_thumbs` atlases — three sprite sheets totalling 8.3 MB that
- *   duplicate artwork already imported at full size. Slicing them would cost an importer, a parser
- *   and the download; scaling the real card costs a multiply, and it shows the **sides and the
- *   rarity** too — which is what a browser is for. See [CardFace] for why the geometry is
- *   multiplied rather than the layer scaled.
- * - **Unowned cards are dimmed, not desaturated.** `CardThumb.enabled = false` applies a Starling
- *   `ColorMatrixFilter` at −1 saturation, with a `TODO : make a grey card thumbs atlas` next to it.
- *   Compose Multiplatform has no portable colour-matrix filter for a multi-layer composable —
- *   `RenderEffect` is platform-specific — so alpha carries the same one bit of information.
+ * The grid draws the original's thumbnails, sliced out of the three `card_thumbs` atlases — see
+ * [UiArt] for why those stayed packed when the card faces were unpacked. What differs is how a card
+ * you do not own is marked: **dimmed, not desaturated.**
+ *
+ * `CardThumb.enabled = false` applies a Starling `ColorMatrixFilter` at −1 saturation, with a
+ * `TODO : make a grey card thumbs atlas` next to it. Compose Multiplatform has no portable
+ * colour-matrix filter — `RenderEffect` is platform-specific — so alpha carries the same one bit of
+ * information.
  *
  * @param catalog both card tables. Only the profile's own is read: card ids index whichever table
  *   `MODE` names, so showing the other collection's card for an id would be showing a different
  *   card.
  */
 @Composable
-internal fun CardListScreen(profile: GameSave, catalog: CardCatalog, onBack: () -> Unit) {
+internal fun ColumnScope.CardListBody(profile: GameSave, catalog: CardCatalog) {
     val strings = LocalStrings.current
     val cards = remember(catalog, profile.mode) { catalog.collection(profile.mode.prefix) }
     val owned = remember(profile.cards) { profile.cards.toSet() }
     var selected by remember(profile.mode) { mutableStateOf<Card?>(null) }
 
-    CharacterScaffold(profile = profile, title = strings[StringKeys.CARD_LIST], onBack = onBack) {
-        Text(
-            // Counted over the *table* and not over `CARDS`, so an id the profile holds that names
-            // no card in its own collection cannot push the total past the collection's size.
-            text = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
-                "${cards.count { it.id in owned }} / ${cards.size}",
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG).padding(bottom = 8.dp),
-        )
+    Text(
+        // Counted over the *table* and not over `CARDS`, so an id the profile holds that names
+        // no card in its own collection cannot push the total past the collection's size.
+        text = "${strings[StringKeys.OWNED]}$DOT_SEPARATOR" +
+            "${cards.count { it.id in owned }} / ${cards.size}",
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = SUBDUED),
+        style = MaterialTheme.typography.labelMedium,
+        maxLines = 1,
+        modifier = Modifier.testTag(CARD_TOTAL_TEST_TAG).padding(bottom = 8.dp),
+    )
 
-        CardDetail(selected)
-
+    val grid: @Composable (Modifier) -> Unit = { modifier ->
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = ThumbWidth + 4.dp),
-            modifier = Modifier
-                .testTag(CARD_GRID_TEST_TAG)
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(top = 10.dp),
+            modifier = modifier.testTag(CARD_GRID_TEST_TAG),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -109,6 +104,24 @@ internal fun CardListScreen(profile: GameSave, catalog: CardCatalog, onBack: () 
             }
         }
     }
+
+    if (LocalWideLayout.current) {
+        // The grid and the card side by side — `card_list.jpg`'s own arrangement, which the
+        // original could take for granted on a 1024-wide stage. The detail is fixed-width and the
+        // grid takes the rest, so widening the window adds columns rather than stretching a card.
+        Row(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            grid(Modifier.weight(1f).fillMaxHeight())
+            CardDetail(selected, Modifier.width(DetailPaneWidth).fillMaxHeight())
+        }
+    } else {
+        // Above the grid rather than beside it, and a fixed height whether or not anything is
+        // selected, so the grid does not jump under the finger that just tapped it.
+        CardDetail(selected)
+        grid(Modifier.fillMaxWidth().weight(1f).padding(top = 10.dp))
+    }
 }
 
 @Composable
@@ -121,12 +134,16 @@ private fun CardCell(card: Card, isOwned: Boolean, isSelected: Boolean, onClick:
             .padding(1.dp),
         contentAlignment = Alignment.Center,
     ) {
-        // Every card is tappable, owned or not: the original made unowned thumbs untouchable, which
-        // meant the description of a card you were hunting for was the one thing you could not
-        // read.
-        CardFace(
+        // Every card is tappable, owned or not: the original made unowned thumbs untouchable,
+        // which meant the description of a card you were hunting for was the one thing you could
+        // not read.
+        //
+        // The thumbnail and not a shrunk card face. A 104x128 face scaled to a third is a face
+        // with unreadable digits on it; the thumbnail is art drawn for this size, and 263 of them
+        // are three decoded sheets rather than 263 decoded images — see `UiArt`.
+        CardThumb(
             card = card,
-            scale = THUMB_SCALE,
+            size = ThumbWidth,
             modifier = if (isOwned) Modifier else Modifier.alpha(UNOWNED_ALPHA),
         )
     }
@@ -135,15 +152,19 @@ private fun CardCell(card: Card, isOwned: Boolean, isSelected: Boolean, onClick:
 /**
  * The selected card at full size, with what the original's right-hand panel showed.
  *
- * A fixed height whether or not anything is selected, so the grid does not jump under the finger
- * that just tapped it.
+ * @param modifier its own footprint, which differs by layout: a fixed-height band above the grid on
+ *   a phone — fixed so the grid does not jump under the finger that just tapped it — and a
+ *   fixed-width column beside it on a window wide enough for both.
  */
 @Composable
-private fun CardDetail(card: Card?) {
+private fun CardDetail(
+    card: Card?,
+    modifier: Modifier = Modifier.fillMaxWidth().height(DetailHeight),
+) {
     val strings = LocalStrings.current
 
     Box(
-        modifier = Modifier.fillMaxWidth().height(DetailHeight).rowSurface().padding(8.dp),
+        modifier = modifier.rowSurface().padding(8.dp),
         contentAlignment = if (card == null) Alignment.Center else Alignment.TopStart,
     ) {
         if (card == null) {
@@ -210,5 +231,8 @@ private val ThumbWidth = CardSpriteWidth * THUMB_SCALE
 private const val DETAIL_SCALE = 0.66f
 private val DetailHeight = CardSpriteHeight * DETAIL_SCALE + 20.dp
 
-/** `adjustSaturation(-1)` in the original; alpha here. See [CardListScreen]. */
+/** Wide enough for the card and its facts side by side, and no wider — the grid wants the rest. */
+private val DetailPaneWidth = 260.dp
+
+/** `adjustSaturation(-1)` in the original; alpha here. See [CardListBody]. */
 private const val UNOWNED_ALPHA = 0.28f

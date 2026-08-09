@@ -8,7 +8,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.Inventory
 import com.tripletriad.data.ShopCatalog
 import com.tripletriad.i18n.AppLocale
@@ -39,7 +39,7 @@ class ShopUiTest {
 
     private fun ComposeUiTest.openShop(documents: com.tripletriad.storage.InMemoryDocumentStore) {
         loadCharacter(documents)
-        openFromDashboard(DASHBOARD_SHOP_TEST_TAG, SHOP_LIST_TEST_TAG)
+        openFromBar("store", SHOP_LIST_TEST_TAG)
     }
 
     /** A fresh character has exactly enough for one 50 MGP potion, twice over. */
@@ -99,6 +99,30 @@ class ShopUiTest {
         waitForIdle()
 
         onNodeWithTag(SHOP_BUY_TEST_TAG).assertIsEnabled()
+    }
+
+    /**
+     * A purchase says what was bought.
+     *
+     * The gap this closes is the original's: `buyBtn_triggeredHandler` deducted the price, pushed
+     * the item and returned, so a 50 MGP potion and a 30 000 MGP card looked identical from the
+     * player's side — a number in the corner changed. Asserted through the snackbar's tag rather
+     * than its wording, which names a catalogue entry and is `ShopCatalogTest`'s business.
+     *
+     * `waitUntil` and not `waitForIdle`: the note is transient by design, and a wait that ran the
+     * clock to quiescence would advance past its four seconds and find nothing.
+     */
+    @Test
+    fun buyingSaysWhatWasBought() = runComposeUiTest {
+        val documents = seeded(profile(mgp = GameSave.STARTING_MGP))
+        setContent { App(store = settingsFor(AppLocale.EN_US), documents = documents) }
+        openShop(documents)
+
+        val potion = ShopCatalog.ff14.first { it.item == PotionItem(PotionType.MGP) }
+        onNodeWithTag(shopOfferTestTag(potion)).performClick()
+        onNodeWithTag(SHOP_BUY_TEST_TAG).performClick()
+
+        waitUntil(timeoutMillis = UI_TIMEOUT_MS) { exists(SHOP_NOTE_TEST_TAG) }
     }
 
     /** Two of the same offer stack into one row rather than becoming two — the AS3 `push`ed. */

@@ -5,13 +5,13 @@
 
 - **Phase**: 4 - UI Layer
 - **Duration**: 8 weeks (Weeks 13-20)
-- **Status**: IN PROGRESS — 2026-08-08. The playable loop, all of Tier 3, the deck selector, the
+- **Status**: IN PROGRESS — 2026-08-09. The playable loop, all of Tier 3, the deck selector, the
   theme system, drag-and-drop, the turn timer, the tutorial and both tournament ladders are done:
   **28 of the 32 screens**. Of the four left, **two are blocked on Phase 5** (`PVPScreen`,
   `PVPMatchScreen` — the only two that touch a socket) and two will not be ported. See § What was
   built.
-- **Version**: 1.4
-- **Last Updated**: 2026-08-08
+- **Version**: 1.7
+- **Last Updated**: 2026-08-09
 - **Prerequisites**: Phases 1-3
 
 ---
@@ -824,6 +824,277 @@ Done 2026-08-06, tapping kept alongside it as the task asks. `DragAndDropTest` c
 #### Task 4.8: UI Animations
 
 ---
+
+---
+
+## The interface artwork (2026-08-08)
+
+The screens around a match were drawn entirely in text and coloured surfaces. Everything the AS3
+put a picture on — the profile's avatar, the opponent's face, an item's icon, a card's thumbnail —
+was in the asset tree and nothing read it. This is that plumbing; it is not the Material 3 pass,
+which is layout and is still ahead.
+
+### What was imported, and the one place the reasoning inverts
+
+`tools/import_ui_art.py`, the companion to `import_card_art.py`:
+
+| Folder | Count | Form |
+|---|---|---|
+| `art/avatars/` | 27 | individual 128x128 files |
+| `art/npcs/` | 84 | individual 50x50 files, named by `iconId` |
+| `art/icons/` | 17 | individual 40x40 files |
+| `art/thumbs/` | 263 frames | **three atlases** plus `thumbs.json` |
+
+`import_card_art.py` argues for unpacking atlases, and is right for card faces: a match shows
+nineteen cards out of 263, so a resident sheet pays 8 MB of bitmap for 1 MB of use. Thumbnails
+invert every term of it — the collection browser is a grid of *the whole table*, so there is no
+subset to load lazily, and `BitmapPainter` takes a source rectangle, so a slice costs no bitmap of
+its own. The frame table is emitted as JSON rather than left in the three TexturePacker XMLs, so
+the app parses one small document with the reader it already has.
+
+### Nothing here invents an identifier
+
+An avatar is `GameSave.avatarId`, a portrait is `Npc.iconId`, an icon is `Item.iconId` or
+`Achievement.iconId`, a thumbnail is the card's own texture id. Every one of those was in the model
+before there was an image to go with it, which is why `UiArt` is a set of lookups and not a mapping
+table.
+
+One exception, and it is reconciled in exactly one place: `ac-fob` names `ff14_thumb_37`, which is
+the frame the atlas calls `ff14_37`. `AchievementIcon` resolves both spellings.
+
+### A missing image is a normal state
+
+Eleven opponents — the Card Club's rungs and the card suits — have no 50px portrait anywhere in the
+asset tree, and `PotionItem.as` names a texture that was never shipped. So the fallback is not an
+error path: `AvatarBadge` and `NpcPortrait` draw the subject's initial on a tinted plate, `ItemIcon`
+keeps its plate empty, and the row stays the same height either way.
+
+Both gaps are **enumerated on both sides**. The importer lists them and exits 0; `UiArtTest`
+asserts the same eleven as an exact set, so a twelfth fails and an eleventh that turns up also
+fails — a gap that is expected should not silence the check.
+
+### Where it landed
+
+| Screen | Before | Now |
+|---|---|---|
+| Record | level bar alone | `AvatarBadge` beside it; a badge on every achievement row |
+| Collection | card face at 0.33 | the card's own thumbnail |
+| Opponents | name only | `NpcPortrait` leading the row |
+| Campaign | step number | portrait after the number |
+| Bag | card face at 0.3 | thumbnail, or the item's icon |
+| Shop | card face, nothing for a booster | thumbnail, or the item's icon |
+| Decks, deck selector | card face at 0.42 | thumbnail, empty slots the same size |
+
+The deck screens are the one place this is also *more faithful*: `DecksScreen.as` drew `CardThumb`
+there, and the port had been scaling a full face down to a size its digits could not survive.
+
+Covered by `UiArtTest` (bundle completeness, no composition) and `ArtworkUiTest` (the artwork
+reaches the screens, and the monogram is drawn when it cannot).
+
+## The Material 3 shell and adaptive navigation (2026-08-09)
+
+Three proposals were drawn up first — habiller l'arbre, quatre destinations, adaptatif — and the
+third was chosen, which is the first two plus a width threshold. Built in that order, each step
+green before the next.
+
+### A — the shell
+
+- **`ScreenScaffold` is a real `Scaffold`.** The header was two `Text`s in a `Row`; the back
+  chevron was a 20 sp glyph with 4 dp of padding, so about 28 dp of tappable width against
+  Material's 48. It is now a `TopAppBar` with an `IconButton`, an `actions` slot and a
+  `snackbarHost`. The bar is held to the content's own width and centred rather than spanning the
+  window: a full-bleed bar would strand the title a hand's width from its own list on a desktop.
+- **`CharacterBar` became `CharacterActions`** and moved into the app bar's corner, which is where
+  `display/UserBar.as` had it. The purse is drawn with `icons/PGS.png` rather than the letters MGP.
+  `CHARACTER_BAR_TEST_TAG` is unchanged, so every test that asked "is this a screen behind the
+  dashboard" still asks it.
+- **Nine buttons became a grid of cards.** Nine identical full-width bars said that nine things
+  were equally likely; Play spans the grid, the rest are cards with a glyph, and the header is the
+  profile — `LevelBar`, which the record screen already had and which now has a second caller.
+- **A snackbar for the shop.** The original's purchase handler deducted, pushed and returned, so a
+  50 MGP potion and a 30 000 MGP card looked identical from the player's side. `NoteHost` is a
+  `SnackbarHostState` with its tag attached, and it replaces rather than queues.
+- **Nine glyphs, drawn here.** `TtoIcons` — `material-icons-extended` is ~1 200 vectors in one
+  artifact and nothing strips it from a desktop jar or an iOS framework. `Play` and `Collection`
+  are drawn as *cards*, which is the one shape this game has and Material's set does not.
+
+### B — four destinations
+
+`Screen` still has nineteen entries; what changed is that four of them are two screens.
+
+| Was | Is |
+| --- | --- |
+| `CARDS`, `DECKS` | `CollectionScreen`, two tabs |
+| `SHOP`, `INVENTORY` | `StoreScreen`, two tabs |
+
+Both pairs are the two ends of one activity — a deck is built out of the collection, a pack is
+bought on one tab and opened on the other — and `DecksScreen.as` proves it by growing its own
+owned-card pager. The merge is also what makes four bar entries possible without hiding anything.
+
+**The cost I predicted did not materialise.** The proposal said `Screen.up` would have to become a
+back stack, because with tabs "up" stops being a property of a screen. It does not here: every tab
+root already had `DASHBOARD` as its `up`, since the dashboard was the parent of all eight. Back
+from any tab lands on Home, which is exactly what Material prescribes for a bar
+(`popUpTo(startDestination)`). `ComposeTestSupport.openFromDashboard` survived unchanged; what it
+gained is a sibling, `openFromBar`.
+
+The bar reaches the tree through `LocalNavigation` rather than two more parameters on eleven
+screens — the trade `LocalUiArt` already makes. `Screen.tab` answers null on the three match
+screens, so no bar is drawn over a board and none of them has to know a bar exists.
+
+The home screen no longer lists the collection or the shelf: the bar reaches both in one tap. It
+keeps the decks and the bag, which are a tab *inside* a bar destination, and it keeps Play, which
+is the one repetition worth having.
+
+### C — the 600 dp threshold
+
+`BoxWithConstraints` in `App`, measured once off the whole window and published as
+`LocalWideLayout`. Above it: `NavigationRail` instead of `NavigationBar`, and the collection lays
+its grid and its card detail side by side — `card_list.jpg`'s own arrangement, which the original
+could take for granted on a 1024-wide stage.
+
+`material3-adaptive` was **not** taken as a dependency. `NavigationSuiteScaffold` and
+`ListDetailPaneScaffold` are separate artifacts whose Compose Multiplatform publication would have
+to be checked target by target, and what they would replace is one comparison and one `if`. Worth
+revisiting the day there is a third pane or a real back stack.
+
+Only the screens that lay out two panes get the wider column (`WideContentMaxWidth`, 920 dp). A
+list does not become more readable at 920 dp; it becomes a row of text with a gap in the middle.
+
+### Two new strings
+
+`APP_CARDS` and `APP_HOME`, both `APP_`-owned for the same reason: the original had no tabbed cards
+screen and no navigation bar, so neither name exists in the four imported bundles. English and
+French only, falling through for German and Japanese like the other 41 — `StringsBundleTest` is
+what says so.
+
+### Covered by
+
+`TabsUiTest` (the merges, and that back leaves the deck editor before the screen), `AdaptiveUiTest`
+(bar below the threshold, rail above it, and the collection's two panes asserted on **geometry** —
+both are on screen either way, which is why a presence check would have passed before the layout
+existed), plus two new cases in `NavigationTest` for the bar's four entries and for its absence on
+the menu and during a match.
+
+## The lobby and the board (2026-08-09)
+
+The two screens the Material 3 shell had not reached. Six changes, proposed as an artifact and
+implemented in the order they unblock each other.
+
+### B1 — the board's colours joined the theme
+
+`MatchBoard.kt` held `EmptyTile`, `TileBorder` and `SelectionRing` as private top-level `Color`s,
+and `MatchScreen.kt` held a fourth — `RuleStripText` — that was the *same value* as `SelectionRing`
+written out twice. They are now `TtoColors.boardTile`, `boardTileOutline` and `selectionRing`. The
+board was the one screen that could never follow a theme change, and it is the screen with the most
+time spent on it.
+
+### B2 — a real match banner
+
+The back control was a `Text("‹")`: a 20 dp touch target where every other screen has a 48 dp
+`IconButton`, and the reason recorded for it was width, which an icon does not cost either. It is
+now `TtoIcons.Back`, and the opponent's 50 px portrait — already loaded for the opponent list —
+sits beside their name. The board named an opponent and pictured nobody.
+
+### B4 — the rules open
+
+`RulesStrip` was one line of dot-separated names that elided past two rules. It is one small
+`Surface` per rule in a `FlowRow`, and **tapping the strip opens the `RULE_*_HELP` sentence for
+each**. Those sentences have been in the bundles since the import and nothing had ever shown one
+during a match; naming Fallen Ace and explaining it are different services. Closed is the default,
+and closed costs what the old line cost.
+
+Not `AssistChip`: a chip is a control with a ripple and a 32 dp minimum, and six of them above a
+board would cost the phone layout more than the rules are worth.
+
+### B5 — the cells that could take the card
+
+While a card is held — tapped *or* dragged — every free cell outlines at 38 % of the selection
+ring. "Where can this go" answered before the attempt rather than by it, which matters most on a
+phone where the finger covers the cell it is aiming at.
+
+### B6 — the outcome panel, **not** as an `AlertDialog`
+
+This was the plan and it was wrong. `AlertDialog` opens in a popup above everything in the
+composition, and three things are deliberately drawn after the panel and over it —
+`MatchBannerOverlay`, `LessonBubbles` and `OutcomeBubble`, the last of which the AS3 puts on screen
+*at the same time as* the panel (`endGame` adds the `TalkAnim`, then schedules `rematch` behind
+`intervalDuration`). A dialog would have put the opponent's parting line behind a scrim.
+
+So the panel kept its place in the tree and took what the dialog was wanted for: the theme's `scrim`
+behind it instead of a live board, a `Surface` at 6 dp instead of a hand-mixed `0xFF11141C`, and the
+two actions in Material's own order — leave quiet and first, play again filled and second. That
+needed a `filled` parameter on `WideButton`, which is the first time this app has had a quiet
+button.
+
+### B3 — a side panel above 600 dp
+
+`matchLayout` has always adapted the *scale*: it is handed measured bounds and derives one factor
+everything fits inside, so a desktop window already produced a bigger board. What it could not
+produce was a different **arrangement**, and past a certain width bigger stops being better. Above
+the threshold the board keeps a weighted column and a 200 dp panel takes the rest: the opponent's
+portrait and name, the rule strip, and a move log.
+
+The log is the one thing on that panel that exists nowhere else, and it is read off
+`MatchState.lastPlay` rather than off the transcript `MatchScreen` keeps. That is the whole reason
+it was affordable: `moves` records what the *screen* played — the opponent's turns go through
+`MatchAi` and never touch it — whereas every state the match passes through carries the play that
+produced it, whichever side made it.
+
+`MatchScreen.kt` hit both of detekt's ceilings on the way (twenty functions in a file, cyclomatic
+complexity 15), so the chrome moved to `MatchChrome.kt` along a seam that was already there: nothing
+in that file reads a `MatchState` or can affect one.
+
+### L1 + L2 — the menu, and the account the app remembers
+
+`MainMenuScreen` was the last pre-M3 screen: a logo over five stacked `WideButton`s. It is now the
+dashboard's own `HomeCard` grid — Play accented and full width, four cards below.
+
+It does **not** take `ScreenScaffold`, and that is deliberate: the menu is the root, so there is no
+up to draw, and its title is the wordmark. A `TopAppBar` here would be an empty bar with a back
+arrow that quit the game.
+
+Above the grid, when the app remembers a name, a **resume card**. This is the visible half of a
+feature that has worked silently since sessions landed: `AccountSession.restore()` loads the stored
+token on launch, calls `accounts.me`, and the form is simply never shown — which from the outside is
+indistinguishable from the form being broken. Three states, read off the session rather than stored:
+signed in, still asking, and lapsed. The lapsed card offers a sign-in rather than a continue,
+because the app stores no password and has nothing to try.
+
+`onSwitch` navigates **before** signing out. Signing out clears `lastUsername`, which removes the
+card, and a player who tapped it and watched the menu quietly rearrange itself would not know
+whether anything had happened.
+
+### L3 + L4 — the sign-in form, in the player's language
+
+`AccountScreen` was the only screen in the app still written in hard-coded English — "Sign in",
+"Password", "New here? Create an account" — and `AccountResult.message()` was six more English
+sentences in a `when`. Thirteen new `APP_*` keys, English and French, falling through for German and
+Japanese like the other 49.
+
+One message is still not translated and cannot be: `MALFORMED_CREDENTIALS` shows `failure.detail`,
+a sentence the **server** wrote, because it is the only refusal whose reason the client cannot know.
+It arrives in the server's locale, which the protocol would have to grow a key to fix.
+
+L4 is two smaller things: a `LinearProgressIndicator` under the title while `isBusy` — always laid
+out, so the form does not shift when a request starts — and the refusal moved from a `Text` wedged
+between the password field and the button (which pushed the button down as the player read it) to a
+`Snackbar` through the same `NoteHost` the shop uses.
+
+### Covered by
+
+Three new cases in `MatchUiTest` (the strip opening and closing, the help sentence being the
+bundle's, the opponent's portrait on the board), three in `AdaptiveUiTest` (the panel present above
+the threshold and absent below it, and the log recording **both** sides — a log that silently
+omitted the opponent's moves would look like a working log), a new `ResumeCardTest` with five cases
+driven against `MainMenuScreen` directly, and a new `AccountUiTest` case asserting a refusal is
+worded in French.
+
+`ResumeCardTest` does not go through `App`: a `RememberedAccount` needs a server and the full-app
+tests deliberately run on an offline build, so there is no way to reach a lapsed session through the
+real launch path without standing up a host that refuses a token. What the card *does* with each
+state is the part with decisions in it, and it is all there.
+
 
 ## 📞 Related Documents
 

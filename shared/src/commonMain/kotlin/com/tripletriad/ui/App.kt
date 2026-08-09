@@ -1,7 +1,7 @@
 package com.tripletriad.ui
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
@@ -130,9 +130,20 @@ fun App(
 
             // Android's system back gesture, which would otherwise finish the activity mid-match
             // — the app would appear to quit from the middle of a game. `BackHandler` is
-            // multiplatform in Compose 1.9 (`androidx.compose.ui.backhandler`), so this needs no
-            // Android-only source set; on desktop it simply never fires. Disabled on the menu so
-            // back there still leaves the app, which is what a main menu should do.
+            // multiplatform (`androidx.compose.ui.backhandler`), so this needs no Android-only
+            // source set; on desktop it simply never fires. Disabled on the menu so back there
+            // still leaves the app, which is what a main menu should do.
+            //
+            // **Deprecated at Compose 1.11 for `NavigationEventHandler`, and kept anyway.** The
+            // replacement is not a drop-in: it lives in a dependency this project does not have
+            // (`androidx.navigationevent:navigationevent-compose`), it takes a
+            // `NavigationEventState` from `rememberNavigationEventState` rather than a boolean, and
+            // it `checkNotNull`s a `LocalNavigationEventDispatcherOwner` that something above it
+            // has to provide. That is a navigation framework, and this app's whole navigation is
+            // `Screen.up` and a `when` — see `Screen`. Adopting one to satisfy a deprecation would
+            // be the tail wagging the dog. Revisit if a real navigation need appears, or when the
+            // old API is removed rather than deprecated.
+            @Suppress("DEPRECATION")
             BackHandler(enabled = screen != screen.up) {
                 screen = screen.up
             }
@@ -145,26 +156,44 @@ fun App(
                 if (playing) audio.play(Sound.MATCH_MUSIC) else audio.stopMusic()
             }
 
-            CompositionLocalProvider(LocalStrings provides strings, LocalAudio provides audio) {
+            // `LocalUiArt` is provided for the whole tree rather than per screen, unlike
+            // `LocalCardArt`: avatars, portraits, thumbnails and bag icons are wanted on nearly
+            // every screen behind the dashboard, and threading it through each would be the
+            // parameter list this composition local exists to avoid.
+            CompositionLocalProvider(
+                LocalStrings provides strings,
+                LocalAudio provides audio,
+                LocalUiArt provides startup.ui,
+            ) {
                 // Only a hairline of padding: the board and ten cards want every dp there is.
-                Box(modifier = Modifier.fillMaxSize().padding(4.dp)) {
+                //
+                // `BoxWithConstraints` so the whole tree knows whether it has a phone's width or a
+                // window's — measured once, here, rather than per screen: the rail and the panes
+                // have to agree, and a screen measuring itself would answer differently depending
+                // on what is padding it. See [LocalWideLayout] for why this is a comparison rather
+                // than a dependency on `material3-adaptive`.
+                BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(4.dp)) {
+                    val isWide = maxWidth >= WideLayoutThreshold
+
                     // Crossfade so the splash does not snap to the menu. 220 ms is short enough
                     // not to feel like a wait and long enough to read as a transition.
                     Crossfade(targetState = screen, label = "screen") { destination ->
-                        Destination(
-                            destination = destination,
-                            startup = startup,
-                            settings = settings,
-                            session = session,
-                            account = account,
-                            connectivity = connectivity,
-                            gate = gate,
-                            choice = choice,
-                            clock = clock,
-                            reporter = reporter,
-                            onNavigate = { screen = it },
-                            onQuit = onQuit,
-                        )
+                        CompositionLocalProvider(LocalWideLayout provides isWide) {
+                            Destination(
+                                destination = destination,
+                                startup = startup,
+                                settings = settings,
+                                session = session,
+                                account = account,
+                                connectivity = connectivity,
+                                gate = gate,
+                                choice = choice,
+                                clock = clock,
+                                reporter = reporter,
+                                onNavigate = { screen = it },
+                                onQuit = onQuit,
+                            )
+                        }
                     }
                 }
             }
@@ -231,6 +260,52 @@ private fun rememberGate(session: ProfileSession, account: AccountSession?): Pro
     if (account != null) rememberAccountGate(account) else rememberLocalGate(session)
 
 /**
+ * The account the menu should offer to resume, or null when there is nothing to offer.
+ *
+ * Null on an offline build — no account, nothing to remember — and null once the app has looked and
+ * found no name. [AccountSession.lastUsername] is the whole test: it is written by a successful
+ * sign-in, survives the token expiring, and is cleared by signing out. So the card appears exactly
+ * when the app knows who the player is, whether or not it can still prove it.
+ *
+ * The three states are read from the session rather than stored: [AccountSession.player] is set
+ * when a token was accepted, [AccountSession.isBusy] is true while the round trip is out, and what
+ * is left is a name with no usable token.
+ *
+ * `onSwitch` navigates *before* signing out, deliberately. Signing out clears `lastUsername`, which
+ * removes this card — and a player who tapped it and watched the menu quietly rearrange itself
+ * would have no idea whether anything happened.
+ */
+@Composable
+private fun rememberedAccount(
+    account: AccountSession?,
+    onNavigate: (Screen) -> Unit,
+): RememberedAccount? {
+    // Before the early return, so the scope is remembered in the same slot whether or not there is
+    // an account to remember — and so this reads as one exit rather than two.
+    val scope = rememberCoroutineScope()
+    val username = account?.lastUsername ?: return null
+    val state = when {
+        account.player != null -> SessionState.RESTORED
+        account.isBusy || !account.isRestored -> SessionState.CONNECTING
+        else -> SessionState.LAPSED
+    }
+
+    return RememberedAccount(
+        username = username,
+        state = state,
+        // Continue lands where Play lands, which is the point of the card: it is the shortest path
+        // to the character, not a second way of signing in.
+        onGo = {
+            onNavigate(if (state == SessionState.RESTORED) Screen.DASHBOARD else Screen.ACCOUNT)
+        },
+        onSwitch = {
+            onNavigate(Screen.ACCOUNT)
+            scope.launch { account.signOut() }
+        },
+    )
+}
+
+/**
  * One screen.
  *
  * Split out of [App] so that `App` is the shell — theme, startup, locale, audio, back gesture — and
@@ -268,6 +343,7 @@ private fun Destination(
 
         Screen.MENU -> MainMenuScreen(
             active = gate.profile,
+            remembered = rememberedAccount(account, onNavigate),
             connectivity = connectivity,
             // Play goes straight to the dashboard when a character is loaded and to the chooser
             // when none is — the original's Continue and Load Game behind one button, chosen by
@@ -322,18 +398,29 @@ private fun Destination(
         Screen.CAMPAIGN, Screen.CAMPAIGN_MATCH,
         Screen.CARDS, Screen.DECKS, Screen.INVENTORY, Screen.SHOP, Screen.HELP,
         -> gate.profile?.let { profile ->
-            CharacterDestination(
-                destination = destination,
-                profile = profile,
-                startup = startup,
-                gate = gate,
-                account = account,
-                chooser = chooser,
-                choice = choice,
-                clock = clock,
-                reporter = reporter,
-                onNavigate = onNavigate,
-            )
+            // The navigation bar, for the screens that have one. Provided here rather than passed
+            // down because eleven screens would otherwise carry two parameters that four of them
+            // never read — see [Navigation]. **Null on a match**, which is what keeps the board
+            // immersive: `destination.tab` answers null there, so no bar is drawn and none of the
+            // three match screens has to know a bar exists.
+            val navigation = destination.tab?.let { tab ->
+                Navigation(current = tab) { onNavigate(it.root) }
+            }
+
+            CompositionLocalProvider(LocalNavigation provides navigation) {
+                CharacterDestination(
+                    destination = destination,
+                    profile = profile,
+                    startup = startup,
+                    gate = gate,
+                    account = account,
+                    chooser = chooser,
+                    choice = choice,
+                    clock = clock,
+                    reporter = reporter,
+                    onNavigate = onNavigate,
+                )
+            }
         }
     }
 }
@@ -408,10 +495,10 @@ private fun CharacterDestination(
             profile = profile,
             onPlay = { onNavigate(Screen.OPPONENTS) },
             onStats = { onNavigate(Screen.STATS) },
-            onCards = { onNavigate(Screen.CARDS) },
+            // The collection and the shelf are the navigation bar's own two entries and are not
+            // repeated here; these two open the *other* tab of each — see [DashboardScreen].
             onDecks = { onNavigate(Screen.DECKS) },
             onInventory = { onNavigate(Screen.INVENTORY) },
-            onShop = { onNavigate(Screen.SHOP) },
             onHelp = { onNavigate(Screen.HELP) },
             // With a server, Logout means *sign out*: the token is dropped and the session ended,
             // not merely the screen changed. That is the distinction the original never made — its
@@ -682,11 +769,13 @@ private fun queueKeyFor(
     }
 
 /**
- * The four screens that read the card table: the collection, the decks, the bag and the shop.
+ * The four destinations that read the card table — which are **two screens**.
  *
- * All four take the same four arguments and differ only in which composable they call, which is
- * what makes them worth one function — and what keeps [CharacterDestination] under the complexity
- * detekt rejects. The card art is already provided by the caller.
+ * [Screen.CARDS] and [Screen.DECKS] are the two tabs of [CollectionScreen]; [Screen.SHOP] and
+ * [Screen.INVENTORY] are the two tabs of [StoreScreen]. The enum still has four entries because
+ * four things are still openable by name, and a caller that wants the bag should be able to say so
+ * — what changed is that arriving at one of a pair now puts the other one tab away instead of two
+ * screens and a dashboard away. See [CollectionScreen] for why these four were the ones to pair.
  */
 @Composable
 private fun CollectionDestination(
@@ -697,16 +786,25 @@ private fun CollectionDestination(
     onBack: () -> Unit,
 ) {
     when (destination) {
-        Screen.CARDS -> CardListScreen(profile = profile, catalog = catalog, onBack = onBack)
+        Screen.CARDS, Screen.DECKS -> CollectionScreen(
+            profile = profile,
+            catalog = catalog,
+            initial = if (destination == Screen.DECKS) {
+                CollectionTab.DECKS
+            } else {
+                CollectionTab.CARDS
+            },
+            onPersist = onPersist,
+            onBack = onBack,
+        )
 
-        Screen.DECKS ->
-            DecksScreen(profile, catalog, onPersist = onPersist, onBack = onBack)
-
-        Screen.INVENTORY ->
-            InventoryScreen(profile, catalog, onPersist = onPersist, onBack = onBack)
-
-        Screen.SHOP ->
-            ShopScreen(profile, catalog, onPersist = onPersist, onBack = onBack)
+        Screen.SHOP, Screen.INVENTORY -> StoreScreen(
+            profile = profile,
+            catalog = catalog,
+            initial = if (destination == Screen.INVENTORY) StoreTab.BAG else StoreTab.SHOP,
+            onPersist = onPersist,
+            onBack = onBack,
+        )
 
         else -> Unit
     }

@@ -198,7 +198,8 @@ private suspend fun loadImage(name: String): ImageBitmap =
 suspend fun loadLogo(): ImageBitmap = loadImage("logo.png")
 
 /** Where [`import_card_art.py`](../../../../../../../tools/import_card_art.py) writes. */
-private const val ART_PATH = "files/art"
+/** Where both importers write: `files/art`, and the subdirectories [UiArt] reads. */
+internal const val ART_PATH = "files/art"
 private const val PLATE_TEXTURE = "cdbg"
 
 /** Every `cd*` glyph in `digits.xml` is 18x18; `cdbg` is 28x28 at y = 62. */

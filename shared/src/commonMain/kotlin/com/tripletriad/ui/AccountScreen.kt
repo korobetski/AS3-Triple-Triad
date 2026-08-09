@@ -2,16 +2,20 @@ package com.tripletriad.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +43,9 @@ const val ACCOUNT_PASSWORD_TEST_TAG: String = "account-password"
 const val ACCOUNT_SUBMIT_TEST_TAG: String = "account-submit"
 const val ACCOUNT_TOGGLE_TEST_TAG: String = "account-toggle"
 const val ACCOUNT_ERROR_TEST_TAG: String = "account-error"
+
+/** The bar under the title while a request is out — a restore on launch, or a submit. */
+const val ACCOUNT_BUSY_TEST_TAG: String = "account-busy"
 
 /**
  * Signing in, or creating an account — one screen with a switch, not two.
@@ -113,23 +120,46 @@ internal fun AccountScreen(
     val credentials = Credentials(username, password)
     val canSubmit = credentials.looksValid() && !session.isBusy
 
-    val title = if (isRegistering) "Create an account" else "Sign in"
+    val title = strings[if (isRegistering) StringKeys.CREATE_ACCOUNT else StringKeys.SIGN_IN]
+    val note = rememberNoteHost(ACCOUNT_ERROR_TEST_TAG)
+
+    // The refusal, shown once and where a message belongs — over the form rather than wedged
+    // between the password and the button, which pushed the button down as the player read it.
+    // Keyed on the failure, so the same refusal twice is announced twice.
+    LaunchedEffect(session.failure) {
+        session.failure?.let { note.show(it.message(strings)) }
+    }
 
     if (update?.isRequired == true) {
-        ScreenScaffold(title = "Update needed", onBack = onBack) { UpdateNotice(update) }
+        ScreenScaffold(title = strings[StringKeys.UPDATE_NEEDED], onBack = onBack) {
+            UpdateNotice(update)
+        }
         return
     }
 
-    ScreenScaffold(title = title, onBack = onBack) {
+    ScreenScaffold(title = title, onBack = onBack, snackbar = note) {
         Column(
             modifier = Modifier.testTag(ACCOUNT_SCREEN_TEST_TAG).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // A bar rather than a spinner on the button: `restore()` and a submit both go through
+            // `isBusy`, and the first of those happens with nothing on screen to spin. Always laid
+            // out, so the form does not shift down the moment a request starts.
+            Box(modifier = Modifier.fillMaxWidth().height(ProgressHeight)) {
+                if (session.isBusy) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .testTag(ACCOUNT_BUSY_TEST_TAG)
+                            .fillMaxWidth()
+                            .height(ProgressHeight),
+                    )
+                }
+            }
+
             update?.let { UpdateNotice(it) }
 
             Text(
-                text = "Your character lives on the server: sign in from anywhere and your " +
-                    "cards, your MGP and your record come with you.",
+                text = strings[StringKeys.ACCOUNT_BLURB],
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = MUTED),
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -146,24 +176,15 @@ internal fun AccountScreen(
             AccountField(
                 value = password,
                 onValueChange = { password = it.take(Credentials.PASSWORD_LENGTH.last) },
-                label = "Password",
+                label = strings[StringKeys.PASSWORD],
                 tag = ACCOUNT_PASSWORD_TEST_TAG,
                 imeAction = ImeAction.Done,
                 isPassword = true,
                 contentType = if (isRegistering) ContentType.NewPassword else ContentType.Password,
             )
 
-            session.failure?.let { failure ->
-                Text(
-                    text = failure.message(),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.testTag(ACCOUNT_ERROR_TEST_TAG),
-                )
-            }
-
             WideButton(
-                label = if (isRegistering) "Create account" else "Sign in",
+                label = title,
                 tag = ACCOUNT_SUBMIT_TEST_TAG,
                 enabled = canSubmit,
                 onClick = {
@@ -197,11 +218,13 @@ internal fun AccountScreen(
                 horizontalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = if (isRegistering) {
-                        "Already have an account? Sign in"
-                    } else {
-                        "New here? Create an account"
-                    },
+                    text = strings[
+                        if (isRegistering) {
+                            StringKeys.ACCOUNT_TO_SIGN_IN
+                        } else {
+                            StringKeys.ACCOUNT_TO_REGISTER
+                        },
+                    ],
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
@@ -264,3 +287,6 @@ private fun AccountField(
             .fillMaxWidth(),
     )
 }
+
+/** Material's own indicator height, reserved whether or not anything is running. */
+private val ProgressHeight = 4.dp

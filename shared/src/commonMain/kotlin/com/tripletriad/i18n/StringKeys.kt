@@ -125,6 +125,24 @@ object StringKeys {
     /** `Multiplayer` — listed, and inert: PvP is Phase 5. */
     const val MULTIPLAYER: String = "STR_MULTIPLAYER"
     const val CARD_LIST: String = "STR_CARD_LIST"
+
+    /**
+     * `Cards` — the title over the collection and the decks once they share a screen.
+     *
+     * No AS3 equivalent, and deliberately not one of the two it covers: `STR_CARD_LIST` over a tab
+     * showing decks, or `STR_CARD_DECKS` over one showing the collection, would each be wrong half
+     * the time. The two tabs keep their own names.
+     */
+    const val CARDS: String = "APP_CARDS"
+
+    /**
+     * `Home` — the navigation bar's name for the dashboard.
+     *
+     * No AS3 equivalent for the same reason as [CARDS]: the original had no bar, and its dashboard
+     * was titled with the character's name. That is still its app-bar title; this is what the bar
+     * calls the place it goes back to.
+     */
+    const val HOME: String = "APP_HOME"
     const val CARD_DECKS: String = "STR_CARD_DECKS"
     const val INVENTORY: String = "STR_INVENTORY"
     const val SHOP: String = "STR_SHOP"
@@ -252,6 +270,67 @@ object StringKeys {
      */
     const val CAMPAIGN_STEP: String = "APP_CAMPAIGN_STEP"
 
+    // ---- The account the menu remembers.
+    /**
+     * `Servers` — the menu card, which was the one hard-coded English label left on that screen.
+     *
+     * `MenuScreen.as` has no such entry: the AS3 build talked to one host, named at compile time.
+     */
+    const val SERVERS: String = "APP_SERVERS"
+
+    /** `Continue` — the AS3's own, and what the resume card offers on a live session. */
+    const val CONTINUE: String = "STR_CONTINUE"
+
+    /** `Signed in` — a stored token was accepted and no form was needed. */
+    const val SESSION_RESTORED: String = "APP_SESSION_RESTORED"
+
+    /** `Reconnecting…` — `AccountSession.restore` is still asking. */
+    const val SESSION_CONNECTING: String = "APP_SESSION_CONNECTING"
+
+    /** `Session expired` — the name is remembered and the token is not usable. */
+    const val SESSION_LAPSED: String = "APP_SESSION_LAPSED"
+
+    /** `Sign in again` — the lapsed card's action, which opens the form with the name filled. */
+    const val SIGN_IN_AGAIN: String = "APP_SIGN_IN_AGAIN"
+
+    /** `Switch` — sign out, which is also what makes the app forget the name. */
+    const val SWITCH_ACCOUNT: String = "APP_SWITCH_ACCOUNT"
+
+    // ---- The sign-in form, which was the last screen written in hard-coded English.
+    /**
+     * `Sign in` — the form's title and its button.
+     *
+     * `STR_CONNECT` exists and is *Connect*, which in the AS3 meant joining the game's lobby. It is
+     * not the same claim, and reusing it would have been a translation chosen for being available.
+     */
+    const val SIGN_IN: String = "APP_SIGN_IN"
+
+    /** `Create an account`. */
+    const val CREATE_ACCOUNT: String = "APP_CREATE_ACCOUNT"
+
+    /** `Password` — no `STR_PASSWORD` in any bundle; the AS3 build had no accounts. */
+    const val PASSWORD: String = "APP_PASSWORD"
+
+    /** What an account buys: the character lives on the server. */
+    const val ACCOUNT_BLURB: String = "APP_ACCOUNT_BLURB"
+
+    /** `New here? Create an account` and its opposite. */
+    const val ACCOUNT_TO_REGISTER: String = "APP_ACCOUNT_TO_REGISTER"
+    const val ACCOUNT_TO_SIGN_IN: String = "APP_ACCOUNT_TO_SIGN_IN"
+
+    /** The title over a build the server will not serve. */
+    const val UPDATE_NEEDED: String = "APP_UPDATE_NEEDED"
+
+    // ---- What a refused request is told to the player. See `AccountResult.message`.
+    const val ERROR_OFFLINE: String = "APP_ERROR_OFFLINE"
+    const val ERROR_UPDATE: String = "APP_ERROR_UPDATE"
+
+    /** `The server answered {0}.` — a status code, for the failures with no better name. */
+    const val ERROR_STATUS: String = "APP_ERROR_STATUS"
+    const val ERROR_NAME_TAKEN: String = "APP_ERROR_NAME_TAKEN"
+    const val ERROR_BAD_CREDENTIALS: String = "APP_ERROR_BAD_CREDENTIALS"
+    const val ERROR_EXPIRED: String = "APP_ERROR_EXPIRED"
+
     /** Every key above, for the tests that assert each resolves. */
     val all: List<String> = listOf(
         NEXT_MATCH, YOU_WIN, YOU_LOSE, DRAW, SUDDEN_DEATH,
@@ -265,7 +344,7 @@ object StringKeys {
         DELETE, DELETE_CONFIRM, CANCEL, START, NO_PROFILE,
         OPPONENTS, RULES, MATCH_FEE, REWARDS, CHALLENGE, NO_OPPONENT,
         XP, DIFFICULTY, OPPONENT_TURN, ACHIEVEMENT_EARNED, REMATCH,
-        MULTIPLAYER, CARD_LIST, CARD_DECKS, INVENTORY, SHOP, HELP, LOGOUT,
+        MULTIPLAYER, CARD_LIST, CARDS, HOME, CARD_DECKS, INVENTORY, SHOP, HELP, LOGOUT,
         CARD_INFOS, TOTAL, SIDES, RARITY, CARD_TYPE, PICK_CARD, OWNED,
         DECK, DECK_POWER, RESET_DECK, SAVE, CHOOSE_DECK, RANDOM_DECK, NO_FULL_DECK,
         USE, SELL, DISCARD, BUY, CARD_SHOP, EMPTY_BAG, OBTAINED, ALREADY_OWNED, UNKNOWN_ITEM,
@@ -273,6 +352,12 @@ object StringKeys {
         TUTORIAL, TUTORIAL_1, TUTORIAL_2, TUTORIAL_3, TUTORIAL_4, TUTORIAL_5,
         TUTORIAL_6, TUTORIAL_7, TUTORIAL_8, TUTORIAL_9,
         CAMPAIGNS, CAMPAIGN_STEP,
+        SERVERS, CONTINUE, SESSION_RESTORED, SESSION_CONNECTING, SESSION_LAPSED,
+        SIGN_IN_AGAIN, SWITCH_ACCOUNT,
+        SIGN_IN, CREATE_ACCOUNT, PASSWORD, ACCOUNT_BLURB,
+        ACCOUNT_TO_REGISTER, ACCOUNT_TO_SIGN_IN, UPDATE_NEEDED,
+        ERROR_OFFLINE, ERROR_UPDATE, ERROR_STATUS,
+        ERROR_NAME_TAKEN, ERROR_BAD_CREDENTIALS, ERROR_EXPIRED,
     )
 
     /** The subset this port authored, which is the subset that may be untranslated. */

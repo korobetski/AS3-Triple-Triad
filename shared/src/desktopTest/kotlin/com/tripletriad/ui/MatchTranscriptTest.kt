@@ -3,7 +3,7 @@ package com.tripletriad.ui
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import com.tripletriad.data.loadCardCatalog
 import com.tripletriad.data.loadNpcCatalog
 import com.tripletriad.i18n.AppLocale
